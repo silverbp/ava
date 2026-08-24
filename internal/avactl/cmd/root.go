@@ -48,6 +48,9 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newCloseCmd())
 	root.AddCommand(newReconcileCmd())
 	root.AddCommand(newContextCmd())
+	root.AddCommand(newAcceptInviteCmd())
+	root.AddCommand(newWhoamiCmd())
+	root.AddCommand(newAdminCmd())
 	return root
 }
 

@@ -83,6 +83,15 @@ func (d *Document) Spacer(h float64) {
 	d.pdf.Ln(h)
 }
 
+// SummaryLine prints a bold label/value line with no border — for a
+// derived subtotal that stands outside any bordered table (e.g. a balance
+// sheet's "Net current assets" row between sections).
+func (d *Document) SummaryLine(label, value string) {
+	d.pdf.SetFont("Helvetica", "B", 10)
+	d.pdf.CellFormat(contentW*0.75, 6, d.tr(label), "", 0, "L", false, 0, "")
+	d.pdf.CellFormat(contentW*0.25, 6, d.tr(value), "", 1, "R", false, 0, "")
+}
+
 // SetSectionTitle prints a bold section heading, e.g. "Assets" on a
 // balance sheet or "Activity" on a statement.
 func (d *Document) SetSectionTitle(text string) {

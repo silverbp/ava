@@ -52,7 +52,8 @@ func init() {
 				return fmt.Sprintf("%s/%d", a.GetEntityType(), a.GetEntityId())
 			}},
 			{Header: "FILENAME", Value: func(v proto.Message) string { return v.(*avav1.Attachment).GetOriginalFilename() }},
-			{Header: "URL", Value: func(v proto.Message) string { return v.(*avav1.Attachment).GetStorageUrl() }},
+			{Header: "SIZE", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Attachment).GetFileSizeBytes()) }},
+			{Header: "CONTENT-TYPE", Value: func(v proto.Message) string { return v.(*avav1.Attachment).GetContentType() }},
 		},
 		Get: func(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
 			n, err := strconv.ParseInt(id, 10, 64)

@@ -45,3 +45,39 @@ func RequireBusinessRole(ctx context.Context, q *sqlcgen.Queries, businessID int
 	}
 	return nil
 }
+
+// RequireGlobalAdmin checks that the calling user is a global admin
+// (app_user.is_global_admin) — a system-wide capability, not scoped to any
+// one business. Used to gate creating a business at all, and (alongside
+// RequireBusinessRole) inviting a user into one — see
+// BusinessService/UserService in proto/ava/v1.
+func RequireGlobalAdmin(ctx context.Context, q *sqlcgen.Queries) error {
+	u, ok := UserFromContext(ctx)
+	if !ok {
+		return status.Error(codes.Unauthenticated, "no authenticated user")
+	}
+
+	appUser, err := q.GetAppUser(ctx, u.ID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return status.Error(codes.Unauthenticated, "no authenticated user")
+		}
+		return status.Errorf(codes.Internal, "checking admin status: %v", err)
+	}
+	if !appUser.IsGlobalAdmin {
+		return status.Error(codes.PermissionDenied, "global admin required")
+	}
+	return nil
+}
+
+// RequireGlobalAdminOrBusinessRole allows either a global admin (any
+// business) or a member of businessID with at least minRole — the
+// permission shape CreateBusinessInvite uses: a global admin can invite
+// into any business, and that business's own OWNER/ADMIN can invite into
+// their own.
+func RequireGlobalAdminOrBusinessRole(ctx context.Context, q *sqlcgen.Queries, businessID int64, minRole string) error {
+	if err := RequireGlobalAdmin(ctx, q); err == nil {
+		return nil
+	}
+	return RequireBusinessRole(ctx, q, businessID, minRole)
+}

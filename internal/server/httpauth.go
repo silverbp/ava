@@ -18,18 +18,9 @@ import (
 const rpDisplayName = "Ava"
 
 // newAuthMux serves the WebAuthn registration/login pages and their
-// begin/finish endpoints. In dev mode, avactl never reaches these (the
-// interceptor doesn't require a token at all), so the mux just answers
-// cleanly rather than starting a broken WebAuthn relying party.
+// begin/finish endpoints.
 func newAuthMux(store *db.Store, cfg config.Config) (http.Handler, error) {
 	mux := http.NewServeMux()
-
-	if cfg.AuthMode != config.AuthModePasskey {
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "passkey auth is disabled (AVA_AUTH_MODE=dev)", http.StatusServiceUnavailable)
-		})
-		return mux, nil
-	}
 
 	w, err := auth.NewWebAuthn(cfg.RPID, rpDisplayName, cfg.PublicBaseURL)
 	if err != nil {
@@ -53,12 +44,16 @@ type authHandlers struct {
 // start serves the page avactl login opens: it reads redirect_uri/state
 // from its own query string and, on success, hands the CLI's loopback
 // listener a one-time code via that redirect — see the inline JS below and
-// internal/auth/authcode.go.
+// internal/auth/authcode.go. invite_token, if present, is threaded through
+// to the register button — see auth.BeginRegistration: it's required to
+// create a brand-new account, so an invite link is
+// "/auth/start?invite_token=<token>".
 func (h *authHandlers) start(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := authStartTemplate.Execute(w, map[string]string{
 		"RedirectURI": r.URL.Query().Get("redirect_uri"),
 		"State":       r.URL.Query().Get("state"),
+		"InviteToken": r.URL.Query().Get("invite_token"),
 	}); err != nil {
 		slog.Error("rendering auth start page", "error", err)
 	}
@@ -68,6 +63,11 @@ func (h *authHandlers) registerBegin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email       string `json:"email"`
 		DisplayName string `json:"displayName"`
+		// InviteToken is required for a brand-new account (no existing
+		// app_user for this email) — see auth.BeginRegistration. Not needed
+		// when registering an additional device's passkey for an account
+		// that already exists.
+		InviteToken string `json:"inviteToken"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
 		http.Error(w, "email is required", http.StatusBadRequest)
@@ -78,9 +78,9 @@ func (h *authHandlers) registerBegin(w http.ResponseWriter, r *http.Request) {
 		displayName = req.Email
 	}
 
-	creation, sessionID, err := auth.BeginRegistration(r.Context(), h.store.Queries, h.webauthn, req.Email, displayName)
+	creation, sessionID, err := auth.BeginRegistration(r.Context(), h.store.Queries, h.webauthn, req.Email, displayName, req.InviteToken)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	writeJSON(w, map[string]any{"options": creation, "session_id": sessionID})
@@ -89,11 +89,12 @@ func (h *authHandlers) registerBegin(w http.ResponseWriter, r *http.Request) {
 func (h *authHandlers) registerFinish(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
 	sessionID := r.URL.Query().Get("session_id")
+	inviteToken := r.URL.Query().Get("invite_token")
 	if email == "" || sessionID == "" {
 		http.Error(w, "email and session_id are required", http.StatusBadRequest)
 		return
 	}
-	u, err := auth.FinishRegistration(r.Context(), h.store.Queries, h.webauthn, email, sessionID, r)
+	u, err := auth.FinishRegistration(r.Context(), h.store, h.webauthn, email, sessionID, inviteToken, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -161,7 +162,11 @@ var authStartTemplate = template.Must(template.New("auth-start").Parse(`<!DOCTYP
 <h1>Sign in to Ava</h1>
 <button id="login-btn">Sign in with a passkey</button>
 <hr>
-<p>New here?</p>
+{{if .InviteToken}}
+<p>You've been invited. Enter the email the invite was sent to:</p>
+{{else}}
+<p>New here? Ava is invite-only — ask a global admin or a business owner to invite your email, then open the link they send you.</p>
+{{end}}
 <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
 <button id="register-btn">Create a passkey</button>
 <p id="status"></p>
@@ -170,6 +175,7 @@ var authStartTemplate = template.Must(template.New("auth-start").Parse(`<!DOCTYP
 <script>
 const redirectURI = {{.RedirectURI}};
 const state = {{.State}};
+const inviteToken = {{.InviteToken}};
 
 function status(msg) { document.getElementById('status').textContent = msg; }
 function fail(msg) { document.getElementById('error').textContent = msg; }
@@ -203,7 +209,7 @@ async function register() {
     status('Requesting a new passkey challenge...');
     const beginResp = await fetch('/auth/webauthn/register/begin', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email: email}),
+      body: JSON.stringify({email: email, inviteToken: inviteToken}),
     });
     if (!beginResp.ok) throw new Error(await beginResp.text());
     const {options, session_id} = await beginResp.json();
@@ -232,7 +238,8 @@ async function register() {
 
     status('Finishing registration...');
     const finishResp = await fetch(
-      '/auth/webauthn/register/finish?email=' + encodeURIComponent(email) + '&session_id=' + encodeURIComponent(session_id),
+      '/auth/webauthn/register/finish?email=' + encodeURIComponent(email) + '&session_id=' + encodeURIComponent(session_id) +
+        '&invite_token=' + encodeURIComponent(inviteToken || ''),
       {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(credentialJSON)});
     if (!finishResp.ok) throw new Error(await finishResp.text());
     const {code} = await finishResp.json();

@@ -21,14 +21,18 @@ service EntityContextService {
 }
 
 // AttachmentService: same polymorphic entity_type/entity_id pattern, for
-// files. storage_url is caller-supplied — the API registers a reference to
-// a file already hosted elsewhere (this project has no object-storage
-// integration of its own yet); a presigned-upload flow is a natural
-// addition once one exists.
+// files. File bytes are streamed through this API and land in an internal
+// object-storage backend (SeaweedFS locally - see docker-compose.yml,
+// internal/storage) that no caller ever addresses directly: UploadAttachment
+// streams bytes in, DownloadAttachment streams bytes back out, and the
+// backend's storage key never appears in the Attachment message. Every
+// read/write is gated by ava's own auth (RequireBusinessRole) this way -
+// there are no unauthenticated, publicly-reachable attachment URLs.
 service AttachmentService {
   rpc GetAttachment(GetAttachmentRequest) returns (GetAttachmentResponse);
   rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse);
-  rpc CreateAttachment(CreateAttachmentRequest) returns (CreateAttachmentResponse);
+  rpc UploadAttachment(stream UploadAttachmentRequest) returns (UploadAttachmentResponse);
+  rpc DownloadAttachment(DownloadAttachmentRequest) returns (stream DownloadAttachmentResponse);
   rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
 }
 
@@ -89,18 +93,20 @@ message CreateEntityContextResponse {
   EntityContext entity_context = 1;
 }
 
+// No storage_url/storage_key here by design - the object-storage backend
+// stays entirely server-side (see AttachmentService above). Read the file
+// itself via DownloadAttachment.
 message Attachment {
   int64 id = 1;
   int64 business_id = 2;
   string entity_type = 3;
   int64 entity_id = 4;
   optional string original_filename = 5;
-  string storage_url = 6;
-  optional string content_type = 7;
-  optional int64 file_size_bytes = 8;
-  int32 display_sequence = 9;
-  optional int64 created_by_user_id = 10;
-  google.protobuf.Timestamp created_at = 11;
+  optional string content_type = 6;
+  optional int64 file_size_bytes = 7;
+  int32 display_sequence = 8;
+  optional int64 created_by_user_id = 9;
+  google.protobuf.Timestamp created_at = 10;
 }
 
 message GetAttachmentRequest {
@@ -121,19 +127,35 @@ message ListAttachmentsResponse {
   repeated Attachment attachments = 1;
 }
 
-message CreateAttachmentRequest {
+// The first message on an UploadAttachment stream must carry metadata (and
+// only metadata); every message after that must carry a chunk. Any other
+// order is a client error.
+message UploadAttachmentRequest {
+  oneof data {
+    UploadAttachmentMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UploadAttachmentMetadata {
   int64 business_id = 1;
   string entity_type = 2;
   int64 entity_id = 3;
   optional string original_filename = 4;
-  string storage_url = 5;
-  optional string content_type = 6;
-  optional int64 file_size_bytes = 7;
-  optional int32 display_sequence = 8;
+  optional string content_type = 5;
+  optional int32 display_sequence = 6;
 }
 
-message CreateAttachmentResponse {
+message UploadAttachmentResponse {
   Attachment attachment = 1;
+}
+
+message DownloadAttachmentRequest {
+  int64 id = 1;
+}
+
+message DownloadAttachmentResponse {
+  bytes chunk = 1;
 }
 
 message DeleteAttachmentRequest {

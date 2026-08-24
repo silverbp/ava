@@ -8,8 +8,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	"github.com/silverbp/ava/internal/config"
 )
 
 // publicMethods are reachable without a valid access token — AuthService
@@ -22,36 +20,61 @@ var publicMethods = map[string]bool{
 	"/ava.v1.AuthService/Logout":       true,
 }
 
-// UnaryInterceptor resolves the calling user for every RPC before it
-// reaches a handler. In dev mode, devUser is injected as the caller for
-// every request with no verification performed. In passkey mode, the
-// caller must present a valid "authorization: Bearer <access token>"
+// resolveContext is the shared body of UnaryInterceptor/StreamInterceptor:
+// the caller must present a valid "authorization: Bearer <access token>"
 // metadata entry, verified via verifyAccessToken — except for
-// publicMethods, which skip straight to the handler in both modes.
-func UnaryInterceptor(mode config.AuthMode, devUser *User, verifyAccessToken func(token string) (*User, error)) grpc.UnaryServerInterceptor {
+// publicMethods, which pass through unresolved.
+func resolveContext(ctx context.Context, verifyAccessToken func(token string) (*User, error), fullMethod string) (context.Context, error) {
+	if publicMethods[fullMethod] {
+		return ctx, nil
+	}
+	token, err := bearerToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+	u, err := verifyAccessToken(token)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid access token: %v", err)
+	}
+	return ContextWithUser(ctx, u), nil
+}
+
+// UnaryInterceptor resolves the calling user for every unary RPC before it
+// reaches a handler — see resolveContext.
+func UnaryInterceptor(verifyAccessToken func(token string) (*User, error)) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		if publicMethods[info.FullMethod] {
-			return handler(ctx, req)
-		}
-		switch mode {
-		case config.AuthModeDev:
-			ctx = ContextWithUser(ctx, devUser)
-		case config.AuthModePasskey:
-			token, err := bearerToken(ctx)
-			if err != nil {
-				return nil, err
-			}
-			u, err := verifyAccessToken(token)
-			if err != nil {
-				return nil, status.Errorf(codes.Unauthenticated, "invalid access token: %v", err)
-			}
-			ctx = ContextWithUser(ctx, u)
-		default:
-			return nil, status.Errorf(codes.Internal, "unknown auth mode %q", mode)
+		ctx, err := resolveContext(ctx, verifyAccessToken, info.FullMethod)
+		if err != nil {
+			return nil, err
 		}
 		return handler(ctx, req)
 	}
 }
+
+// StreamInterceptor is UnaryInterceptor's counterpart for client-streaming/
+// server-streaming/bidi RPCs (e.g. AttachmentService.UploadAttachment/
+// DownloadAttachment) — gRPC only ever applies a UnaryServerInterceptor to
+// unary RPCs, so without this registered too, a streaming handler's
+// stream.Context() would never carry a resolved user at all.
+func StreamInterceptor(verifyAccessToken func(token string) (*User, error)) grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		ctx, err := resolveContext(ss.Context(), verifyAccessToken, info.FullMethod)
+		if err != nil {
+			return err
+		}
+		return handler(srv, &authenticatedServerStream{ServerStream: ss, ctx: ctx})
+	}
+}
+
+// authenticatedServerStream overrides Context() to return the
+// user-resolved context StreamInterceptor built, since grpc.ServerStream
+// otherwise always returns the original (unauthenticated) one.
+type authenticatedServerStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s *authenticatedServerStream) Context() context.Context { return s.ctx }
 
 func bearerToken(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)

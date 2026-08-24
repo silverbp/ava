@@ -2,6 +2,9 @@ package pdf
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/shopspring/decimal"
 
 	"github.com/silverbp/ava/internal/reporting"
 )
@@ -32,7 +35,37 @@ func RenderTrialBalance(businessName string, asOf string, r *reporting.TrialBala
 	return d.Bytes()
 }
 
-// RenderBalanceSheet renders a BalanceSheetResult to PDF.
+// formatMoney renders a decimal the way this report family displays money:
+// thousands-grouped, with parentheses instead of a leading minus for a
+// negative value (standard accounting notation).
+func formatMoney(v decimal.Decimal) string {
+	s := groupThousands(v.Abs().StringFixed(2))
+	if v.IsNegative() {
+		return "(" + s + ")"
+	}
+	return s
+}
+
+func groupThousands(s string) string {
+	intPart, frac, hasFrac := strings.Cut(s, ".")
+	var out []byte
+	for i, c := range []byte(intPart) {
+		if i > 0 && (len(intPart)-i)%3 == 0 {
+			out = append(out, ',')
+		}
+		out = append(out, c)
+	}
+	if hasFrac {
+		return string(out) + "." + frac
+	}
+	return string(out)
+}
+
+// RenderBalanceSheet renders a BalanceSheetResult to PDF, grouped into the
+// balance_sheet_category sections computed by reporting.BalanceSheet, with
+// a two-column Asset/Liability layout and the derived subtotal rows between
+// sections (Net current assets, Total assets less current liabilities,
+// Total net assets) that a classic UK-style statutory balance sheet uses.
 func RenderBalanceSheet(businessName string, asOf string, r *reporting.BalanceSheetResult) ([]byte, error) {
 	d := New()
 	d.Header(businessName)
@@ -40,22 +73,39 @@ func RenderBalanceSheet(businessName string, asOf string, r *reporting.BalanceSh
 	d.Subtitle("As of " + asOf)
 
 	cols := []TableColumn{
-		{Header: "Code", Width: 0.2},
-		{Header: "Account", Width: 0.55},
-		{Header: "Balance", Width: 0.25, Right: true},
+		{Header: "Account", Width: 0.5},
+		{Header: "Asset", Width: 0.25, Right: true},
+		{Header: "Liability", Width: 0.25, Right: true},
 	}
-	section := func(title string, lines []reporting.AccountLine, total interface{ StringFixed(int32) string }) {
+	section := func(s reporting.BalanceSheetSection) {
 		d.Spacer(3)
-		d.SetSectionTitle(title)
+		d.SetSectionTitle(strings.ToUpper(s.Title))
 		var rows [][]string
-		for _, l := range lines {
-			rows = append(rows, []string{l.Code, l.Name, l.Amount.StringFixed(2)})
+		for _, l := range s.AssetLines {
+			rows = append(rows, []string{l.Name, formatMoney(l.Amount), ""})
 		}
-		d.Table(cols, rows, []string{"", "Total " + title, total.StringFixed(2)})
+		for _, l := range s.LiabilityLines {
+			rows = append(rows, []string{l.Name, "", formatMoney(l.Amount)})
+		}
+		d.Table(cols, rows, []string{s.Title + " (total)", formatMoney(s.TotalAssets), formatMoney(s.TotalLiabilities)})
 	}
-	section("Assets", r.Assets, r.TotalAssets)
-	section("Liabilities", r.Liabilities, r.TotalLiabilities)
-	section("Equity", r.Equity, r.TotalEquity)
+
+	// Fixed order from reporting.BalanceSheet: Long-term Assets, Current
+	// Assets & Liabilities, Long-term Liabilities, Capital & Reserves, then
+	// (only if non-empty) an Uncategorized catch-all.
+	for i, s := range r.Sections {
+		section(s)
+		switch i {
+		case 1: // after Current Assets & Liabilities
+			d.SummaryLine("Net current assets (liabilities)", formatMoney(r.NetCurrentAssets))
+			d.SummaryLine("Total assets less current liabilities", formatMoney(r.TotalAssetsLessCurrentLiabilities))
+		case 2: // after Long-term Liabilities
+			d.SummaryLine("Total net assets (liabilities)", formatMoney(r.TotalNetAssets))
+		}
+	}
+
+	d.Spacer(3)
+	d.Table(cols, nil, []string{"Total", formatMoney(r.TotalAssets), formatMoney(r.TotalLiabilities)})
 
 	return d.Bytes()
 }
@@ -82,10 +132,20 @@ func RenderIncomeStatement(businessName string, periodLabel string, r *reporting
 		d.Table(cols, rows, []string{"", "Total " + title, total.StringFixed(2)})
 	}
 	section("Revenue", r.Revenue, r.TotalRevenue)
-	section("Expenses", r.Expenses, r.TotalExpenses)
 
 	d.Spacer(3)
-	d.KeyValueRow("Net Income", r.NetIncome.StringFixed(2))
+	d.SummaryLine("Total Revenue", r.TotalRevenue.StringFixed(2))
+
+	section("Cost of Goods Sold", r.CostOfGoodsSold, r.TotalCostOfGoodsSold)
+
+	d.Spacer(3)
+	d.SummaryLine("Gross Profit", r.GrossProfit.StringFixed(2))
+
+	section("Operating Expenses", r.OperatingExpenses, r.TotalOperatingExpenses)
+
+	d.Spacer(3)
+	d.SummaryLine("Total Expenses", r.TotalExpenses.StringFixed(2))
+	d.SummaryLine("Net Income", r.NetIncome.StringFixed(2))
 
 	return d.Bytes()
 }

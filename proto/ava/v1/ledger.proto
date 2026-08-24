@@ -46,6 +46,8 @@ message LedgerAccount {
   optional int64 created_by_user_id = 14;
   google.protobuf.Timestamp created_at = 15;
   google.protobuf.Timestamp updated_at = 16;
+  optional int32 balance_sheet_category_id = 17;
+  bool is_cost_of_goods_sold = 18;
 }
 
 message GetLedgerAccountRequest {
@@ -74,6 +76,8 @@ message CreateLedgerAccountRequest {
   bool is_reconcilable = 7;
   bool is_container = 8;
   optional int32 cash_flow_category_id = 9;
+  optional int32 balance_sheet_category_id = 10;
+  bool is_cost_of_goods_sold = 11;
 }
 
 message CreateLedgerAccountResponse {
@@ -87,6 +91,8 @@ message UpdateLedgerAccountRequest {
   optional bool is_reconcilable = 4;
   optional bool is_container = 5;
   optional int32 cash_flow_category_id = 6;
+  optional int32 balance_sheet_category_id = 7;
+  optional bool is_cost_of_goods_sold = 8;
 }
 
 message UpdateLedgerAccountResponse {

@@ -862,6 +862,504 @@ func (x *DeactivateBusinessResponse) GetBusiness() *Business {
 	return nil
 }
 
+// BusinessInvite never carries the raw token or its hash -
+// CreateBusinessInviteResponse is the only place the raw token ever
+// appears, shown exactly once.
+type BusinessInvite struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BusinessId      int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	Email           string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	Role            string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	InvitedByUserId *int64                 `protobuf:"varint,5,opt,name=invited_by_user_id,json=invitedByUserId,proto3,oneof" json:"invited_by_user_id,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	AcceptedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=accepted_at,json=acceptedAt,proto3,oneof" json:"accepted_at,omitempty"`
+	RevokedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=revoked_at,json=revokedAt,proto3,oneof" json:"revoked_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BusinessInvite) Reset() {
+	*x = BusinessInvite{}
+	mi := &file_ava_v1_business_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BusinessInvite) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BusinessInvite) ProtoMessage() {}
+
+func (x *BusinessInvite) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BusinessInvite.ProtoReflect.Descriptor instead.
+func (*BusinessInvite) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *BusinessInvite) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *BusinessInvite) GetBusinessId() int64 {
+	if x != nil {
+		return x.BusinessId
+	}
+	return 0
+}
+
+func (x *BusinessInvite) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *BusinessInvite) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *BusinessInvite) GetInvitedByUserId() int64 {
+	if x != nil && x.InvitedByUserId != nil {
+		return *x.InvitedByUserId
+	}
+	return 0
+}
+
+func (x *BusinessInvite) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *BusinessInvite) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *BusinessInvite) GetAcceptedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AcceptedAt
+	}
+	return nil
+}
+
+func (x *BusinessInvite) GetRevokedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RevokedAt
+	}
+	return nil
+}
+
+type CreateBusinessInviteRequest struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	Email      string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	// OWNER, ADMIN, MEMBER, or VIEWER - see business_user.role.
+	Role          string `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBusinessInviteRequest) Reset() {
+	*x = CreateBusinessInviteRequest{}
+	mi := &file_ava_v1_business_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBusinessInviteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBusinessInviteRequest) ProtoMessage() {}
+
+func (x *CreateBusinessInviteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBusinessInviteRequest.ProtoReflect.Descriptor instead.
+func (*CreateBusinessInviteRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CreateBusinessInviteRequest) GetBusinessId() int64 {
+	if x != nil {
+		return x.BusinessId
+	}
+	return 0
+}
+
+func (x *CreateBusinessInviteRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *CreateBusinessInviteRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+type CreateBusinessInviteResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Invite *BusinessInvite        `protobuf:"bytes,1,opt,name=invite,proto3" json:"invite,omitempty"`
+	// The raw, unhashed token - shown exactly once. Share it with the
+	// invitee yourself (Slack, text, email); ava never sends it anywhere.
+	Token         string `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBusinessInviteResponse) Reset() {
+	*x = CreateBusinessInviteResponse{}
+	mi := &file_ava_v1_business_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBusinessInviteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBusinessInviteResponse) ProtoMessage() {}
+
+func (x *CreateBusinessInviteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBusinessInviteResponse.ProtoReflect.Descriptor instead.
+func (*CreateBusinessInviteResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateBusinessInviteResponse) GetInvite() *BusinessInvite {
+	if x != nil {
+		return x.Invite
+	}
+	return nil
+}
+
+func (x *CreateBusinessInviteResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type ListBusinessInvitesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBusinessInvitesRequest) Reset() {
+	*x = ListBusinessInvitesRequest{}
+	mi := &file_ava_v1_business_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBusinessInvitesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBusinessInvitesRequest) ProtoMessage() {}
+
+func (x *ListBusinessInvitesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBusinessInvitesRequest.ProtoReflect.Descriptor instead.
+func (*ListBusinessInvitesRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListBusinessInvitesRequest) GetBusinessId() int64 {
+	if x != nil {
+		return x.BusinessId
+	}
+	return 0
+}
+
+type ListBusinessInvitesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Invites       []*BusinessInvite      `protobuf:"bytes,1,rep,name=invites,proto3" json:"invites,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBusinessInvitesResponse) Reset() {
+	*x = ListBusinessInvitesResponse{}
+	mi := &file_ava_v1_business_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBusinessInvitesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBusinessInvitesResponse) ProtoMessage() {}
+
+func (x *ListBusinessInvitesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBusinessInvitesResponse.ProtoReflect.Descriptor instead.
+func (*ListBusinessInvitesResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListBusinessInvitesResponse) GetInvites() []*BusinessInvite {
+	if x != nil {
+		return x.Invites
+	}
+	return nil
+}
+
+type RevokeBusinessInviteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeBusinessInviteRequest) Reset() {
+	*x = RevokeBusinessInviteRequest{}
+	mi := &file_ava_v1_business_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeBusinessInviteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeBusinessInviteRequest) ProtoMessage() {}
+
+func (x *RevokeBusinessInviteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeBusinessInviteRequest.ProtoReflect.Descriptor instead.
+func (*RevokeBusinessInviteRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *RevokeBusinessInviteRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type RevokeBusinessInviteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Invite        *BusinessInvite        `protobuf:"bytes,1,opt,name=invite,proto3" json:"invite,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeBusinessInviteResponse) Reset() {
+	*x = RevokeBusinessInviteResponse{}
+	mi := &file_ava_v1_business_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeBusinessInviteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeBusinessInviteResponse) ProtoMessage() {}
+
+func (x *RevokeBusinessInviteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeBusinessInviteResponse.ProtoReflect.Descriptor instead.
+func (*RevokeBusinessInviteResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RevokeBusinessInviteResponse) GetInvite() *BusinessInvite {
+	if x != nil {
+		return x.Invite
+	}
+	return nil
+}
+
+type AcceptBusinessInviteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptBusinessInviteRequest) Reset() {
+	*x = AcceptBusinessInviteRequest{}
+	mi := &file_ava_v1_business_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptBusinessInviteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptBusinessInviteRequest) ProtoMessage() {}
+
+func (x *AcceptBusinessInviteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptBusinessInviteRequest.ProtoReflect.Descriptor instead.
+func (*AcceptBusinessInviteRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AcceptBusinessInviteRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type AcceptBusinessInviteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Business      *Business              `protobuf:"bytes,1,opt,name=business,proto3" json:"business,omitempty"`
+	Role          string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptBusinessInviteResponse) Reset() {
+	*x = AcceptBusinessInviteResponse{}
+	mi := &file_ava_v1_business_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptBusinessInviteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptBusinessInviteResponse) ProtoMessage() {}
+
+func (x *AcceptBusinessInviteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_business_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptBusinessInviteResponse.ProtoReflect.Descriptor instead.
+func (*AcceptBusinessInviteResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_business_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AcceptBusinessInviteResponse) GetBusiness() *Business {
+	if x != nil {
+		return x.Business
+	}
+	return nil
+}
+
+func (x *AcceptBusinessInviteResponse) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
 var File_ava_v1_business_proto protoreflect.FileDescriptor
 
 const file_ava_v1_business_proto_rawDesc = "" +
@@ -971,13 +1469,57 @@ const file_ava_v1_business_proto_rawDesc = "" +
 	"\x19DeactivateBusinessRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"J\n" +
 	"\x1aDeactivateBusinessResponse\x12,\n" +
-	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness2\xaf\x03\n" +
+	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness\"\xcb\x03\n" +
+	"\x0eBusinessInvite\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
+	"businessId\x12\x14\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x120\n" +
+	"\x12invited_by_user_id\x18\x05 \x01(\x03H\x00R\x0finvitedByUserId\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12@\n" +
+	"\vaccepted_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampH\x01R\n" +
+	"acceptedAt\x88\x01\x01\x12>\n" +
+	"\n" +
+	"revoked_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x02R\trevokedAt\x88\x01\x01B\x15\n" +
+	"\x13_invited_by_user_idB\x0e\n" +
+	"\f_accepted_atB\r\n" +
+	"\v_revoked_at\"h\n" +
+	"\x1bCreateBusinessInviteRequest\x12\x1f\n" +
+	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
+	"businessId\x12\x14\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"d\n" +
+	"\x1cCreateBusinessInviteResponse\x12.\n" +
+	"\x06invite\x18\x01 \x01(\v2\x16.ava.v1.BusinessInviteR\x06invite\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\"=\n" +
+	"\x1aListBusinessInvitesRequest\x12\x1f\n" +
+	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
+	"businessId\"O\n" +
+	"\x1bListBusinessInvitesResponse\x120\n" +
+	"\ainvites\x18\x01 \x03(\v2\x16.ava.v1.BusinessInviteR\ainvites\"-\n" +
+	"\x1bRevokeBusinessInviteRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"N\n" +
+	"\x1cRevokeBusinessInviteResponse\x12.\n" +
+	"\x06invite\x18\x01 \x01(\v2\x16.ava.v1.BusinessInviteR\x06invite\"3\n" +
+	"\x1bAcceptBusinessInviteRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"`\n" +
+	"\x1cAcceptBusinessInviteResponse\x12,\n" +
+	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role2\xb8\x06\n" +
 	"\x0fBusinessService\x12F\n" +
 	"\vGetBusiness\x12\x1a.ava.v1.GetBusinessRequest\x1a\x1b.ava.v1.GetBusinessResponse\x12U\n" +
 	"\x10ListMyBusinesses\x12\x1f.ava.v1.ListMyBusinessesRequest\x1a .ava.v1.ListMyBusinessesResponse\x12O\n" +
 	"\x0eCreateBusiness\x12\x1d.ava.v1.CreateBusinessRequest\x1a\x1e.ava.v1.CreateBusinessResponse\x12O\n" +
 	"\x0eUpdateBusiness\x12\x1d.ava.v1.UpdateBusinessRequest\x1a\x1e.ava.v1.UpdateBusinessResponse\x12[\n" +
-	"\x12DeactivateBusiness\x12!.ava.v1.DeactivateBusinessRequest\x1a\".ava.v1.DeactivateBusinessResponseB*Z(github.com/silverbp/ava/gen/ava/v1;avav1b\x06proto3"
+	"\x12DeactivateBusiness\x12!.ava.v1.DeactivateBusinessRequest\x1a\".ava.v1.DeactivateBusinessResponse\x12a\n" +
+	"\x14CreateBusinessInvite\x12#.ava.v1.CreateBusinessInviteRequest\x1a$.ava.v1.CreateBusinessInviteResponse\x12^\n" +
+	"\x13ListBusinessInvites\x12\".ava.v1.ListBusinessInvitesRequest\x1a#.ava.v1.ListBusinessInvitesResponse\x12a\n" +
+	"\x14RevokeBusinessInvite\x12#.ava.v1.RevokeBusinessInviteRequest\x1a$.ava.v1.RevokeBusinessInviteResponse\x12a\n" +
+	"\x14AcceptBusinessInvite\x12#.ava.v1.AcceptBusinessInviteRequest\x1a$.ava.v1.AcceptBusinessInviteResponseB*Z(github.com/silverbp/ava/gen/ava/v1;avav1b\x06proto3"
 
 var (
 	file_ava_v1_business_proto_rawDescOnce sync.Once
@@ -991,48 +1533,73 @@ func file_ava_v1_business_proto_rawDescGZIP() []byte {
 	return file_ava_v1_business_proto_rawDescData
 }
 
-var file_ava_v1_business_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_ava_v1_business_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_ava_v1_business_proto_goTypes = []any{
-	(*Business)(nil),                   // 0: ava.v1.Business
-	(*GetBusinessRequest)(nil),         // 1: ava.v1.GetBusinessRequest
-	(*GetBusinessResponse)(nil),        // 2: ava.v1.GetBusinessResponse
-	(*ListMyBusinessesRequest)(nil),    // 3: ava.v1.ListMyBusinessesRequest
-	(*BusinessMembership)(nil),         // 4: ava.v1.BusinessMembership
-	(*ListMyBusinessesResponse)(nil),   // 5: ava.v1.ListMyBusinessesResponse
-	(*CreateBusinessRequest)(nil),      // 6: ava.v1.CreateBusinessRequest
-	(*CreateBusinessResponse)(nil),     // 7: ava.v1.CreateBusinessResponse
-	(*UpdateBusinessRequest)(nil),      // 8: ava.v1.UpdateBusinessRequest
-	(*UpdateBusinessResponse)(nil),     // 9: ava.v1.UpdateBusinessResponse
-	(*DeactivateBusinessRequest)(nil),  // 10: ava.v1.DeactivateBusinessRequest
-	(*DeactivateBusinessResponse)(nil), // 11: ava.v1.DeactivateBusinessResponse
-	(*Decimal)(nil),                    // 12: ava.v1.Decimal
-	(*timestamppb.Timestamp)(nil),      // 13: google.protobuf.Timestamp
+	(*Business)(nil),                     // 0: ava.v1.Business
+	(*GetBusinessRequest)(nil),           // 1: ava.v1.GetBusinessRequest
+	(*GetBusinessResponse)(nil),          // 2: ava.v1.GetBusinessResponse
+	(*ListMyBusinessesRequest)(nil),      // 3: ava.v1.ListMyBusinessesRequest
+	(*BusinessMembership)(nil),           // 4: ava.v1.BusinessMembership
+	(*ListMyBusinessesResponse)(nil),     // 5: ava.v1.ListMyBusinessesResponse
+	(*CreateBusinessRequest)(nil),        // 6: ava.v1.CreateBusinessRequest
+	(*CreateBusinessResponse)(nil),       // 7: ava.v1.CreateBusinessResponse
+	(*UpdateBusinessRequest)(nil),        // 8: ava.v1.UpdateBusinessRequest
+	(*UpdateBusinessResponse)(nil),       // 9: ava.v1.UpdateBusinessResponse
+	(*DeactivateBusinessRequest)(nil),    // 10: ava.v1.DeactivateBusinessRequest
+	(*DeactivateBusinessResponse)(nil),   // 11: ava.v1.DeactivateBusinessResponse
+	(*BusinessInvite)(nil),               // 12: ava.v1.BusinessInvite
+	(*CreateBusinessInviteRequest)(nil),  // 13: ava.v1.CreateBusinessInviteRequest
+	(*CreateBusinessInviteResponse)(nil), // 14: ava.v1.CreateBusinessInviteResponse
+	(*ListBusinessInvitesRequest)(nil),   // 15: ava.v1.ListBusinessInvitesRequest
+	(*ListBusinessInvitesResponse)(nil),  // 16: ava.v1.ListBusinessInvitesResponse
+	(*RevokeBusinessInviteRequest)(nil),  // 17: ava.v1.RevokeBusinessInviteRequest
+	(*RevokeBusinessInviteResponse)(nil), // 18: ava.v1.RevokeBusinessInviteResponse
+	(*AcceptBusinessInviteRequest)(nil),  // 19: ava.v1.AcceptBusinessInviteRequest
+	(*AcceptBusinessInviteResponse)(nil), // 20: ava.v1.AcceptBusinessInviteResponse
+	(*Decimal)(nil),                      // 21: ava.v1.Decimal
+	(*timestamppb.Timestamp)(nil),        // 22: google.protobuf.Timestamp
 }
 var file_ava_v1_business_proto_depIdxs = []int32{
-	12, // 0: ava.v1.Business.default_tax_rate:type_name -> ava.v1.Decimal
-	13, // 1: ava.v1.Business.created_at:type_name -> google.protobuf.Timestamp
-	13, // 2: ava.v1.Business.updated_at:type_name -> google.protobuf.Timestamp
+	21, // 0: ava.v1.Business.default_tax_rate:type_name -> ava.v1.Decimal
+	22, // 1: ava.v1.Business.created_at:type_name -> google.protobuf.Timestamp
+	22, // 2: ava.v1.Business.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: ava.v1.GetBusinessResponse.business:type_name -> ava.v1.Business
 	0,  // 4: ava.v1.BusinessMembership.business:type_name -> ava.v1.Business
 	4,  // 5: ava.v1.ListMyBusinessesResponse.memberships:type_name -> ava.v1.BusinessMembership
 	0,  // 6: ava.v1.CreateBusinessResponse.business:type_name -> ava.v1.Business
 	0,  // 7: ava.v1.UpdateBusinessResponse.business:type_name -> ava.v1.Business
 	0,  // 8: ava.v1.DeactivateBusinessResponse.business:type_name -> ava.v1.Business
-	1,  // 9: ava.v1.BusinessService.GetBusiness:input_type -> ava.v1.GetBusinessRequest
-	3,  // 10: ava.v1.BusinessService.ListMyBusinesses:input_type -> ava.v1.ListMyBusinessesRequest
-	6,  // 11: ava.v1.BusinessService.CreateBusiness:input_type -> ava.v1.CreateBusinessRequest
-	8,  // 12: ava.v1.BusinessService.UpdateBusiness:input_type -> ava.v1.UpdateBusinessRequest
-	10, // 13: ava.v1.BusinessService.DeactivateBusiness:input_type -> ava.v1.DeactivateBusinessRequest
-	2,  // 14: ava.v1.BusinessService.GetBusiness:output_type -> ava.v1.GetBusinessResponse
-	5,  // 15: ava.v1.BusinessService.ListMyBusinesses:output_type -> ava.v1.ListMyBusinessesResponse
-	7,  // 16: ava.v1.BusinessService.CreateBusiness:output_type -> ava.v1.CreateBusinessResponse
-	9,  // 17: ava.v1.BusinessService.UpdateBusiness:output_type -> ava.v1.UpdateBusinessResponse
-	11, // 18: ava.v1.BusinessService.DeactivateBusiness:output_type -> ava.v1.DeactivateBusinessResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	22, // 9: ava.v1.BusinessInvite.created_at:type_name -> google.protobuf.Timestamp
+	22, // 10: ava.v1.BusinessInvite.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 11: ava.v1.BusinessInvite.accepted_at:type_name -> google.protobuf.Timestamp
+	22, // 12: ava.v1.BusinessInvite.revoked_at:type_name -> google.protobuf.Timestamp
+	12, // 13: ava.v1.CreateBusinessInviteResponse.invite:type_name -> ava.v1.BusinessInvite
+	12, // 14: ava.v1.ListBusinessInvitesResponse.invites:type_name -> ava.v1.BusinessInvite
+	12, // 15: ava.v1.RevokeBusinessInviteResponse.invite:type_name -> ava.v1.BusinessInvite
+	0,  // 16: ava.v1.AcceptBusinessInviteResponse.business:type_name -> ava.v1.Business
+	1,  // 17: ava.v1.BusinessService.GetBusiness:input_type -> ava.v1.GetBusinessRequest
+	3,  // 18: ava.v1.BusinessService.ListMyBusinesses:input_type -> ava.v1.ListMyBusinessesRequest
+	6,  // 19: ava.v1.BusinessService.CreateBusiness:input_type -> ava.v1.CreateBusinessRequest
+	8,  // 20: ava.v1.BusinessService.UpdateBusiness:input_type -> ava.v1.UpdateBusinessRequest
+	10, // 21: ava.v1.BusinessService.DeactivateBusiness:input_type -> ava.v1.DeactivateBusinessRequest
+	13, // 22: ava.v1.BusinessService.CreateBusinessInvite:input_type -> ava.v1.CreateBusinessInviteRequest
+	15, // 23: ava.v1.BusinessService.ListBusinessInvites:input_type -> ava.v1.ListBusinessInvitesRequest
+	17, // 24: ava.v1.BusinessService.RevokeBusinessInvite:input_type -> ava.v1.RevokeBusinessInviteRequest
+	19, // 25: ava.v1.BusinessService.AcceptBusinessInvite:input_type -> ava.v1.AcceptBusinessInviteRequest
+	2,  // 26: ava.v1.BusinessService.GetBusiness:output_type -> ava.v1.GetBusinessResponse
+	5,  // 27: ava.v1.BusinessService.ListMyBusinesses:output_type -> ava.v1.ListMyBusinessesResponse
+	7,  // 28: ava.v1.BusinessService.CreateBusiness:output_type -> ava.v1.CreateBusinessResponse
+	9,  // 29: ava.v1.BusinessService.UpdateBusiness:output_type -> ava.v1.UpdateBusinessResponse
+	11, // 30: ava.v1.BusinessService.DeactivateBusiness:output_type -> ava.v1.DeactivateBusinessResponse
+	14, // 31: ava.v1.BusinessService.CreateBusinessInvite:output_type -> ava.v1.CreateBusinessInviteResponse
+	16, // 32: ava.v1.BusinessService.ListBusinessInvites:output_type -> ava.v1.ListBusinessInvitesResponse
+	18, // 33: ava.v1.BusinessService.RevokeBusinessInvite:output_type -> ava.v1.RevokeBusinessInviteResponse
+	20, // 34: ava.v1.BusinessService.AcceptBusinessInvite:output_type -> ava.v1.AcceptBusinessInviteResponse
+	26, // [26:35] is the sub-list for method output_type
+	17, // [17:26] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_business_proto_init() }
@@ -1044,13 +1611,14 @@ func file_ava_v1_business_proto_init() {
 	file_ava_v1_business_proto_msgTypes[0].OneofWrappers = []any{}
 	file_ava_v1_business_proto_msgTypes[6].OneofWrappers = []any{}
 	file_ava_v1_business_proto_msgTypes[8].OneofWrappers = []any{}
+	file_ava_v1_business_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_business_proto_rawDesc), len(file_ava_v1_business_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

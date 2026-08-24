@@ -1,11 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/silverbp/ava/internal/db"
 	"github.com/silverbp/ava/internal/db/sqlcgen"
 	"github.com/silverbp/ava/internal/moneypb"
+	"github.com/silverbp/ava/internal/storage"
 )
 
 // --- EntityContextService ---
@@ -158,13 +162,19 @@ func entityContextToProto(ec sqlcgen.EntityContext) (*avav1.EntityContext, error
 
 // --- AttachmentService ---
 
+// attachmentStreamChunkSize caps how much of a file is buffered per
+// stream.Send/read at once - well under gRPC's default 4MB max message
+// size.
+const attachmentStreamChunkSize = 256 * 1024
+
 type attachmentService struct {
 	avav1.UnimplementedAttachmentServiceServer
 	store *db.Store
+	blobs *storage.Store
 }
 
-func newAttachmentService(store *db.Store) *attachmentService {
-	return &attachmentService{store: store}
+func newAttachmentService(store *db.Store, blobs *storage.Store) *attachmentService {
+	return &attachmentService{store: store, blobs: blobs}
 }
 
 func (s *attachmentService) GetAttachment(ctx context.Context, req *avav1.GetAttachmentRequest) (*avav1.GetAttachmentResponse, error) {
@@ -200,41 +210,122 @@ func (s *attachmentService) ListAttachments(ctx context.Context, req *avav1.List
 	return resp, nil
 }
 
-func (s *attachmentService) CreateAttachment(ctx context.Context, req *avav1.CreateAttachmentRequest) (*avav1.CreateAttachmentResponse, error) {
+// UploadAttachment streams a file's bytes in from the client, buffers them
+// in memory (fine for the receipt/contract/logo-sized files this is meant
+// for; a very large file would need a different approach), and writes them
+// to the object-storage backend once the stream ends - so a failed/partial
+// upload never creates a half-written object or a dangling attachment row.
+// The first message must carry metadata; every message after that must
+// carry a chunk.
+func (s *attachmentService) UploadAttachment(stream grpc.ClientStreamingServer[avav1.UploadAttachmentRequest, avav1.UploadAttachmentResponse]) error {
+	ctx := stream.Context()
 	u, ok := auth.UserFromContext(ctx)
 	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
+		return status.Error(codes.Unauthenticated, "no authenticated user")
 	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "MEMBER"); err != nil {
-		return nil, err
+
+	first, err := stream.Recv()
+	if err != nil {
+		return err
 	}
-	if req.GetStorageUrl() == "" {
-		return nil, status.Error(codes.InvalidArgument, "storage_url is required")
+	meta := first.GetMetadata()
+	if meta == nil {
+		return status.Error(codes.InvalidArgument, "the first message on an upload stream must carry metadata")
 	}
-	if err := validateEntityRef(ctx, s.store.Queries, req.GetBusinessId(), req.GetEntityType(), req.GetEntityId()); err != nil {
-		return nil, err
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, meta.GetBusinessId(), "MEMBER"); err != nil {
+		return err
+	}
+	if err := validateEntityRef(ctx, s.store.Queries, meta.GetBusinessId(), meta.GetEntityType(), meta.GetEntityId()); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	for {
+		msg, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if msg.GetMetadata() != nil {
+			return status.Error(codes.InvalidArgument, "metadata must only be sent as the first message")
+		}
+		buf.Write(msg.GetChunk())
+	}
+	if buf.Len() == 0 {
+		return status.Error(codes.InvalidArgument, "no file content received")
+	}
+
+	key := storage.NewKey()
+	contentType := ""
+	if meta.ContentType != nil {
+		contentType = meta.GetContentType()
+	}
+	if err := s.blobs.Put(ctx, key, bytes.NewReader(buf.Bytes()), int64(buf.Len()), contentType); err != nil {
+		return status.Errorf(codes.Internal, "storing attachment: %v", err)
 	}
 
 	var displaySequence int32
-	if req.DisplaySequence != nil {
-		displaySequence = req.GetDisplaySequence()
+	if meta.DisplaySequence != nil {
+		displaySequence = meta.GetDisplaySequence()
 	}
-
+	size := int64(buf.Len())
 	created, err := s.store.Queries.CreateAttachment(ctx, sqlcgen.CreateAttachmentParams{
-		BusinessID:       req.GetBusinessId(),
-		EntityType:       req.GetEntityType(),
-		EntityID:         req.GetEntityId(),
-		OriginalFilename: req.OriginalFilename,
-		StorageUrl:       req.GetStorageUrl(),
-		ContentType:      req.ContentType,
-		FileSizeBytes:    req.FileSizeBytes,
+		BusinessID:       meta.GetBusinessId(),
+		EntityType:       meta.GetEntityType(),
+		EntityID:         meta.GetEntityId(),
+		OriginalFilename: meta.OriginalFilename,
+		StorageKey:       key,
+		ContentType:      meta.ContentType,
+		FileSizeBytes:    &size,
 		DisplaySequence:  displaySequence,
 		CreatedByUserID:  &u.ID,
 	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return translatePgError(err)
 	}
-	return &avav1.CreateAttachmentResponse{Attachment: attachmentToProto(created)}, nil
+	return stream.SendAndClose(&avav1.UploadAttachmentResponse{Attachment: attachmentToProto(created)})
+}
+
+// DownloadAttachment streams a file's bytes back out. This - not a
+// storage_url handed to the client - is the only way to read an
+// attachment's content, so every read is gated by ava's own auth
+// (RequireBusinessRole) rather than an unauthenticated storage URL.
+func (s *attachmentService) DownloadAttachment(req *avav1.DownloadAttachmentRequest, stream grpc.ServerStreamingServer[avav1.DownloadAttachmentResponse]) error {
+	ctx := stream.Context()
+	a, err := s.store.Queries.GetAttachment(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return status.Errorf(codes.NotFound, "attachment %d not found", req.GetId())
+		}
+		return translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, a.BusinessID, "VIEWER"); err != nil {
+		return err
+	}
+
+	obj, err := s.blobs.Get(ctx, a.StorageKey)
+	if err != nil {
+		return status.Errorf(codes.Internal, "reading attachment: %v", err)
+	}
+	defer obj.Close()
+
+	buf := make([]byte, attachmentStreamChunkSize)
+	for {
+		n, readErr := obj.Read(buf)
+		if n > 0 {
+			if sendErr := stream.Send(&avav1.DownloadAttachmentResponse{Chunk: buf[:n]}); sendErr != nil {
+				return sendErr
+			}
+		}
+		if errors.Is(readErr, io.EOF) {
+			return nil
+		}
+		if readErr != nil {
+			return status.Errorf(codes.Internal, "reading attachment: %v", readErr)
+		}
+	}
 }
 
 func (s *attachmentService) DeleteAttachment(ctx context.Context, req *avav1.DeleteAttachmentRequest) (*avav1.DeleteAttachmentResponse, error) {
@@ -262,7 +353,6 @@ func attachmentToProto(a sqlcgen.Attachment) *avav1.Attachment {
 		EntityType:       a.EntityType,
 		EntityId:         a.EntityID,
 		OriginalFilename: a.OriginalFilename,
-		StorageUrl:       a.StorageUrl,
 		ContentType:      a.ContentType,
 		FileSizeBytes:    a.FileSizeBytes,
 		DisplaySequence:  a.DisplaySequence,

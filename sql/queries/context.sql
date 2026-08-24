@@ -25,7 +25,7 @@ WHERE id = $1;
 
 -- name: CreateAttachment :one
 INSERT INTO attachment (
-    business_id, entity_type, entity_id, original_filename, storage_url,
+    business_id, entity_type, entity_id, original_filename, storage_key,
     content_type, file_size_bytes, display_sequence, created_by_user_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9

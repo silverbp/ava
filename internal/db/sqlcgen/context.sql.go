@@ -13,12 +13,12 @@ import (
 
 const createAttachment = `-- name: CreateAttachment :one
 INSERT INTO attachment (
-    business_id, entity_type, entity_id, original_filename, storage_url,
+    business_id, entity_type, entity_id, original_filename, storage_key,
     content_type, file_size_bytes, display_sequence, created_by_user_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING id, business_id, entity_type, entity_id, original_filename, storage_url, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at
+RETURNING id, business_id, entity_type, entity_id, original_filename, storage_key, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at
 `
 
 type CreateAttachmentParams struct {
@@ -26,7 +26,7 @@ type CreateAttachmentParams struct {
 	EntityType       string  `json:"entity_type"`
 	EntityID         int64   `json:"entity_id"`
 	OriginalFilename *string `json:"original_filename"`
-	StorageUrl       string  `json:"storage_url"`
+	StorageKey       string  `json:"storage_key"`
 	ContentType      *string `json:"content_type"`
 	FileSizeBytes    *int64  `json:"file_size_bytes"`
 	DisplaySequence  int32   `json:"display_sequence"`
@@ -39,7 +39,7 @@ func (q *Queries) CreateAttachment(ctx context.Context, arg CreateAttachmentPara
 		arg.EntityType,
 		arg.EntityID,
 		arg.OriginalFilename,
-		arg.StorageUrl,
+		arg.StorageKey,
 		arg.ContentType,
 		arg.FileSizeBytes,
 		arg.DisplaySequence,
@@ -52,7 +52,7 @@ func (q *Queries) CreateAttachment(ctx context.Context, arg CreateAttachmentPara
 		&i.EntityType,
 		&i.EntityID,
 		&i.OriginalFilename,
-		&i.StorageUrl,
+		&i.StorageKey,
 		&i.ContentType,
 		&i.FileSizeBytes,
 		&i.DisplaySequence,
@@ -120,7 +120,7 @@ func (q *Queries) CreateEntityContext(ctx context.Context, arg CreateEntityConte
 const deleteAttachment = `-- name: DeleteAttachment :one
 UPDATE attachment SET deleted_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, entity_type, entity_id, original_filename, storage_url, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at
+RETURNING id, business_id, entity_type, entity_id, original_filename, storage_key, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at
 `
 
 func (q *Queries) DeleteAttachment(ctx context.Context, id int64) (Attachment, error) {
@@ -132,7 +132,7 @@ func (q *Queries) DeleteAttachment(ctx context.Context, id int64) (Attachment, e
 		&i.EntityType,
 		&i.EntityID,
 		&i.OriginalFilename,
-		&i.StorageUrl,
+		&i.StorageKey,
 		&i.ContentType,
 		&i.FileSizeBytes,
 		&i.DisplaySequence,
@@ -144,7 +144,7 @@ func (q *Queries) DeleteAttachment(ctx context.Context, id int64) (Attachment, e
 }
 
 const getAttachment = `-- name: GetAttachment :one
-SELECT id, business_id, entity_type, entity_id, original_filename, storage_url, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at FROM attachment WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, entity_type, entity_id, original_filename, storage_key, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at FROM attachment WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetAttachment(ctx context.Context, id int64) (Attachment, error) {
@@ -156,7 +156,7 @@ func (q *Queries) GetAttachment(ctx context.Context, id int64) (Attachment, erro
 		&i.EntityType,
 		&i.EntityID,
 		&i.OriginalFilename,
-		&i.StorageUrl,
+		&i.StorageKey,
 		&i.ContentType,
 		&i.FileSizeBytes,
 		&i.DisplaySequence,
@@ -194,7 +194,7 @@ func (q *Queries) GetEntityContext(ctx context.Context, id int64) (EntityContext
 }
 
 const listAttachmentsForEntity = `-- name: ListAttachmentsForEntity :many
-SELECT id, business_id, entity_type, entity_id, original_filename, storage_url, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at FROM attachment
+SELECT id, business_id, entity_type, entity_id, original_filename, storage_key, content_type, file_size_bytes, display_sequence, created_by_user_id, created_at, deleted_at FROM attachment
 WHERE business_id = $1 AND entity_type = $2 AND entity_id = $3 AND deleted_at IS NULL
 ORDER BY display_sequence, id
 `
@@ -220,7 +220,7 @@ func (q *Queries) ListAttachmentsForEntity(ctx context.Context, arg ListAttachme
 			&i.EntityType,
 			&i.EntityID,
 			&i.OriginalFilename,
-			&i.StorageUrl,
+			&i.StorageKey,
 			&i.ContentType,
 			&i.FileSizeBytes,
 			&i.DisplaySequence,

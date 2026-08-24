@@ -15,25 +15,27 @@ const createLedgerAccount = `-- name: CreateLedgerAccount :one
 INSERT INTO ledger_account (
     business_id, account_type_id, parent_account_id, code, name, description,
     is_system, is_reconcilable, is_container, cash_flow_category_id,
-    created_by_user_id
+    balance_sheet_category_id, is_cost_of_goods_sold, created_by_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 )
-RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, is_active, created_by_user_id, created_at, updated_at
+RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, balance_sheet_category_id, is_cost_of_goods_sold, is_active, created_by_user_id, created_at, updated_at
 `
 
 type CreateLedgerAccountParams struct {
-	BusinessID         int64   `json:"business_id"`
-	AccountTypeID      int32   `json:"account_type_id"`
-	ParentAccountID    *int32  `json:"parent_account_id"`
-	Code               string  `json:"code"`
-	Name               string  `json:"name"`
-	Description        *string `json:"description"`
-	IsSystem           bool    `json:"is_system"`
-	IsReconcilable     bool    `json:"is_reconcilable"`
-	IsContainer        bool    `json:"is_container"`
-	CashFlowCategoryID *int32  `json:"cash_flow_category_id"`
-	CreatedByUserID    *int64  `json:"created_by_user_id"`
+	BusinessID             int64   `json:"business_id"`
+	AccountTypeID          int32   `json:"account_type_id"`
+	ParentAccountID        *int32  `json:"parent_account_id"`
+	Code                   string  `json:"code"`
+	Name                   string  `json:"name"`
+	Description            *string `json:"description"`
+	IsSystem               bool    `json:"is_system"`
+	IsReconcilable         bool    `json:"is_reconcilable"`
+	IsContainer            bool    `json:"is_container"`
+	CashFlowCategoryID     *int32  `json:"cash_flow_category_id"`
+	BalanceSheetCategoryID *int32  `json:"balance_sheet_category_id"`
+	IsCostOfGoodsSold      bool    `json:"is_cost_of_goods_sold"`
+	CreatedByUserID        *int64  `json:"created_by_user_id"`
 }
 
 func (q *Queries) CreateLedgerAccount(ctx context.Context, arg CreateLedgerAccountParams) (LedgerAccount, error) {
@@ -48,6 +50,8 @@ func (q *Queries) CreateLedgerAccount(ctx context.Context, arg CreateLedgerAccou
 		arg.IsReconcilable,
 		arg.IsContainer,
 		arg.CashFlowCategoryID,
+		arg.BalanceSheetCategoryID,
+		arg.IsCostOfGoodsSold,
 		arg.CreatedByUserID,
 	)
 	var i LedgerAccount
@@ -65,6 +69,8 @@ func (q *Queries) CreateLedgerAccount(ctx context.Context, arg CreateLedgerAccou
 		&i.DisplaySequence,
 		&i.DefaultTaxRateID,
 		&i.CashFlowCategoryID,
+		&i.BalanceSheetCategoryID,
+		&i.IsCostOfGoodsSold,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -159,7 +165,7 @@ func (q *Queries) CreateLedgerTransaction(ctx context.Context, arg CreateLedgerT
 const deactivateLedgerAccount = `-- name: DeactivateLedgerAccount :one
 UPDATE ledger_account SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1
-RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, is_active, created_by_user_id, created_at, updated_at
+RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, balance_sheet_category_id, is_cost_of_goods_sold, is_active, created_by_user_id, created_at, updated_at
 `
 
 func (q *Queries) DeactivateLedgerAccount(ctx context.Context, id int32) (LedgerAccount, error) {
@@ -179,6 +185,8 @@ func (q *Queries) DeactivateLedgerAccount(ctx context.Context, id int32) (Ledger
 		&i.DisplaySequence,
 		&i.DefaultTaxRateID,
 		&i.CashFlowCategoryID,
+		&i.BalanceSheetCategoryID,
+		&i.IsCostOfGoodsSold,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -188,7 +196,7 @@ func (q *Queries) DeactivateLedgerAccount(ctx context.Context, id int32) (Ledger
 }
 
 const getLedgerAccount = `-- name: GetLedgerAccount :one
-SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE id = $1
+SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, balance_sheet_category_id, is_cost_of_goods_sold, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE id = $1
 `
 
 func (q *Queries) GetLedgerAccount(ctx context.Context, id int32) (LedgerAccount, error) {
@@ -208,6 +216,8 @@ func (q *Queries) GetLedgerAccount(ctx context.Context, id int32) (LedgerAccount
 		&i.DisplaySequence,
 		&i.DefaultTaxRateID,
 		&i.CashFlowCategoryID,
+		&i.BalanceSheetCategoryID,
+		&i.IsCostOfGoodsSold,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -217,7 +227,7 @@ func (q *Queries) GetLedgerAccount(ctx context.Context, id int32) (LedgerAccount
 }
 
 const getLedgerAccountByCode = `-- name: GetLedgerAccountByCode :one
-SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE business_id = $1 AND code = $2
+SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, balance_sheet_category_id, is_cost_of_goods_sold, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE business_id = $1 AND code = $2
 `
 
 type GetLedgerAccountByCodeParams struct {
@@ -242,6 +252,8 @@ func (q *Queries) GetLedgerAccountByCode(ctx context.Context, arg GetLedgerAccou
 		&i.DisplaySequence,
 		&i.DefaultTaxRateID,
 		&i.CashFlowCategoryID,
+		&i.BalanceSheetCategoryID,
+		&i.IsCostOfGoodsSold,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -290,7 +302,7 @@ func (q *Queries) GetLedgerTransaction(ctx context.Context, id int64) (LedgerTra
 }
 
 const listLedgerAccounts = `-- name: ListLedgerAccounts :many
-SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE business_id = $1 ORDER BY code
+SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, balance_sheet_category_id, is_cost_of_goods_sold, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE business_id = $1 ORDER BY code
 `
 
 func (q *Queries) ListLedgerAccounts(ctx context.Context, businessID int64) ([]LedgerAccount, error) {
@@ -316,6 +328,8 @@ func (q *Queries) ListLedgerAccounts(ctx context.Context, businessID int64) ([]L
 			&i.DisplaySequence,
 			&i.DefaultTaxRateID,
 			&i.CashFlowCategoryID,
+			&i.BalanceSheetCategoryID,
+			&i.IsCostOfGoodsSold,
 			&i.IsActive,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
@@ -451,18 +465,22 @@ UPDATE ledger_account SET
     is_reconcilable = COALESCE($3, is_reconcilable),
     is_container = COALESCE($4, is_container),
     cash_flow_category_id = COALESCE($5, cash_flow_category_id),
+    balance_sheet_category_id = COALESCE($6, balance_sheet_category_id),
+    is_cost_of_goods_sold = COALESCE($7, is_cost_of_goods_sold),
     updated_at = NOW()
-WHERE id = $6
-RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, is_active, created_by_user_id, created_at, updated_at
+WHERE id = $8
+RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, default_tax_rate_id, cash_flow_category_id, balance_sheet_category_id, is_cost_of_goods_sold, is_active, created_by_user_id, created_at, updated_at
 `
 
 type UpdateLedgerAccountParams struct {
-	Name               *string `json:"name"`
-	Description        *string `json:"description"`
-	IsReconcilable     *bool   `json:"is_reconcilable"`
-	IsContainer        *bool   `json:"is_container"`
-	CashFlowCategoryID *int32  `json:"cash_flow_category_id"`
-	ID                 int32   `json:"id"`
+	Name                   *string `json:"name"`
+	Description            *string `json:"description"`
+	IsReconcilable         *bool   `json:"is_reconcilable"`
+	IsContainer            *bool   `json:"is_container"`
+	CashFlowCategoryID     *int32  `json:"cash_flow_category_id"`
+	BalanceSheetCategoryID *int32  `json:"balance_sheet_category_id"`
+	IsCostOfGoodsSold      *bool   `json:"is_cost_of_goods_sold"`
+	ID                     int32   `json:"id"`
 }
 
 func (q *Queries) UpdateLedgerAccount(ctx context.Context, arg UpdateLedgerAccountParams) (LedgerAccount, error) {
@@ -472,6 +490,8 @@ func (q *Queries) UpdateLedgerAccount(ctx context.Context, arg UpdateLedgerAccou
 		arg.IsReconcilable,
 		arg.IsContainer,
 		arg.CashFlowCategoryID,
+		arg.BalanceSheetCategoryID,
+		arg.IsCostOfGoodsSold,
 		arg.ID,
 	)
 	var i LedgerAccount
@@ -489,6 +509,8 @@ func (q *Queries) UpdateLedgerAccount(ctx context.Context, arg UpdateLedgerAccou
 		&i.DisplaySequence,
 		&i.DefaultTaxRateID,
 		&i.CashFlowCategoryID,
+		&i.BalanceSheetCategoryID,
+		&i.IsCostOfGoodsSold,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,

@@ -9,13 +9,14 @@ import (
 )
 
 type AppUser struct {
-	ID          int64            `json:"id"`
-	Email       string           `json:"email"`
-	DisplayName *string          `json:"display_name"`
-	IsActive    bool             `json:"is_active"`
-	CreatedAt   pgtype.Timestamp `json:"created_at"`
-	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
-	DeletedAt   pgtype.Timestamp `json:"deleted_at"`
+	ID            int64            `json:"id"`
+	Email         string           `json:"email"`
+	DisplayName   *string          `json:"display_name"`
+	IsGlobalAdmin bool             `json:"is_global_admin"`
+	IsActive      bool             `json:"is_active"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+	DeletedAt     pgtype.Timestamp `json:"deleted_at"`
 }
 
 type Attachment struct {
@@ -24,13 +25,19 @@ type Attachment struct {
 	EntityType       string           `json:"entity_type"`
 	EntityID         int64            `json:"entity_id"`
 	OriginalFilename *string          `json:"original_filename"`
-	StorageUrl       string           `json:"storage_url"`
+	StorageKey       string           `json:"storage_key"`
 	ContentType      *string          `json:"content_type"`
 	FileSizeBytes    *int64           `json:"file_size_bytes"`
 	DisplaySequence  int32            `json:"display_sequence"`
 	CreatedByUserID  *int64           `json:"created_by_user_id"`
 	CreatedAt        pgtype.Timestamp `json:"created_at"`
 	DeletedAt        pgtype.Timestamp `json:"deleted_at"`
+}
+
+type BalanceSheetCategory struct {
+	ID              int32  `json:"id"`
+	Name            string `json:"name"`
+	DisplaySequence int32  `json:"display_sequence"`
 }
 
 type BankStatement struct {
@@ -84,6 +91,20 @@ type Business struct {
 	CreatedAt               pgtype.Timestamp `json:"created_at"`
 	UpdatedAt               pgtype.Timestamp `json:"updated_at"`
 	DeletedAt               pgtype.Timestamp `json:"deleted_at"`
+}
+
+type BusinessInvite struct {
+	ID               int64            `json:"id"`
+	BusinessID       int64            `json:"business_id"`
+	Email            string           `json:"email"`
+	Role             string           `json:"role"`
+	TokenHash        string           `json:"token_hash"`
+	InvitedByUserID  *int64           `json:"invited_by_user_id"`
+	CreatedAt        pgtype.Timestamp `json:"created_at"`
+	ExpiresAt        pgtype.Timestamp `json:"expires_at"`
+	AcceptedAt       pgtype.Timestamp `json:"accepted_at"`
+	AcceptedByUserID *int64           `json:"accepted_by_user_id"`
+	RevokedAt        pgtype.Timestamp `json:"revoked_at"`
 }
 
 type BusinessUser struct {
@@ -234,23 +255,25 @@ type InvoiceLineItem struct {
 }
 
 type LedgerAccount struct {
-	ID                 int32            `json:"id"`
-	BusinessID         int64            `json:"business_id"`
-	AccountTypeID      int32            `json:"account_type_id"`
-	Code               string           `json:"code"`
-	Name               string           `json:"name"`
-	Description        *string          `json:"description"`
-	ParentAccountID    *int32           `json:"parent_account_id"`
-	IsSystem           bool             `json:"is_system"`
-	IsReconcilable     bool             `json:"is_reconcilable"`
-	IsContainer        bool             `json:"is_container"`
-	DisplaySequence    int32            `json:"display_sequence"`
-	DefaultTaxRateID   *int64           `json:"default_tax_rate_id"`
-	CashFlowCategoryID *int32           `json:"cash_flow_category_id"`
-	IsActive           bool             `json:"is_active"`
-	CreatedByUserID    *int64           `json:"created_by_user_id"`
-	CreatedAt          pgtype.Timestamp `json:"created_at"`
-	UpdatedAt          pgtype.Timestamp `json:"updated_at"`
+	ID                     int32            `json:"id"`
+	BusinessID             int64            `json:"business_id"`
+	AccountTypeID          int32            `json:"account_type_id"`
+	Code                   string           `json:"code"`
+	Name                   string           `json:"name"`
+	Description            *string          `json:"description"`
+	ParentAccountID        *int32           `json:"parent_account_id"`
+	IsSystem               bool             `json:"is_system"`
+	IsReconcilable         bool             `json:"is_reconcilable"`
+	IsContainer            bool             `json:"is_container"`
+	DisplaySequence        int32            `json:"display_sequence"`
+	DefaultTaxRateID       *int64           `json:"default_tax_rate_id"`
+	CashFlowCategoryID     *int32           `json:"cash_flow_category_id"`
+	BalanceSheetCategoryID *int32           `json:"balance_sheet_category_id"`
+	IsCostOfGoodsSold      bool             `json:"is_cost_of_goods_sold"`
+	IsActive               bool             `json:"is_active"`
+	CreatedByUserID        *int64           `json:"created_by_user_id"`
+	CreatedAt              pgtype.Timestamp `json:"created_at"`
+	UpdatedAt              pgtype.Timestamp `json:"updated_at"`
 }
 
 type LedgerAccountType struct {
@@ -377,6 +400,8 @@ type WebauthnCredential struct {
 	Transports      *string          `json:"transports"`
 	Aaguid          []byte           `json:"aaguid"`
 	SignCount       int64            `json:"sign_count"`
+	BackupEligible  bool             `json:"backup_eligible"`
+	BackupState     bool             `json:"backup_state"`
 	Name            *string          `json:"name"`
 	CreatedAt       pgtype.Timestamp `json:"created_at"`
 	LastUsedAt      pgtype.Timestamp `json:"last_used_at"`

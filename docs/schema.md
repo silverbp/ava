@@ -21,6 +21,7 @@ erDiagram
     business ||--o{ ledger_account : "business_id"
     ledger_account_type ||--o{ ledger_account : "account_type_id"
     cash_flow_category |o--o{ ledger_account : "cash_flow_category_id"
+    balance_sheet_category |o--o{ ledger_account : "balance_sheet_category_id"
     ledger_account |o--o{ ledger_account : "parent_account_id"
     business ||--o{ ledger_transaction : "business_id"
     ledger_transaction ||--o{ ledger_entry : "ledger_transaction_id"
@@ -46,6 +47,10 @@ erDiagram
         int id PK
         varchar name "Operating Investing Financing"
     }
+    balance_sheet_category {
+        int id PK
+        varchar name "Long-term Assets, Current Assets & Liabilities, Long-term Liabilities, Capital & Reserves, Opening Balances"
+    }
     ledger_account {
         int id PK
         bigint business_id FK
@@ -56,7 +61,9 @@ erDiagram
         boolean is_system
         boolean is_container
         boolean is_reconcilable
+        boolean is_cost_of_goods_sold
         int cash_flow_category_id FK
+        int balance_sheet_category_id FK
         bigint default_tax_rate_id FK
     }
     ledger_transaction {
@@ -98,11 +105,14 @@ diagram self-contained.
 - **`ledger_account`** — the chart of accounts. `parent_account_id` self-references for a tree;
   `is_system` protects default accounts from deletion or rename; `is_container` marks
   non-postable "folder" nodes used only for grouping; `is_reconcilable` flags which accounts
-  (bank, cash) are eligible for statement import. `id` is a real identity column (unlike
-  `ledger_account_type`/`cash_flow_category`, plain `INTEGER PRIMARY KEY` since they're
-  fixed, migration-seeded enums the app never inserts into) so the API can create accounts —
-  e.g. period-close's Income Summary/Retained Earnings provisioning — without hand-rolling ID
-  allocation.
+  (bank, cash) are eligible for statement import; `is_cost_of_goods_sold` splits an
+  EXPENSES-type account into Cost of Goods Sold vs. Operating Expenses on the income statement
+  (meaningless for any other account type), so Gross Profit (Revenue − COGS) can be computed —
+  the standard first subtotal on a US multi-step income statement. `id` is a real identity column
+  (unlike `ledger_account_type`/`cash_flow_category`/`balance_sheet_category`, plain
+  `INTEGER PRIMARY KEY` since they're fixed, migration-seeded enums the app never inserts into)
+  so the API can create accounts — e.g. period-close's Income Summary/Retained Earnings
+  provisioning — without hand-rolling ID allocation.
 - **`ledger_transaction` + `ledger_entry`** — the double-entry split: `ledger_transaction` is the
   shared event (date, description, reference); `ledger_entry` is each individual debit or credit
   posting under it. A CHECK constraint enforces exactly one side populated per entry, so
@@ -114,6 +124,14 @@ diagram self-contained.
 - **`cash_flow_category`** — Operating / Investing / Financing classification for cash-flow
   statements. Kept separate from `ledger_account_type` because balance-sheet placement is
   already derivable from account type + normal balance, but cash-flow placement is not.
+- **`balance_sheet_category`** — presentation-only grouping for the balance sheet report (Long-term
+  Assets, Current Assets & Liabilities, Long-term Liabilities, Capital & Reserves, Opening
+  Balances), computed by `internal/reporting.BalanceSheet`. Independent of `ledger_account_type`
+  for the same reason as `cash_flow_category`: nothing about an ASSETS account says whether it's
+  a *current* or *long-term* one (a bank account and a laptop are both ASSETS) — that's a
+  judgment call this table captures instead. Which column a line prints in (Asset vs. Liability)
+  still comes from `normal_balance`, not this table — a category like "Current Assets &
+  Liabilities" deliberately mixes both.
 - **`period_close` + `period_close_entry`** — end-of-period consolidation. Closing sweeps every
   REVENUE/EXPENSE account into a per-business Income Summary `ledger_account`, then Income
   Summary into Retained Earnings — two ordinary `is_system` EQUITY accounts, so the closing
@@ -405,7 +423,9 @@ erDiagram
         varchar entity_type
         bigint entity_id
         varchar original_filename
-        varchar storage_url
+        varchar storage_key
+        varchar content_type
+        bigint file_size_bytes
     }
 ```
 
@@ -422,8 +442,12 @@ relationships — see note below.
   `entity_id` deliberately carry **no database-level foreign key**, since they span many
   possible target tables. `superseded_by_id` lets a batch of old rows roll up into one new
   summary without deleting the trail.
-- **`attachment`** — same polymorphic pattern, for files. `storage_url` for anything migrated
-  in from elsewhere currently points at its original hosting — a re-hosting job, not yet done.
+- **`attachment`** — same polymorphic pattern, for files. `storage_key` is an object key in an
+  internal object-storage backend (SeaweedFS locally, S3-compatible — see
+  `internal/storage`, `docker-compose.yml`), not a URL, and is never exposed through the API:
+  `AttachmentService.UploadAttachment`/`DownloadAttachment` (`proto/ava/v1/context.proto`) stream
+  a file's bytes through gRPC itself, gated by the same `RequireBusinessRole` auth check as every
+  other resource, rather than exposing public, unauthenticated attachment URLs.
 
 ## Patterns worth carrying forward
 

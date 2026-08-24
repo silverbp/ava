@@ -75,17 +75,19 @@ func (s *ledgerAccountService) CreateLedgerAccount(ctx context.Context, req *ava
 	}
 
 	created, err := s.store.Queries.CreateLedgerAccount(ctx, sqlcgen.CreateLedgerAccountParams{
-		BusinessID:         req.GetBusinessId(),
-		AccountTypeID:      req.GetAccountTypeId(),
-		ParentAccountID:    req.ParentAccountId,
-		Code:               req.GetCode(),
-		Name:               req.GetName(),
-		Description:        req.Description,
-		IsSystem:           false, // system accounts are provisioned internally, never via the API
-		IsReconcilable:     req.GetIsReconcilable(),
-		IsContainer:        req.GetIsContainer(),
-		CashFlowCategoryID: req.CashFlowCategoryId,
-		CreatedByUserID:    &u.ID,
+		BusinessID:             req.GetBusinessId(),
+		AccountTypeID:          req.GetAccountTypeId(),
+		ParentAccountID:        req.ParentAccountId,
+		Code:                   req.GetCode(),
+		Name:                   req.GetName(),
+		Description:            req.Description,
+		IsSystem:               false, // system accounts are provisioned internally, never via the API
+		IsReconcilable:         req.GetIsReconcilable(),
+		IsContainer:            req.GetIsContainer(),
+		CashFlowCategoryID:     req.CashFlowCategoryId,
+		BalanceSheetCategoryID: req.BalanceSheetCategoryId,
+		IsCostOfGoodsSold:      req.GetIsCostOfGoodsSold(),
+		CreatedByUserID:        &u.ID,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -106,12 +108,14 @@ func (s *ledgerAccountService) UpdateLedgerAccount(ctx context.Context, req *ava
 	}
 
 	updated, err := s.store.Queries.UpdateLedgerAccount(ctx, sqlcgen.UpdateLedgerAccountParams{
-		ID:                 req.GetId(),
-		Name:               req.Name,
-		Description:        req.Description,
-		IsReconcilable:     req.IsReconcilable,
-		IsContainer:        req.IsContainer,
-		CashFlowCategoryID: req.CashFlowCategoryId,
+		ID:                     req.GetId(),
+		Name:                   req.Name,
+		Description:            req.Description,
+		IsReconcilable:         req.IsReconcilable,
+		IsContainer:            req.IsContainer,
+		CashFlowCategoryID:     req.CashFlowCategoryId,
+		BalanceSheetCategoryID: req.BalanceSheetCategoryId,
+		IsCostOfGoodsSold:      req.IsCostOfGoodsSold,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -337,22 +341,24 @@ func parseDecimalOrZero(d *avav1.Decimal) (decimal.Decimal, error) {
 
 func ledgerAccountToProto(a sqlcgen.LedgerAccount) *avav1.LedgerAccount {
 	return &avav1.LedgerAccount{
-		Id:                 a.ID,
-		BusinessId:         a.BusinessID,
-		AccountTypeId:      a.AccountTypeID,
-		ParentAccountId:    a.ParentAccountID,
-		Code:               a.Code,
-		Name:               a.Name,
-		Description:        a.Description,
-		IsSystem:           a.IsSystem,
-		IsReconcilable:     a.IsReconcilable,
-		IsContainer:        a.IsContainer,
-		CashFlowCategoryId: a.CashFlowCategoryID,
-		DefaultTaxRateId:   a.DefaultTaxRateID,
-		IsActive:           a.IsActive,
-		CreatedByUserId:    a.CreatedByUserID,
-		CreatedAt:          timestampProto(a.CreatedAt),
-		UpdatedAt:          timestampProto(a.UpdatedAt),
+		Id:                     a.ID,
+		BusinessId:             a.BusinessID,
+		AccountTypeId:          a.AccountTypeID,
+		ParentAccountId:        a.ParentAccountID,
+		Code:                   a.Code,
+		Name:                   a.Name,
+		Description:            a.Description,
+		IsSystem:               a.IsSystem,
+		IsReconcilable:         a.IsReconcilable,
+		IsContainer:            a.IsContainer,
+		CashFlowCategoryId:     a.CashFlowCategoryID,
+		BalanceSheetCategoryId: a.BalanceSheetCategoryID,
+		IsCostOfGoodsSold:      a.IsCostOfGoodsSold,
+		DefaultTaxRateId:       a.DefaultTaxRateID,
+		IsActive:               a.IsActive,
+		CreatedByUserId:        a.CreatedByUserID,
+		CreatedAt:              timestampProto(a.CreatedAt),
+		UpdatedAt:              timestampProto(a.UpdatedAt),
 	}
 }
 

@@ -124,16 +124,24 @@ func printBalanceSheet(cmd *cobra.Command, bs *avav1.BalanceSheet) error {
 		return output.PrintOne(cmd.OutOrStdout(), flagOutput, bs, nil)
 	}
 	w := cmd.OutOrStdout()
-	printSection := func(title string, lines []*avav1.BalanceSheetLine, total *avav1.Decimal) {
-		fmt.Fprintf(w, "%s\n", title)
-		for _, l := range lines {
-			fmt.Fprintf(w, "  %s\t%s\t%s\n", l.GetAccountCode(), l.GetAccountName(), l.GetBalance().GetValue())
+	fmt.Fprintln(w, "SECTION\tACCOUNT\tASSET\tLIABILITY")
+	for i, s := range bs.GetSections() {
+		for _, l := range s.GetAssetLines() {
+			fmt.Fprintf(w, "%s\t%s\t%s\t\n", s.GetTitle(), l.GetAccountName(), l.GetBalance().GetValue())
 		}
-		fmt.Fprintf(w, "  TOTAL %s\t\t%s\n", title, total.GetValue())
+		for _, l := range s.GetLiabilityLines() {
+			fmt.Fprintf(w, "%s\t%s\t\t%s\n", s.GetTitle(), l.GetAccountName(), l.GetBalance().GetValue())
+		}
+		fmt.Fprintf(w, "%s\t(total)\t%s\t%s\n", s.GetTitle(), s.GetTotalAssets().GetValue(), s.GetTotalLiabilities().GetValue())
+		switch i {
+		case 1:
+			fmt.Fprintf(w, "\tNet current assets (liabilities)\t%s\t\n", bs.GetNetCurrentAssets().GetValue())
+			fmt.Fprintf(w, "\tTotal assets less current liabilities\t%s\t\n", bs.GetTotalAssetsLessCurrentLiabilities().GetValue())
+		case 2:
+			fmt.Fprintf(w, "\tTotal net assets (liabilities)\t%s\t\n", bs.GetTotalNetAssets().GetValue())
+		}
 	}
-	printSection("ASSETS", bs.GetAssets(), bs.GetTotalAssets())
-	printSection("LIABILITIES", bs.GetLiabilities(), bs.GetTotalLiabilities())
-	printSection("EQUITY", bs.GetEquity(), bs.GetTotalEquity())
+	fmt.Fprintf(w, "TOTAL\t\t%s\t%s\n", bs.GetTotalAssets().GetValue(), bs.GetTotalLiabilities().GetValue())
 	return nil
 }
 
@@ -194,11 +202,18 @@ func printIncomeStatement(cmd *cobra.Command, is *avav1.IncomeStatement) error {
 		fmt.Fprintf(w, "  %s\t%s\t%s\n", l.GetAccountCode(), l.GetAccountName(), l.GetAmount().GetValue())
 	}
 	fmt.Fprintf(w, "  TOTAL REVENUE\t\t%s\n", is.GetTotalRevenue().GetValue())
-	fmt.Fprintln(w, "EXPENSES")
-	for _, l := range is.GetExpenses() {
+	fmt.Fprintln(w, "COST OF GOODS SOLD")
+	for _, l := range is.GetCostOfGoodsSold() {
 		fmt.Fprintf(w, "  %s\t%s\t%s\n", l.GetAccountCode(), l.GetAccountName(), l.GetAmount().GetValue())
 	}
-	fmt.Fprintf(w, "  TOTAL EXPENSES\t\t%s\n", is.GetTotalExpenses().GetValue())
+	fmt.Fprintf(w, "  TOTAL COST OF GOODS SOLD\t\t%s\n", is.GetTotalCostOfGoodsSold().GetValue())
+	fmt.Fprintf(w, "GROSS PROFIT\t\t%s\n", is.GetGrossProfit().GetValue())
+	fmt.Fprintln(w, "OPERATING EXPENSES")
+	for _, l := range is.GetOperatingExpenses() {
+		fmt.Fprintf(w, "  %s\t%s\t%s\n", l.GetAccountCode(), l.GetAccountName(), l.GetAmount().GetValue())
+	}
+	fmt.Fprintf(w, "  TOTAL OPERATING EXPENSES\t\t%s\n", is.GetTotalOperatingExpenses().GetValue())
+	fmt.Fprintf(w, "TOTAL EXPENSES\t\t%s\n", is.GetTotalExpenses().GetValue())
 	fmt.Fprintf(w, "NET INCOME\t\t%s\n", is.GetNetIncome().GetValue())
 	return nil
 }

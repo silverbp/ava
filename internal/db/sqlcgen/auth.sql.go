@@ -11,10 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearGlobalAdmin = `-- name: ClearGlobalAdmin :exec
+UPDATE app_user SET is_global_admin = FALSE, updated_at = NOW() WHERE is_global_admin = TRUE
+`
+
+// Only ever one row (the single-admin index), but not scoped to a specific id - called before
+// granting a new admin, to transfer rather than add a second one. See auth.SetGlobalAdmin.
+func (q *Queries) ClearGlobalAdmin(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, clearGlobalAdmin)
+	return err
+}
+
 const createAppUser = `-- name: CreateAppUser :one
 INSERT INTO app_user (email, display_name)
 VALUES ($1, $2)
-RETURNING id, email, display_name, is_active, created_at, updated_at, deleted_at
+RETURNING id, email, display_name, is_global_admin, is_active, created_at, updated_at, deleted_at
 `
 
 type CreateAppUserParams struct {
@@ -29,6 +40,7 @@ func (q *Queries) CreateAppUser(ctx context.Context, arg CreateAppUserParams) (A
 		&i.ID,
 		&i.Email,
 		&i.DisplayName,
+		&i.IsGlobalAdmin,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -101,11 +113,11 @@ func (q *Queries) CreateUserSession(ctx context.Context, arg CreateUserSessionPa
 const createWebAuthnCredential = `-- name: CreateWebAuthnCredential :one
 INSERT INTO webauthn_credential (
     user_id, credential_id, public_key, attestation_type, transports,
-    aaguid, sign_count, name
+    aaguid, sign_count, backup_eligible, backup_state, name
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
-RETURNING id, user_id, credential_id, public_key, attestation_type, transports, aaguid, sign_count, name, created_at, last_used_at
+RETURNING id, user_id, credential_id, public_key, attestation_type, transports, aaguid, sign_count, backup_eligible, backup_state, name, created_at, last_used_at
 `
 
 type CreateWebAuthnCredentialParams struct {
@@ -116,6 +128,8 @@ type CreateWebAuthnCredentialParams struct {
 	Transports      *string `json:"transports"`
 	Aaguid          []byte  `json:"aaguid"`
 	SignCount       int64   `json:"sign_count"`
+	BackupEligible  bool    `json:"backup_eligible"`
+	BackupState     bool    `json:"backup_state"`
 	Name            *string `json:"name"`
 }
 
@@ -128,6 +142,8 @@ func (q *Queries) CreateWebAuthnCredential(ctx context.Context, arg CreateWebAut
 		arg.Transports,
 		arg.Aaguid,
 		arg.SignCount,
+		arg.BackupEligible,
+		arg.BackupState,
 		arg.Name,
 	)
 	var i WebauthnCredential
@@ -140,6 +156,8 @@ func (q *Queries) CreateWebAuthnCredential(ctx context.Context, arg CreateWebAut
 		&i.Transports,
 		&i.Aaguid,
 		&i.SignCount,
+		&i.BackupEligible,
+		&i.BackupState,
 		&i.Name,
 		&i.CreatedAt,
 		&i.LastUsedAt,
@@ -148,7 +166,7 @@ func (q *Queries) CreateWebAuthnCredential(ctx context.Context, arg CreateWebAut
 }
 
 const getAppUser = `-- name: GetAppUser :one
-SELECT id, email, display_name, is_active, created_at, updated_at, deleted_at FROM app_user WHERE id = $1 AND deleted_at IS NULL
+SELECT id, email, display_name, is_global_admin, is_active, created_at, updated_at, deleted_at FROM app_user WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetAppUser(ctx context.Context, id int64) (AppUser, error) {
@@ -158,6 +176,7 @@ func (q *Queries) GetAppUser(ctx context.Context, id int64) (AppUser, error) {
 		&i.ID,
 		&i.Email,
 		&i.DisplayName,
+		&i.IsGlobalAdmin,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -167,7 +186,7 @@ func (q *Queries) GetAppUser(ctx context.Context, id int64) (AppUser, error) {
 }
 
 const getAppUserByEmail = `-- name: GetAppUserByEmail :one
-SELECT id, email, display_name, is_active, created_at, updated_at, deleted_at FROM app_user WHERE email = $1 AND deleted_at IS NULL
+SELECT id, email, display_name, is_global_admin, is_active, created_at, updated_at, deleted_at FROM app_user WHERE email = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetAppUserByEmail(ctx context.Context, email string) (AppUser, error) {
@@ -177,6 +196,7 @@ func (q *Queries) GetAppUserByEmail(ctx context.Context, email string) (AppUser,
 		&i.ID,
 		&i.Email,
 		&i.DisplayName,
+		&i.IsGlobalAdmin,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -208,6 +228,26 @@ func (q *Queries) GetBusinessUser(ctx context.Context, arg GetBusinessUserParams
 	return i, err
 }
 
+const getGlobalAdmin = `-- name: GetGlobalAdmin :one
+SELECT id, email, display_name, is_global_admin, is_active, created_at, updated_at, deleted_at FROM app_user WHERE is_global_admin = TRUE AND deleted_at IS NULL
+`
+
+func (q *Queries) GetGlobalAdmin(ctx context.Context) (AppUser, error) {
+	row := q.db.QueryRow(ctx, getGlobalAdmin)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.DisplayName,
+		&i.IsGlobalAdmin,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getUserSessionByHash = `-- name: GetUserSessionByHash :one
 SELECT id, user_id, refresh_token_hash, client_name, issued_at, expires_at, last_used_at, revoked_at, replaced_by_session_id FROM user_session
 WHERE refresh_token_hash = $1 AND revoked_at IS NULL AND expires_at > NOW()
@@ -231,7 +271,7 @@ func (q *Queries) GetUserSessionByHash(ctx context.Context, refreshTokenHash str
 }
 
 const getWebAuthnCredentialByCredentialID = `-- name: GetWebAuthnCredentialByCredentialID :one
-SELECT id, user_id, credential_id, public_key, attestation_type, transports, aaguid, sign_count, name, created_at, last_used_at FROM webauthn_credential WHERE credential_id = $1
+SELECT id, user_id, credential_id, public_key, attestation_type, transports, aaguid, sign_count, backup_eligible, backup_state, name, created_at, last_used_at FROM webauthn_credential WHERE credential_id = $1
 `
 
 func (q *Queries) GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID []byte) (WebauthnCredential, error) {
@@ -246,6 +286,8 @@ func (q *Queries) GetWebAuthnCredentialByCredentialID(ctx context.Context, crede
 		&i.Transports,
 		&i.Aaguid,
 		&i.SignCount,
+		&i.BackupEligible,
+		&i.BackupState,
 		&i.Name,
 		&i.CreatedAt,
 		&i.LastUsedAt,
@@ -254,7 +296,7 @@ func (q *Queries) GetWebAuthnCredentialByCredentialID(ctx context.Context, crede
 }
 
 const listWebAuthnCredentialsForUser = `-- name: ListWebAuthnCredentialsForUser :many
-SELECT id, user_id, credential_id, public_key, attestation_type, transports, aaguid, sign_count, name, created_at, last_used_at FROM webauthn_credential WHERE user_id = $1 ORDER BY id
+SELECT id, user_id, credential_id, public_key, attestation_type, transports, aaguid, sign_count, backup_eligible, backup_state, name, created_at, last_used_at FROM webauthn_credential WHERE user_id = $1 ORDER BY id
 `
 
 func (q *Queries) ListWebAuthnCredentialsForUser(ctx context.Context, userID int64) ([]WebauthnCredential, error) {
@@ -275,6 +317,8 @@ func (q *Queries) ListWebAuthnCredentialsForUser(ctx context.Context, userID int
 			&i.Transports,
 			&i.Aaguid,
 			&i.SignCount,
+			&i.BackupEligible,
+			&i.BackupState,
 			&i.Name,
 			&i.CreatedAt,
 			&i.LastUsedAt,
@@ -317,16 +361,47 @@ func (q *Queries) RevokeUserSession(ctx context.Context, arg RevokeUserSessionPa
 	return i, err
 }
 
-const updateWebAuthnCredentialSignCount = `-- name: UpdateWebAuthnCredentialSignCount :exec
-UPDATE webauthn_credential SET sign_count = $2, last_used_at = NOW() WHERE id = $1
+const setGlobalAdmin = `-- name: SetGlobalAdmin :one
+UPDATE app_user SET is_global_admin = $2, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, email, display_name, is_global_admin, is_active, created_at, updated_at, deleted_at
 `
 
-type UpdateWebAuthnCredentialSignCountParams struct {
-	ID        int64 `json:"id"`
-	SignCount int64 `json:"sign_count"`
+type SetGlobalAdminParams struct {
+	ID            int64 `json:"id"`
+	IsGlobalAdmin bool  `json:"is_global_admin"`
 }
 
-func (q *Queries) UpdateWebAuthnCredentialSignCount(ctx context.Context, arg UpdateWebAuthnCredentialSignCountParams) error {
-	_, err := q.db.Exec(ctx, updateWebAuthnCredentialSignCount, arg.ID, arg.SignCount)
+func (q *Queries) SetGlobalAdmin(ctx context.Context, arg SetGlobalAdminParams) (AppUser, error) {
+	row := q.db.QueryRow(ctx, setGlobalAdmin, arg.ID, arg.IsGlobalAdmin)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.DisplayName,
+		&i.IsGlobalAdmin,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const updateWebAuthnCredentialAfterLogin = `-- name: UpdateWebAuthnCredentialAfterLogin :exec
+UPDATE webauthn_credential SET sign_count = $2, backup_state = $3, last_used_at = NOW() WHERE id = $1
+`
+
+type UpdateWebAuthnCredentialAfterLoginParams struct {
+	ID          int64 `json:"id"`
+	SignCount   int64 `json:"sign_count"`
+	BackupState bool  `json:"backup_state"`
+}
+
+// sign_count backs clone-detection; backup_state can legitimately change post-registration
+// (e.g. a passkey newly synced to iCloud Keychain) and go-webauthn's docs call out that it MUST
+// be written back whenever it changes, so both are refreshed together after every login.
+func (q *Queries) UpdateWebAuthnCredentialAfterLogin(ctx context.Context, arg UpdateWebAuthnCredentialAfterLoginParams) error {
+	_, err := q.db.Exec(ctx, updateWebAuthnCredentialAfterLogin, arg.ID, arg.SignCount, arg.BackupState)
 	return err
 }

@@ -64,13 +64,34 @@ message BalanceSheetLine {
   Decimal balance = 4;
 }
 
+// One balance_sheet_category grouping (Long-term Assets, Current Assets &
+// Liabilities, Long-term Liabilities, Capital & Reserves). asset_lines and
+// liability_lines are which column a line prints in, not which category
+// it's grouped under - "Current Assets & Liabilities" mixes both in the
+// same section, matching a classic UK-style statutory balance sheet.
+message BalanceSheetSection {
+  string title = 1;
+  repeated BalanceSheetLine asset_lines = 2;
+  repeated BalanceSheetLine liability_lines = 3;
+  Decimal total_assets = 4;
+  Decimal total_liabilities = 5;
+}
+
 message BalanceSheet {
-  repeated BalanceSheetLine assets = 1;
-  Decimal total_assets = 2;
-  repeated BalanceSheetLine liabilities = 3;
-  Decimal total_liabilities = 4;
-  repeated BalanceSheetLine equity = 5;
-  Decimal total_equity = 6;
+  repeated BalanceSheetSection sections = 1;
+  // total_assets - total_liabilities within the "Current Assets &
+  // Liabilities" section only.
+  Decimal net_current_assets = 2;
+  // Long-term Assets' total_assets + net_current_assets.
+  Decimal total_assets_less_current_liabilities = 3;
+  // total_assets_less_current_liabilities - Long-term Liabilities' total_liabilities.
+  Decimal total_net_assets = 4;
+  // Grand totals across every section - total_assets should equal
+  // total_liabilities (which includes Capital & Reserves), the same
+  // double-entry identity the old flat assets/liabilities/equity shape
+  // checked, now summed across sections instead.
+  Decimal total_assets = 5;
+  Decimal total_liabilities = 6;
 }
 
 message GetIncomeStatementRequest {
@@ -90,12 +111,20 @@ message IncomeStatementLine {
   Decimal amount = 4;
 }
 
+// Standard US multi-step income statement shape: Revenue - Cost of Goods Sold = Gross Profit;
+// Gross Profit - Operating Expenses = Net Income. cost_of_goods_sold/operating_expenses are
+// split via ledger_account.is_cost_of_goods_sold - only EXPENSES-type accounts ever populate
+// either list.
 message IncomeStatement {
   repeated IncomeStatementLine revenue = 1;
   Decimal total_revenue = 2;
-  repeated IncomeStatementLine expenses = 3;
-  Decimal total_expenses = 4;
-  Decimal net_income = 5;
+  repeated IncomeStatementLine cost_of_goods_sold = 3;
+  Decimal total_cost_of_goods_sold = 4;
+  Decimal gross_profit = 5;
+  repeated IncomeStatementLine operating_expenses = 6;
+  Decimal total_operating_expenses = 7;
+  Decimal total_expenses = 8;
+  Decimal net_income = 9;
 }
 
 message GetGeneralLedgerRequest {

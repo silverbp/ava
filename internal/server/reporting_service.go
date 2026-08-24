@@ -68,12 +68,20 @@ func (s *reportingService) GetBalanceSheet(ctx context.Context, req *avav1.GetBa
 	}
 
 	pb := &avav1.BalanceSheet{
-		Assets:           accountLinesToProto(result.Assets),
-		TotalAssets:      decimalToProto(result.TotalAssets),
-		Liabilities:      accountLinesToProto(result.Liabilities),
-		TotalLiabilities: decimalToProto(result.TotalLiabilities),
-		Equity:           accountLinesToProto(result.Equity),
-		TotalEquity:      decimalToProto(result.TotalEquity),
+		TotalAssets:                       decimalToProto(result.TotalAssets),
+		TotalLiabilities:                  decimalToProto(result.TotalLiabilities),
+		NetCurrentAssets:                  decimalToProto(result.NetCurrentAssets),
+		TotalAssetsLessCurrentLiabilities: decimalToProto(result.TotalAssetsLessCurrentLiabilities),
+		TotalNetAssets:                    decimalToProto(result.TotalNetAssets),
+	}
+	for _, s := range result.Sections {
+		pb.Sections = append(pb.Sections, &avav1.BalanceSheetSection{
+			Title:            s.Title,
+			AssetLines:       accountLinesToProto(s.AssetLines),
+			LiabilityLines:   accountLinesToProto(s.LiabilityLines),
+			TotalAssets:      decimalToProto(s.TotalAssets),
+			TotalLiabilities: decimalToProto(s.TotalLiabilities),
+		})
 	}
 	return &avav1.GetBalanceSheetResponse{BalanceSheet: pb}, nil
 }
@@ -97,17 +105,25 @@ func (s *reportingService) GetIncomeStatement(ctx context.Context, req *avav1.Ge
 	}
 
 	pb := &avav1.IncomeStatement{
-		TotalRevenue:  decimalToProto(result.TotalRevenue),
-		TotalExpenses: decimalToProto(result.TotalExpenses),
-		NetIncome:     decimalToProto(result.NetIncome),
-	}
-	for _, l := range result.Revenue {
-		pb.Revenue = append(pb.Revenue, &avav1.IncomeStatementLine{AccountId: l.AccountID, AccountCode: l.Code, AccountName: l.Name, Amount: decimalToProto(l.Amount)})
-	}
-	for _, l := range result.Expenses {
-		pb.Expenses = append(pb.Expenses, &avav1.IncomeStatementLine{AccountId: l.AccountID, AccountCode: l.Code, AccountName: l.Name, Amount: decimalToProto(l.Amount)})
+		Revenue:                incomeStatementLinesToProto(result.Revenue),
+		TotalRevenue:           decimalToProto(result.TotalRevenue),
+		CostOfGoodsSold:        incomeStatementLinesToProto(result.CostOfGoodsSold),
+		TotalCostOfGoodsSold:   decimalToProto(result.TotalCostOfGoodsSold),
+		GrossProfit:            decimalToProto(result.GrossProfit),
+		OperatingExpenses:      incomeStatementLinesToProto(result.OperatingExpenses),
+		TotalOperatingExpenses: decimalToProto(result.TotalOperatingExpenses),
+		TotalExpenses:          decimalToProto(result.TotalExpenses),
+		NetIncome:              decimalToProto(result.NetIncome),
 	}
 	return &avav1.GetIncomeStatementResponse{IncomeStatement: pb}, nil
+}
+
+func incomeStatementLinesToProto(lines []reporting.AccountLine) []*avav1.IncomeStatementLine {
+	out := make([]*avav1.IncomeStatementLine, len(lines))
+	for i, l := range lines {
+		out[i] = &avav1.IncomeStatementLine{AccountId: l.AccountID, AccountCode: l.Code, AccountName: l.Name, Amount: decimalToProto(l.Amount)}
+	}
+	return out
 }
 
 func (s *reportingService) GetGeneralLedger(ctx context.Context, req *avav1.GetGeneralLedgerRequest) (*avav1.GetGeneralLedgerResponse, error) {

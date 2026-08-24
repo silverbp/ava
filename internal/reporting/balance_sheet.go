@@ -17,12 +17,43 @@ import (
 // (AccountID 0, which no real ledger_account uses, since ids start at 1).
 const currentEarningsLineCode = "CURRENT-EARNINGS"
 
-// BalanceSheet reports ASSETS/LIABILITIES/EQUITY balances as of asOf. If
-// asOf falls after the business's latest unreversed period close (or no
+// uncategorizedSectionTitle groups any account with no
+// balance_sheet_category_id (e.g. one created through the API before a
+// caller picks a category). Appended last, and only if non-empty, so a
+// missing category never silently drops a balance from the report instead
+// of just showing up in an obviously-named catch-all.
+const uncategorizedSectionTitle = "Uncategorized"
+
+// balanceSheetSectionOrder is the fixed display order of every known
+// balance_sheet_category - always rendered, even with zero balances (see
+// the screenshot this report format was modeled on: "Long-term Liabilities
+// (total) 0.00" prints with no line items under it).
+var balanceSheetSectionOrder = []struct {
+	id    int32
+	title string
+}{
+	{longTermAssetsCategoryID, "Long-term Assets"},
+	{currentCategoryID, "Current Assets & Liabilities"},
+	{longTermLiabilitiesCategoryID, "Long-term Liabilities"},
+	{capitalAndReservesCategoryID, "Capital & Reserves"},
+	{openingBalancesCategoryID, "Opening Balances"},
+}
+
+// BalanceSheet reports every ledger_account balance as of asOf, grouped by
+// balance_sheet_category into the sections a classic UK-style statutory
+// balance sheet uses (Long-term Assets / Current Assets & Liabilities /
+// Long-term Liabilities / Capital & Reserves), plus the derived subtotal
+// rows between them (Net current assets, Total assets less current
+// liabilities, Total net assets). Grouping is presentation only - which
+// column a line prints in (asset vs. liability) is driven by the account's
+// normal_balance, not its category, since "Current Assets & Liabilities"
+// deliberately mixes both in one section.
+//
+// If asOf falls after the business's latest unreversed period close (or no
 // close exists yet), REVENUE/EXPENSE activity since that close hasn't been
 // swept into Retained Earnings, so it's reported as a synthetic "Current
-// Period Earnings" equity line - the standard accounting treatment for an
-// as-of date within a still-open period
+// Period Earnings" line under Capital & Reserves - the standard accounting
+// treatment for an as-of date within a still-open period
 // (docs/architecture.md#period-close, "Reporting integration").
 func BalanceSheet(ctx context.Context, q *sqlcgen.Queries, businessID int64, asOf time.Time) (*BalanceSheetResult, error) {
 	rows, err := q.AccountBalancesAsOf(ctx, sqlcgen.AccountBalancesAsOfParams{
@@ -34,12 +65,18 @@ func BalanceSheet(ctx context.Context, q *sqlcgen.Queries, businessID int64, asO
 		return nil, err
 	}
 
-	result := &BalanceSheetResult{
-		TotalAssets:      decimal.Zero,
-		TotalLiabilities: decimal.Zero,
-		TotalEquity:      decimal.Zero,
+	sections := make(map[int32]*BalanceSheetSection, len(balanceSheetSectionOrder))
+	for _, s := range balanceSheetSectionOrder {
+		sections[s.id] = &BalanceSheetSection{Title: s.title, TotalAssets: decimal.Zero, TotalLiabilities: decimal.Zero}
 	}
+	uncategorized := &BalanceSheetSection{Title: uncategorizedSectionTitle, TotalAssets: decimal.Zero, TotalLiabilities: decimal.Zero}
+
 	for _, r := range rows {
+		if r.AccountTypeID == revenueTypeID || r.AccountTypeID == expensesTypeID {
+			// Not shown individually here - their net effect since the last close
+			// surfaces as the synthetic Current Period Earnings line below.
+			continue
+		}
 		debit, err := ledgermath.NumericToDecimal(r.TotalDebit)
 		if err != nil {
 			return nil, err
@@ -55,16 +92,22 @@ func BalanceSheet(ctx context.Context, q *sqlcgen.Queries, businessID int64, asO
 		net := ledgermath.NetBalance(r.NormalBalance, debit, credit)
 		line := AccountLine{AccountID: r.AccountID, Code: r.Code, Name: r.Name, Amount: net}
 
-		switch r.AccountTypeID {
-		case assetsTypeID:
-			result.Assets = append(result.Assets, line)
-			result.TotalAssets = result.TotalAssets.Add(net)
-		case liabilitiesTypeID:
-			result.Liabilities = append(result.Liabilities, line)
-			result.TotalLiabilities = result.TotalLiabilities.Add(net)
-		case equityTypeID:
-			result.Equity = append(result.Equity, line)
-			result.TotalEquity = result.TotalEquity.Add(net)
+		section := uncategorized
+		if r.BalanceSheetCategoryID != nil {
+			if s, ok := sections[*r.BalanceSheetCategoryID]; ok {
+				section = s
+			}
+		}
+
+		// A DEBIT-normal account (ASSETS) prints in the Asset column; every
+		// CREDIT-normal type (LIABILITIES, EQUITY, TAX_LIABILITY) prints in the
+		// Liability column - the same two-column split the source report uses.
+		if r.NormalBalance == "DEBIT" {
+			section.AssetLines = append(section.AssetLines, line)
+			section.TotalAssets = section.TotalAssets.Add(net)
+		} else {
+			section.LiabilityLines = append(section.LiabilityLines, line)
+			section.TotalLiabilities = section.TotalLiabilities.Add(net)
 		}
 	}
 
@@ -87,15 +130,33 @@ func BalanceSheet(ctx context.Context, q *sqlcgen.Queries, businessID int64, asO
 			return nil, err
 		}
 		if !earnings.IsZero() {
-			result.Equity = append(result.Equity, AccountLine{
+			capital := sections[capitalAndReservesCategoryID]
+			capital.LiabilityLines = append(capital.LiabilityLines, AccountLine{
 				AccountID: 0,
 				Code:      currentEarningsLineCode,
 				Name:      "Current Period Earnings",
 				Amount:    earnings,
 			})
-			result.TotalEquity = result.TotalEquity.Add(earnings)
+			capital.TotalLiabilities = capital.TotalLiabilities.Add(earnings)
 		}
 	}
+
+	result := &BalanceSheetResult{TotalAssets: decimal.Zero, TotalLiabilities: decimal.Zero}
+	for _, s := range balanceSheetSectionOrder {
+		result.Sections = append(result.Sections, *sections[s.id])
+	}
+	if len(uncategorized.AssetLines) > 0 || len(uncategorized.LiabilityLines) > 0 {
+		result.Sections = append(result.Sections, *uncategorized)
+	}
+	for _, s := range result.Sections {
+		result.TotalAssets = result.TotalAssets.Add(s.TotalAssets)
+		result.TotalLiabilities = result.TotalLiabilities.Add(s.TotalLiabilities)
+	}
+
+	current := sections[currentCategoryID]
+	result.NetCurrentAssets = current.TotalAssets.Sub(current.TotalLiabilities)
+	result.TotalAssetsLessCurrentLiabilities = sections[longTermAssetsCategoryID].TotalAssets.Add(result.NetCurrentAssets)
+	result.TotalNetAssets = result.TotalAssetsLessCurrentLiabilities.Sub(sections[longTermLiabilitiesCategoryID].TotalLiabilities)
 
 	return result, nil
 }

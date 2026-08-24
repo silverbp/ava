@@ -2,9 +2,9 @@
 INSERT INTO ledger_account (
     business_id, account_type_id, parent_account_id, code, name, description,
     is_system, is_reconcilable, is_container, cash_flow_category_id,
-    created_by_user_id
+    balance_sheet_category_id, is_cost_of_goods_sold, created_by_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 )
 RETURNING *;
 
@@ -24,6 +24,8 @@ UPDATE ledger_account SET
     is_reconcilable = COALESCE(sqlc.narg('is_reconcilable'), is_reconcilable),
     is_container = COALESCE(sqlc.narg('is_container'), is_container),
     cash_flow_category_id = COALESCE(sqlc.narg('cash_flow_category_id'), cash_flow_category_id),
+    balance_sheet_category_id = COALESCE(sqlc.narg('balance_sheet_category_id'), balance_sheet_category_id),
+    is_cost_of_goods_sold = COALESCE(sqlc.narg('is_cost_of_goods_sold'), is_cost_of_goods_sold),
     updated_at = NOW()
 WHERE id = sqlc.arg('id')
 RETURNING *;

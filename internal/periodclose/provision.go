@@ -19,6 +19,12 @@ const (
 	// the initial migration.
 	EquityAccountTypeID = 3
 
+	// capitalAndReservesCategoryID is balance_sheet_category.id for
+	// "Capital & Reserves", seeded by the initial migration - where a swept
+	// P&L balance belongs on the balance sheet report
+	// (internal/reporting.BalanceSheet).
+	capitalAndReservesCategoryID = 4
+
 	IncomeSummaryCode    = "INCOME-SUMMARY"
 	RetainedEarningsCode = "RETAINED-EARNINGS"
 )
@@ -53,12 +59,14 @@ func getOrCreateSystemAccount(ctx context.Context, q *sqlcgen.Queries, businessI
 		return sqlcgen.LedgerAccount{}, err
 	}
 
+	categoryID := int32(capitalAndReservesCategoryID)
 	return q.CreateLedgerAccount(ctx, sqlcgen.CreateLedgerAccountParams{
-		BusinessID:      businessID,
-		AccountTypeID:   EquityAccountTypeID,
-		Code:            code,
-		Name:            name,
-		IsSystem:        true,
-		CreatedByUserID: createdByUserID,
+		BusinessID:             businessID,
+		AccountTypeID:          EquityAccountTypeID,
+		Code:                   code,
+		Name:                   name,
+		IsSystem:               true,
+		BalanceSheetCategoryID: &categoryID,
+		CreatedByUserID:        createdByUserID,
 	})
 }

@@ -16,6 +16,8 @@ SELECT
     la.code,
     la.name,
     la.account_type_id,
+    la.balance_sheet_category_id,
+    la.is_cost_of_goods_sold,
     lat.normal_balance,
     COALESCE(SUM(CASE WHEN lt.transaction_date BETWEEN sqlc.arg('period_start') AND sqlc.arg('period_end') THEN le.debit_amount ELSE 0 END), 0)::numeric AS total_debit,
     COALESCE(SUM(CASE WHEN lt.transaction_date BETWEEN sqlc.arg('period_start') AND sqlc.arg('period_end') THEN le.credit_amount ELSE 0 END), 0)::numeric AS total_credit
@@ -24,7 +26,7 @@ JOIN ledger_account_type lat ON lat.id = la.account_type_id
 LEFT JOIN ledger_entry le ON le.account_id = la.id AND le.deleted_at IS NULL
 LEFT JOIN ledger_transaction lt ON lt.id = le.ledger_transaction_id AND lt.deleted_at IS NULL
 WHERE la.business_id = sqlc.arg('business_id')
-GROUP BY la.id, la.code, la.name, la.account_type_id, lat.normal_balance
+GROUP BY la.id, la.code, la.name, la.account_type_id, la.balance_sheet_category_id, la.is_cost_of_goods_sold, lat.normal_balance
 ORDER BY la.code;
 
 -- name: GetLastPeriodClose :one

@@ -17,6 +17,7 @@ import (
 	"github.com/silverbp/ava/internal/auth"
 	"github.com/silverbp/ava/internal/config"
 	"github.com/silverbp/ava/internal/db"
+	"github.com/silverbp/ava/internal/storage"
 )
 
 type Server struct {
@@ -32,14 +33,25 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	var devUser *auth.User
-	if cfg.AuthMode == config.AuthModeDev {
-		devUser, err = auth.EnsureDevUser(ctx, store)
+	blobs, err := storage.New(cfg.StorageEndpoint, cfg.StorageAccessKey, cfg.StorageSecretKey, cfg.StorageBucket, cfg.StorageUseSSL)
+	if err != nil {
+		store.Close()
+		return nil, fmt.Errorf("configuring object storage: %w", err)
+	}
+	if err := blobs.EnsureBucket(ctx); err != nil {
+		store.Close()
+		return nil, fmt.Errorf("configuring object storage: %w", err)
+	}
+
+	if cfg.BootstrapAdminEmail != "" {
+		admin, err := auth.EnsureBootstrapAdmin(ctx, store, cfg.BootstrapAdminEmail)
 		if err != nil {
 			store.Close()
-			return nil, fmt.Errorf("provisioning dev user: %w", err)
+			return nil, fmt.Errorf("bootstrapping global admin: %w", err)
 		}
-		slog.Info("dev auth bypass active", "user_id", devUser.ID, "business", auth.DevBusinessName)
+		if admin != nil {
+			slog.Info("bootstrapped global admin", "user_id", admin.ID, "email", admin.Email)
+		}
 	}
 
 	verifyAccessToken := func(token string) (*auth.User, error) {
@@ -47,7 +59,8 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 	}
 
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(auth.UnaryInterceptor(cfg.AuthMode, devUser, verifyAccessToken)),
+		grpc.UnaryInterceptor(auth.UnaryInterceptor(verifyAccessToken)),
+		grpc.StreamInterceptor(auth.StreamInterceptor(verifyAccessToken)),
 	)
 
 	avav1.RegisterBusinessServiceServer(grpcServer, newBusinessService(store))
@@ -63,12 +76,13 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 	avav1.RegisterPaymentServiceServer(grpcServer, newPaymentService(store))
 	avav1.RegisterBankStatementServiceServer(grpcServer, newBankStatementService(store))
 	avav1.RegisterEntityContextServiceServer(grpcServer, newEntityContextService(store))
-	avav1.RegisterAttachmentServiceServer(grpcServer, newAttachmentService(store))
+	avav1.RegisterAttachmentServiceServer(grpcServer, newAttachmentService(store, blobs))
 	avav1.RegisterAuthServiceServer(grpcServer, newAuthService(store, cfg))
+	avav1.RegisterUserServiceServer(grpcServer, newUserService(store))
 
 	// Reflection lets grpcurl/grpcui introspect the API without shipping
-	// .proto files alongside every deploy. Revisit gating this behind
-	// AVA_ENV before a real production launch.
+	// .proto files alongside every deploy. Revisit gating this before a
+	// real production launch.
 	reflection.Register(grpcServer)
 
 	authMux, err := newAuthMux(store, cfg)
@@ -85,10 +99,7 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 }
 
 // Run serves both listeners until either exits; an error from one stops
-// the other. In dev mode the HTTP/WebAuthn listener still starts (harmless
-// — nothing exercises it while AVA_AUTH_MODE=dev, and starting it
-// unconditionally means switching modes doesn't require restructuring how
-// the server is run).
+// the other.
 func (s *Server) Run() error {
 	lis, err := net.Listen("tcp", s.cfg.GRPCAddr)
 	if err != nil {
@@ -97,7 +108,7 @@ func (s *Server) Run() error {
 
 	errCh := make(chan error, 2)
 	go func() {
-		slog.Info("ava gRPC server listening", "addr", s.cfg.GRPCAddr, "auth_mode", s.cfg.AuthMode)
+		slog.Info("ava gRPC server listening", "addr", s.cfg.GRPCAddr)
 		errCh <- s.grpc.Serve(lis)
 	}()
 	go func() {

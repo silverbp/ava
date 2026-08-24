@@ -10,9 +10,11 @@ import (
 	"github.com/silverbp/ava/internal/ledgermath"
 )
 
-// IncomeStatement sums REVENUE/EXPENSE activity over [start, end]. Reads
-// ledger_entry directly regardless of period-close state — a P&L for a
-// range doesn't care whether that range has since been closed
+// IncomeStatement sums REVENUE/EXPENSE activity over [start, end] into the standard US
+// multi-step shape (Revenue - Cost of Goods Sold = Gross Profit; Gross Profit - Operating
+// Expenses = Net Income), splitting EXPENSES-type accounts via
+// ledger_account.is_cost_of_goods_sold. Reads ledger_entry directly regardless of period-close
+// state — a P&L for a range doesn't care whether that range has since been closed
 // (docs/architecture.md#period-close, "Reporting integration").
 func IncomeStatement(ctx context.Context, q *sqlcgen.Queries, businessID int64, start, end time.Time) (*IncomeStatementResult, error) {
 	rows, err := q.AccountBalancesAsOf(ctx, sqlcgen.AccountBalancesAsOfParams{
@@ -24,7 +26,11 @@ func IncomeStatement(ctx context.Context, q *sqlcgen.Queries, businessID int64, 
 		return nil, err
 	}
 
-	result := &IncomeStatementResult{TotalRevenue: decimal.Zero, TotalExpenses: decimal.Zero}
+	result := &IncomeStatementResult{
+		TotalRevenue:           decimal.Zero,
+		TotalCostOfGoodsSold:   decimal.Zero,
+		TotalOperatingExpenses: decimal.Zero,
+	}
 	for _, r := range rows {
 		if r.AccountTypeID != revenueTypeID && r.AccountTypeID != expensesTypeID {
 			continue
@@ -44,14 +50,20 @@ func IncomeStatement(ctx context.Context, q *sqlcgen.Queries, businessID int64, 
 		net := ledgermath.NetBalance(r.NormalBalance, debit, credit)
 		line := AccountLine{AccountID: r.AccountID, Code: r.Code, Name: r.Name, Amount: net}
 
-		if r.AccountTypeID == revenueTypeID {
+		switch {
+		case r.AccountTypeID == revenueTypeID:
 			result.Revenue = append(result.Revenue, line)
 			result.TotalRevenue = result.TotalRevenue.Add(net)
-		} else {
-			result.Expenses = append(result.Expenses, line)
-			result.TotalExpenses = result.TotalExpenses.Add(net)
+		case r.IsCostOfGoodsSold:
+			result.CostOfGoodsSold = append(result.CostOfGoodsSold, line)
+			result.TotalCostOfGoodsSold = result.TotalCostOfGoodsSold.Add(net)
+		default:
+			result.OperatingExpenses = append(result.OperatingExpenses, line)
+			result.TotalOperatingExpenses = result.TotalOperatingExpenses.Add(net)
 		}
 	}
-	result.NetIncome = result.TotalRevenue.Sub(result.TotalExpenses)
+	result.GrossProfit = result.TotalRevenue.Sub(result.TotalCostOfGoodsSold)
+	result.TotalExpenses = result.TotalCostOfGoodsSold.Add(result.TotalOperatingExpenses)
+	result.NetIncome = result.GrossProfit.Sub(result.TotalOperatingExpenses)
 	return result, nil
 }

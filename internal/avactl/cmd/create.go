@@ -25,5 +25,6 @@ func newCreateCmd() *cobra.Command {
 	root.AddCommand(newCreateBankStatementCmd())
 	root.AddCommand(newCreateEntityContextCmd())
 	root.AddCommand(newCreateAttachmentCmd())
+	root.AddCommand(newCreateBusinessInviteCmd())
 	return root
 }

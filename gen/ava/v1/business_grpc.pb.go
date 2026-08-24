@@ -19,11 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BusinessService_GetBusiness_FullMethodName        = "/ava.v1.BusinessService/GetBusiness"
-	BusinessService_ListMyBusinesses_FullMethodName   = "/ava.v1.BusinessService/ListMyBusinesses"
-	BusinessService_CreateBusiness_FullMethodName     = "/ava.v1.BusinessService/CreateBusiness"
-	BusinessService_UpdateBusiness_FullMethodName     = "/ava.v1.BusinessService/UpdateBusiness"
-	BusinessService_DeactivateBusiness_FullMethodName = "/ava.v1.BusinessService/DeactivateBusiness"
+	BusinessService_GetBusiness_FullMethodName          = "/ava.v1.BusinessService/GetBusiness"
+	BusinessService_ListMyBusinesses_FullMethodName     = "/ava.v1.BusinessService/ListMyBusinesses"
+	BusinessService_CreateBusiness_FullMethodName       = "/ava.v1.BusinessService/CreateBusiness"
+	BusinessService_UpdateBusiness_FullMethodName       = "/ava.v1.BusinessService/UpdateBusiness"
+	BusinessService_DeactivateBusiness_FullMethodName   = "/ava.v1.BusinessService/DeactivateBusiness"
+	BusinessService_CreateBusinessInvite_FullMethodName = "/ava.v1.BusinessService/CreateBusinessInvite"
+	BusinessService_ListBusinessInvites_FullMethodName  = "/ava.v1.BusinessService/ListBusinessInvites"
+	BusinessService_RevokeBusinessInvite_FullMethodName = "/ava.v1.BusinessService/RevokeBusinessInvite"
+	BusinessService_AcceptBusinessInvite_FullMethodName = "/ava.v1.BusinessService/AcceptBusinessInvite"
 )
 
 // BusinessServiceClient is the client API for BusinessService service.
@@ -31,16 +35,29 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // BusinessService is the first vertical slice through the stack (proto ->
-// sqlc -> service -> dev-bypass auth) and the template every later resource
-// domain follows. Membership-management RPCs (invite/change-role/remove a
-// business_user) are deliberately left for a later phase once real Apple
-// auth exists and there's a real second user to invite.
+// sqlc -> service -> auth) and the template every later resource domain
+// follows.
+//
+// CreateBusiness is global-admin-only (auth.RequireGlobalAdmin) - nobody
+// else can create a business. The four invite RPCs open a business up to a
+// second user: CreateBusinessInvite is callable by a global admin (any
+// business) or that business's own OWNER/ADMIN
+// (auth.RequireGlobalAdminOrBusinessRole) and returns a one-time token,
+// shared with the invitee out-of-band - ava never sends it. AcceptBusinessInvite
+// is callable by anyone authenticated, but only succeeds if both the token
+// is valid and the caller's own account email matches the invite's -
+// knowing/guessing the invited email alone isn't enough, since passkey
+// registration itself has no email-ownership verification.
 type BusinessServiceClient interface {
 	GetBusiness(ctx context.Context, in *GetBusinessRequest, opts ...grpc.CallOption) (*GetBusinessResponse, error)
 	ListMyBusinesses(ctx context.Context, in *ListMyBusinessesRequest, opts ...grpc.CallOption) (*ListMyBusinessesResponse, error)
 	CreateBusiness(ctx context.Context, in *CreateBusinessRequest, opts ...grpc.CallOption) (*CreateBusinessResponse, error)
 	UpdateBusiness(ctx context.Context, in *UpdateBusinessRequest, opts ...grpc.CallOption) (*UpdateBusinessResponse, error)
 	DeactivateBusiness(ctx context.Context, in *DeactivateBusinessRequest, opts ...grpc.CallOption) (*DeactivateBusinessResponse, error)
+	CreateBusinessInvite(ctx context.Context, in *CreateBusinessInviteRequest, opts ...grpc.CallOption) (*CreateBusinessInviteResponse, error)
+	ListBusinessInvites(ctx context.Context, in *ListBusinessInvitesRequest, opts ...grpc.CallOption) (*ListBusinessInvitesResponse, error)
+	RevokeBusinessInvite(ctx context.Context, in *RevokeBusinessInviteRequest, opts ...grpc.CallOption) (*RevokeBusinessInviteResponse, error)
+	AcceptBusinessInvite(ctx context.Context, in *AcceptBusinessInviteRequest, opts ...grpc.CallOption) (*AcceptBusinessInviteResponse, error)
 }
 
 type businessServiceClient struct {
@@ -101,21 +118,74 @@ func (c *businessServiceClient) DeactivateBusiness(ctx context.Context, in *Deac
 	return out, nil
 }
 
+func (c *businessServiceClient) CreateBusinessInvite(ctx context.Context, in *CreateBusinessInviteRequest, opts ...grpc.CallOption) (*CreateBusinessInviteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateBusinessInviteResponse)
+	err := c.cc.Invoke(ctx, BusinessService_CreateBusinessInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *businessServiceClient) ListBusinessInvites(ctx context.Context, in *ListBusinessInvitesRequest, opts ...grpc.CallOption) (*ListBusinessInvitesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListBusinessInvitesResponse)
+	err := c.cc.Invoke(ctx, BusinessService_ListBusinessInvites_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *businessServiceClient) RevokeBusinessInvite(ctx context.Context, in *RevokeBusinessInviteRequest, opts ...grpc.CallOption) (*RevokeBusinessInviteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeBusinessInviteResponse)
+	err := c.cc.Invoke(ctx, BusinessService_RevokeBusinessInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *businessServiceClient) AcceptBusinessInvite(ctx context.Context, in *AcceptBusinessInviteRequest, opts ...grpc.CallOption) (*AcceptBusinessInviteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcceptBusinessInviteResponse)
+	err := c.cc.Invoke(ctx, BusinessService_AcceptBusinessInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BusinessServiceServer is the server API for BusinessService service.
 // All implementations must embed UnimplementedBusinessServiceServer
 // for forward compatibility.
 //
 // BusinessService is the first vertical slice through the stack (proto ->
-// sqlc -> service -> dev-bypass auth) and the template every later resource
-// domain follows. Membership-management RPCs (invite/change-role/remove a
-// business_user) are deliberately left for a later phase once real Apple
-// auth exists and there's a real second user to invite.
+// sqlc -> service -> auth) and the template every later resource domain
+// follows.
+//
+// CreateBusiness is global-admin-only (auth.RequireGlobalAdmin) - nobody
+// else can create a business. The four invite RPCs open a business up to a
+// second user: CreateBusinessInvite is callable by a global admin (any
+// business) or that business's own OWNER/ADMIN
+// (auth.RequireGlobalAdminOrBusinessRole) and returns a one-time token,
+// shared with the invitee out-of-band - ava never sends it. AcceptBusinessInvite
+// is callable by anyone authenticated, but only succeeds if both the token
+// is valid and the caller's own account email matches the invite's -
+// knowing/guessing the invited email alone isn't enough, since passkey
+// registration itself has no email-ownership verification.
 type BusinessServiceServer interface {
 	GetBusiness(context.Context, *GetBusinessRequest) (*GetBusinessResponse, error)
 	ListMyBusinesses(context.Context, *ListMyBusinessesRequest) (*ListMyBusinessesResponse, error)
 	CreateBusiness(context.Context, *CreateBusinessRequest) (*CreateBusinessResponse, error)
 	UpdateBusiness(context.Context, *UpdateBusinessRequest) (*UpdateBusinessResponse, error)
 	DeactivateBusiness(context.Context, *DeactivateBusinessRequest) (*DeactivateBusinessResponse, error)
+	CreateBusinessInvite(context.Context, *CreateBusinessInviteRequest) (*CreateBusinessInviteResponse, error)
+	ListBusinessInvites(context.Context, *ListBusinessInvitesRequest) (*ListBusinessInvitesResponse, error)
+	RevokeBusinessInvite(context.Context, *RevokeBusinessInviteRequest) (*RevokeBusinessInviteResponse, error)
+	AcceptBusinessInvite(context.Context, *AcceptBusinessInviteRequest) (*AcceptBusinessInviteResponse, error)
 	mustEmbedUnimplementedBusinessServiceServer()
 }
 
@@ -140,6 +210,18 @@ func (UnimplementedBusinessServiceServer) UpdateBusiness(context.Context, *Updat
 }
 func (UnimplementedBusinessServiceServer) DeactivateBusiness(context.Context, *DeactivateBusinessRequest) (*DeactivateBusinessResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeactivateBusiness not implemented")
+}
+func (UnimplementedBusinessServiceServer) CreateBusinessInvite(context.Context, *CreateBusinessInviteRequest) (*CreateBusinessInviteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateBusinessInvite not implemented")
+}
+func (UnimplementedBusinessServiceServer) ListBusinessInvites(context.Context, *ListBusinessInvitesRequest) (*ListBusinessInvitesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListBusinessInvites not implemented")
+}
+func (UnimplementedBusinessServiceServer) RevokeBusinessInvite(context.Context, *RevokeBusinessInviteRequest) (*RevokeBusinessInviteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeBusinessInvite not implemented")
+}
+func (UnimplementedBusinessServiceServer) AcceptBusinessInvite(context.Context, *AcceptBusinessInviteRequest) (*AcceptBusinessInviteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcceptBusinessInvite not implemented")
 }
 func (UnimplementedBusinessServiceServer) mustEmbedUnimplementedBusinessServiceServer() {}
 func (UnimplementedBusinessServiceServer) testEmbeddedByValue()                         {}
@@ -252,6 +334,78 @@ func _BusinessService_DeactivateBusiness_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BusinessService_CreateBusinessInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBusinessInviteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BusinessServiceServer).CreateBusinessInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BusinessService_CreateBusinessInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BusinessServiceServer).CreateBusinessInvite(ctx, req.(*CreateBusinessInviteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BusinessService_ListBusinessInvites_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBusinessInvitesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BusinessServiceServer).ListBusinessInvites(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BusinessService_ListBusinessInvites_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BusinessServiceServer).ListBusinessInvites(ctx, req.(*ListBusinessInvitesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BusinessService_RevokeBusinessInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeBusinessInviteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BusinessServiceServer).RevokeBusinessInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BusinessService_RevokeBusinessInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BusinessServiceServer).RevokeBusinessInvite(ctx, req.(*RevokeBusinessInviteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BusinessService_AcceptBusinessInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcceptBusinessInviteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BusinessServiceServer).AcceptBusinessInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BusinessService_AcceptBusinessInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BusinessServiceServer).AcceptBusinessInvite(ctx, req.(*AcceptBusinessInviteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BusinessService_ServiceDesc is the grpc.ServiceDesc for BusinessService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -278,6 +432,22 @@ var BusinessService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeactivateBusiness",
 			Handler:    _BusinessService_DeactivateBusiness_Handler,
+		},
+		{
+			MethodName: "CreateBusinessInvite",
+			Handler:    _BusinessService_CreateBusinessInvite_Handler,
+		},
+		{
+			MethodName: "ListBusinessInvites",
+			Handler:    _BusinessService_ListBusinessInvites_Handler,
+		},
+		{
+			MethodName: "RevokeBusinessInvite",
+			Handler:    _BusinessService_RevokeBusinessInvite_Handler,
+		},
+		{
+			MethodName: "AcceptBusinessInvite",
+			Handler:    _BusinessService_AcceptBusinessInvite_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

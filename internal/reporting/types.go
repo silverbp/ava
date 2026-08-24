@@ -34,21 +34,55 @@ type TrialBalanceResult struct {
 	TotalCredit decimal.Decimal
 }
 
-type BalanceSheetResult struct {
-	Assets           []AccountLine
+// BalanceSheetSection groups ledger_account balances into one
+// balance_sheet_category ("Long-term Assets", "Current Assets &
+// Liabilities", "Long-term Liabilities", "Capital & Reserves"). AssetLines
+// and LiabilityLines are which column a line prints in (its
+// ledger_account_type, not its category) - a section can populate both,
+// e.g. "Current Assets & Liabilities" mixing a bank account with a credit
+// card balance, matching a classic UK-style statutory balance sheet.
+type BalanceSheetSection struct {
+	Title            string
+	AssetLines       []AccountLine
+	LiabilityLines   []AccountLine
 	TotalAssets      decimal.Decimal
-	Liabilities      []AccountLine
 	TotalLiabilities decimal.Decimal
-	Equity           []AccountLine
-	TotalEquity      decimal.Decimal
 }
 
+type BalanceSheetResult struct {
+	Sections []BalanceSheetSection
+	// NetCurrentAssets is TotalAssets - TotalLiabilities within the
+	// "Current Assets & Liabilities" section only.
+	NetCurrentAssets decimal.Decimal
+	// TotalAssetsLessCurrentLiabilities is Long-term Assets' TotalAssets +
+	// NetCurrentAssets.
+	TotalAssetsLessCurrentLiabilities decimal.Decimal
+	// TotalNetAssets is TotalAssetsLessCurrentLiabilities - Long-term
+	// Liabilities' TotalLiabilities.
+	TotalNetAssets decimal.Decimal
+	// TotalAssets and TotalLiabilities are grand totals across every
+	// section (TotalLiabilities includes Capital & Reserves) - the
+	// double-entry identity that the two must be equal is the same check
+	// the old flat assets/liabilities/equity shape made, now summed across
+	// sections instead.
+	TotalAssets      decimal.Decimal
+	TotalLiabilities decimal.Decimal
+}
+
+// IncomeStatementResult is the standard US multi-step income statement shape: Revenue - Cost of
+// Goods Sold = Gross Profit; Gross Profit - Operating Expenses = Net Income.
+// CostOfGoodsSold/OperatingExpenses are split via ledger_account.is_cost_of_goods_sold - only
+// EXPENSES-type accounts ever populate either list.
 type IncomeStatementResult struct {
-	Revenue       []AccountLine
-	TotalRevenue  decimal.Decimal
-	Expenses      []AccountLine
-	TotalExpenses decimal.Decimal
-	NetIncome     decimal.Decimal
+	Revenue                []AccountLine
+	TotalRevenue           decimal.Decimal
+	CostOfGoodsSold        []AccountLine
+	TotalCostOfGoodsSold   decimal.Decimal
+	GrossProfit            decimal.Decimal
+	OperatingExpenses      []AccountLine
+	TotalOperatingExpenses decimal.Decimal
+	TotalExpenses          decimal.Decimal
+	NetIncome              decimal.Decimal
 }
 
 type GeneralLedgerLine struct {

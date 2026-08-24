@@ -95,3 +95,10 @@ func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
+
+// NewInviteToken/HashInviteToken back business_invite.token_hash — exported
+// wrappers around the same random-token/sha256-digest pattern
+// refresh_token_hash already uses (see randomToken/hashToken above), for
+// callers outside this package (business_service.go's invite RPCs).
+func NewInviteToken() (string, error)     { return randomToken() }
+func HashInviteToken(token string) string { return hashToken(token) }

@@ -10,3 +10,14 @@ const (
 	revenueTypeID     = 4
 	expensesTypeID    = 5
 )
+
+// balance_sheet_category_id values seeded by migrations/00001_initial.up.sql -
+// the balance sheet report's section grouping (see BalanceSheet in
+// balance_sheet.go).
+const (
+	longTermAssetsCategoryID      = 1
+	currentCategoryID             = 2
+	longTermLiabilitiesCategoryID = 3
+	capitalAndReservesCategoryID  = 4
+	openingBalancesCategoryID     = 5
+)

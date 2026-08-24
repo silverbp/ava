@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
@@ -20,7 +23,58 @@ func newContextCmd() *cobra.Command {
 		Short: "List AI/user context and attachments for an entity",
 	}
 	root.AddCommand(newContextListCmd())
+	root.AddCommand(newContextDownloadAttachmentCmd())
 	return root
+}
+
+func newContextDownloadAttachmentCmd() *cobra.Command {
+	var id int64
+	var out string
+
+	cmd := &cobra.Command{
+		Use:   "download-attachment",
+		Short: "Download an attachment's file content",
+		Long: `Streams an attachment's bytes through AttachmentService.DownloadAttachment -
+the only way to read a file's content; ava never hands out a direct storage URL.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			stream, err := avav1.NewAttachmentServiceClient(conn).DownloadAttachment(cmd.Context(), &avav1.DownloadAttachmentRequest{Id: id})
+			if err != nil {
+				return err
+			}
+
+			f, err := os.Create(out)
+			if err != nil {
+				return fmt.Errorf("creating %s: %w", out, err)
+			}
+			defer f.Close()
+
+			for {
+				msg, err := stream.Recv()
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				if err != nil {
+					return err
+				}
+				if _, err := f.Write(msg.GetChunk()); err != nil {
+					return fmt.Errorf("writing %s: %w", out, err)
+				}
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "downloaded attachment %d to %s\n", id, out)
+			return nil
+		},
+	}
+	cmd.Flags().Int64Var(&id, "id", 0, "attachment id (required)")
+	cmd.Flags().StringVar(&out, "out", "", "local path to write the file to (required)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("out")
+	return cmd
 }
 
 func newContextListCmd() *cobra.Command {
@@ -83,9 +137,9 @@ func newContextListCmd() *cobra.Command {
 			}
 			fmt.Fprintln(w)
 			fmt.Fprintln(w, "ATTACHMENTS")
-			fmt.Fprintln(w, "ID\tFILENAME\tURL")
+			fmt.Fprintln(w, "ID\tFILENAME\tSIZE\tCONTENT-TYPE")
 			for _, a := range attResp.GetAttachments() {
-				fmt.Fprintf(w, "%d\t%s\t%s\n", a.GetId(), a.GetOriginalFilename(), a.GetStorageUrl())
+				fmt.Fprintf(w, "%d\t%s\t%d\t%s\n", a.GetId(), a.GetOriginalFilename(), a.GetFileSizeBytes(), a.GetContentType())
 			}
 			return nil
 		},

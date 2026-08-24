@@ -12,7 +12,7 @@ sqlc:
 	sqlc generate
 
 db-up:
-	docker compose up -d db
+	docker compose up -d db seaweedfs
 
 db-down:
 	docker compose down

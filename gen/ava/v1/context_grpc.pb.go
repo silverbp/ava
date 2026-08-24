@@ -213,10 +213,11 @@ var EntityContextService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	AttachmentService_GetAttachment_FullMethodName    = "/ava.v1.AttachmentService/GetAttachment"
-	AttachmentService_ListAttachments_FullMethodName  = "/ava.v1.AttachmentService/ListAttachments"
-	AttachmentService_CreateAttachment_FullMethodName = "/ava.v1.AttachmentService/CreateAttachment"
-	AttachmentService_DeleteAttachment_FullMethodName = "/ava.v1.AttachmentService/DeleteAttachment"
+	AttachmentService_GetAttachment_FullMethodName      = "/ava.v1.AttachmentService/GetAttachment"
+	AttachmentService_ListAttachments_FullMethodName    = "/ava.v1.AttachmentService/ListAttachments"
+	AttachmentService_UploadAttachment_FullMethodName   = "/ava.v1.AttachmentService/UploadAttachment"
+	AttachmentService_DownloadAttachment_FullMethodName = "/ava.v1.AttachmentService/DownloadAttachment"
+	AttachmentService_DeleteAttachment_FullMethodName   = "/ava.v1.AttachmentService/DeleteAttachment"
 )
 
 // AttachmentServiceClient is the client API for AttachmentService service.
@@ -224,14 +225,18 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // AttachmentService: same polymorphic entity_type/entity_id pattern, for
-// files. storage_url is caller-supplied — the API registers a reference to
-// a file already hosted elsewhere (this project has no object-storage
-// integration of its own yet); a presigned-upload flow is a natural
-// addition once one exists.
+// files. File bytes are streamed through this API and land in an internal
+// object-storage backend (SeaweedFS locally - see docker-compose.yml,
+// internal/storage) that no caller ever addresses directly: UploadAttachment
+// streams bytes in, DownloadAttachment streams bytes back out, and the
+// backend's storage key never appears in the Attachment message. Every
+// read/write is gated by ava's own auth (RequireBusinessRole) this way -
+// there are no unauthenticated, publicly-reachable attachment URLs.
 type AttachmentServiceClient interface {
 	GetAttachment(ctx context.Context, in *GetAttachmentRequest, opts ...grpc.CallOption) (*GetAttachmentResponse, error)
 	ListAttachments(ctx context.Context, in *ListAttachmentsRequest, opts ...grpc.CallOption) (*ListAttachmentsResponse, error)
-	CreateAttachment(ctx context.Context, in *CreateAttachmentRequest, opts ...grpc.CallOption) (*CreateAttachmentResponse, error)
+	UploadAttachment(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadAttachmentRequest, UploadAttachmentResponse], error)
+	DownloadAttachment(ctx context.Context, in *DownloadAttachmentRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadAttachmentResponse], error)
 	DeleteAttachment(ctx context.Context, in *DeleteAttachmentRequest, opts ...grpc.CallOption) (*DeleteAttachmentResponse, error)
 }
 
@@ -263,15 +268,37 @@ func (c *attachmentServiceClient) ListAttachments(ctx context.Context, in *ListA
 	return out, nil
 }
 
-func (c *attachmentServiceClient) CreateAttachment(ctx context.Context, in *CreateAttachmentRequest, opts ...grpc.CallOption) (*CreateAttachmentResponse, error) {
+func (c *attachmentServiceClient) UploadAttachment(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadAttachmentRequest, UploadAttachmentResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateAttachmentResponse)
-	err := c.cc.Invoke(ctx, AttachmentService_CreateAttachment_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &AttachmentService_ServiceDesc.Streams[0], AttachmentService_UploadAttachment_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[UploadAttachmentRequest, UploadAttachmentResponse]{ClientStream: stream}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AttachmentService_UploadAttachmentClient = grpc.ClientStreamingClient[UploadAttachmentRequest, UploadAttachmentResponse]
+
+func (c *attachmentServiceClient) DownloadAttachment(ctx context.Context, in *DownloadAttachmentRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadAttachmentResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AttachmentService_ServiceDesc.Streams[1], AttachmentService_DownloadAttachment_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[DownloadAttachmentRequest, DownloadAttachmentResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AttachmentService_DownloadAttachmentClient = grpc.ServerStreamingClient[DownloadAttachmentResponse]
 
 func (c *attachmentServiceClient) DeleteAttachment(ctx context.Context, in *DeleteAttachmentRequest, opts ...grpc.CallOption) (*DeleteAttachmentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -288,14 +315,18 @@ func (c *attachmentServiceClient) DeleteAttachment(ctx context.Context, in *Dele
 // for forward compatibility.
 //
 // AttachmentService: same polymorphic entity_type/entity_id pattern, for
-// files. storage_url is caller-supplied — the API registers a reference to
-// a file already hosted elsewhere (this project has no object-storage
-// integration of its own yet); a presigned-upload flow is a natural
-// addition once one exists.
+// files. File bytes are streamed through this API and land in an internal
+// object-storage backend (SeaweedFS locally - see docker-compose.yml,
+// internal/storage) that no caller ever addresses directly: UploadAttachment
+// streams bytes in, DownloadAttachment streams bytes back out, and the
+// backend's storage key never appears in the Attachment message. Every
+// read/write is gated by ava's own auth (RequireBusinessRole) this way -
+// there are no unauthenticated, publicly-reachable attachment URLs.
 type AttachmentServiceServer interface {
 	GetAttachment(context.Context, *GetAttachmentRequest) (*GetAttachmentResponse, error)
 	ListAttachments(context.Context, *ListAttachmentsRequest) (*ListAttachmentsResponse, error)
-	CreateAttachment(context.Context, *CreateAttachmentRequest) (*CreateAttachmentResponse, error)
+	UploadAttachment(grpc.ClientStreamingServer[UploadAttachmentRequest, UploadAttachmentResponse]) error
+	DownloadAttachment(*DownloadAttachmentRequest, grpc.ServerStreamingServer[DownloadAttachmentResponse]) error
 	DeleteAttachment(context.Context, *DeleteAttachmentRequest) (*DeleteAttachmentResponse, error)
 	mustEmbedUnimplementedAttachmentServiceServer()
 }
@@ -313,8 +344,11 @@ func (UnimplementedAttachmentServiceServer) GetAttachment(context.Context, *GetA
 func (UnimplementedAttachmentServiceServer) ListAttachments(context.Context, *ListAttachmentsRequest) (*ListAttachmentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListAttachments not implemented")
 }
-func (UnimplementedAttachmentServiceServer) CreateAttachment(context.Context, *CreateAttachmentRequest) (*CreateAttachmentResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateAttachment not implemented")
+func (UnimplementedAttachmentServiceServer) UploadAttachment(grpc.ClientStreamingServer[UploadAttachmentRequest, UploadAttachmentResponse]) error {
+	return status.Error(codes.Unimplemented, "method UploadAttachment not implemented")
+}
+func (UnimplementedAttachmentServiceServer) DownloadAttachment(*DownloadAttachmentRequest, grpc.ServerStreamingServer[DownloadAttachmentResponse]) error {
+	return status.Error(codes.Unimplemented, "method DownloadAttachment not implemented")
 }
 func (UnimplementedAttachmentServiceServer) DeleteAttachment(context.Context, *DeleteAttachmentRequest) (*DeleteAttachmentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteAttachment not implemented")
@@ -376,23 +410,23 @@ func _AttachmentService_ListAttachments_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AttachmentService_CreateAttachment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateAttachmentRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AttachmentServiceServer).CreateAttachment(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AttachmentService_CreateAttachment_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AttachmentServiceServer).CreateAttachment(ctx, req.(*CreateAttachmentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+func _AttachmentService_UploadAttachment_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(AttachmentServiceServer).UploadAttachment(&grpc.GenericServerStream[UploadAttachmentRequest, UploadAttachmentResponse]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AttachmentService_UploadAttachmentServer = grpc.ClientStreamingServer[UploadAttachmentRequest, UploadAttachmentResponse]
+
+func _AttachmentService_DownloadAttachment_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(DownloadAttachmentRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AttachmentServiceServer).DownloadAttachment(m, &grpc.GenericServerStream[DownloadAttachmentRequest, DownloadAttachmentResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AttachmentService_DownloadAttachmentServer = grpc.ServerStreamingServer[DownloadAttachmentResponse]
 
 func _AttachmentService_DeleteAttachment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteAttachmentRequest)
@@ -428,14 +462,21 @@ var AttachmentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AttachmentService_ListAttachments_Handler,
 		},
 		{
-			MethodName: "CreateAttachment",
-			Handler:    _AttachmentService_CreateAttachment_Handler,
-		},
-		{
 			MethodName: "DeleteAttachment",
 			Handler:    _AttachmentService_DeleteAttachment_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "UploadAttachment",
+			Handler:       _AttachmentService_UploadAttachment_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "DownloadAttachment",
+			Handler:       _AttachmentService_DownloadAttachment_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "ava/v1/context.proto",
 }

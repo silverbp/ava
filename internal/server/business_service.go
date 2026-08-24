@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -102,10 +104,10 @@ func (s *businessService) ListMyBusinesses(ctx context.Context, _ *avav1.ListMyB
 }
 
 func (s *businessService) CreateBusiness(ctx context.Context, req *avav1.CreateBusinessRequest) (*avav1.CreateBusinessResponse, error) {
-	u, ok := auth.UserFromContext(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
+	if err := auth.RequireGlobalAdmin(ctx, s.store.Queries); err != nil {
+		return nil, err
 	}
+	u, _ := auth.UserFromContext(ctx)
 	if req.GetName() == "" {
 		return nil, status.Error(codes.InvalidArgument, "name is required")
 	}
@@ -203,6 +205,163 @@ func (s *businessService) DeactivateBusiness(ctx context.Context, req *avav1.Dea
 		return nil, status.Errorf(codes.Internal, "converting business: %v", err)
 	}
 	return &avav1.DeactivateBusinessResponse{Business: pb}, nil
+}
+
+// businessInviteTTL is deliberately short — a copy/pasted invite token
+// sitting unused in a chat channel is exposure with no benefit; 7 days is
+// enough for someone to actually see it and register.
+const businessInviteTTL = 7 * 24 * time.Hour
+
+var validBusinessUserRoles = map[string]bool{"OWNER": true, "ADMIN": true, "MEMBER": true, "VIEWER": true}
+
+// CreateBusinessInvite is callable by a global admin (any business) or
+// that business's own OWNER/ADMIN. It never creates a business_user row
+// itself — only AcceptBusinessInvite does, once the invitee proves they
+// hold the token AND are signed in as the invited email.
+func (s *businessService) CreateBusinessInvite(ctx context.Context, req *avav1.CreateBusinessInviteRequest) (*avav1.CreateBusinessInviteResponse, error) {
+	if err := auth.RequireGlobalAdminOrBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "ADMIN"); err != nil {
+		return nil, err
+	}
+	u, _ := auth.UserFromContext(ctx)
+
+	email := strings.TrimSpace(req.GetEmail())
+	if email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+	role := req.GetRole()
+	if !validBusinessUserRoles[role] {
+		return nil, status.Errorf(codes.InvalidArgument, "role must be one of OWNER, ADMIN, MEMBER, VIEWER")
+	}
+
+	rawToken, err := auth.NewInviteToken()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "generating invite token: %v", err)
+	}
+
+	created, err := s.store.Queries.CreateBusinessInvite(ctx, sqlcgen.CreateBusinessInviteParams{
+		BusinessID:      req.GetBusinessId(),
+		Email:           email,
+		Role:            role,
+		TokenHash:       auth.HashInviteToken(rawToken),
+		InvitedByUserID: &u.ID,
+		ExpiresAt:       pgtype.Timestamp{Time: time.Now().Add(businessInviteTTL), Valid: true},
+	})
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+
+	return &avav1.CreateBusinessInviteResponse{
+		Invite: businessInviteToProto(created),
+		Token:  rawToken,
+	}, nil
+}
+
+func (s *businessService) ListBusinessInvites(ctx context.Context, req *avav1.ListBusinessInvitesRequest) (*avav1.ListBusinessInvitesResponse, error) {
+	if err := auth.RequireGlobalAdminOrBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "ADMIN"); err != nil {
+		return nil, err
+	}
+	rows, err := s.store.Queries.ListBusinessInvitesForBusiness(ctx, req.GetBusinessId())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "listing invites: %v", err)
+	}
+	resp := &avav1.ListBusinessInvitesResponse{}
+	for _, r := range rows {
+		resp.Invites = append(resp.Invites, businessInviteToProto(r))
+	}
+	return resp, nil
+}
+
+func (s *businessService) RevokeBusinessInvite(ctx context.Context, req *avav1.RevokeBusinessInviteRequest) (*avav1.RevokeBusinessInviteResponse, error) {
+	invite, err := s.store.Queries.GetBusinessInvite(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "invite %d not found", req.GetId())
+		}
+		return nil, status.Errorf(codes.Internal, "getting invite: %v", err)
+	}
+	if err := auth.RequireGlobalAdminOrBusinessRole(ctx, s.store.Queries, invite.BusinessID, "ADMIN"); err != nil {
+		return nil, err
+	}
+
+	revoked, err := s.store.Queries.RevokeBusinessInvite(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.FailedPrecondition, "invite %d was already accepted or revoked", req.GetId())
+		}
+		return nil, status.Errorf(codes.Internal, "revoking invite: %v", err)
+	}
+	return &avav1.RevokeBusinessInviteResponse{Invite: businessInviteToProto(revoked)}, nil
+}
+
+// AcceptBusinessInvite is callable by anyone authenticated, but only
+// succeeds if the token is valid, unexpired, and unused AND the caller's
+// own account email matches the invite's — knowing/guessing the invited
+// email alone isn't enough, since passkey registration has no
+// email-ownership verification of its own.
+func (s *businessService) AcceptBusinessInvite(ctx context.Context, req *avav1.AcceptBusinessInviteRequest) (*avav1.AcceptBusinessInviteResponse, error) {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
+	}
+	if req.GetToken() == "" {
+		return nil, status.Error(codes.InvalidArgument, "token is required")
+	}
+
+	invite, err := s.store.Queries.GetPendingBusinessInviteByTokenHash(ctx, auth.HashInviteToken(req.GetToken()))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Error(codes.NotFound, "invite not found, expired, or already used")
+		}
+		return nil, status.Errorf(codes.Internal, "looking up invite: %v", err)
+	}
+	if !strings.EqualFold(invite.Email, u.Email) {
+		return nil, status.Errorf(codes.PermissionDenied, "this invite was sent to a different email address")
+	}
+
+	var business sqlcgen.Business
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		if _, err := q.CreateBusinessUser(ctx, sqlcgen.CreateBusinessUserParams{
+			BusinessID: invite.BusinessID,
+			UserID:     u.ID,
+			Role:       invite.Role,
+		}); err != nil {
+			return err
+		}
+		if _, err := q.AcceptBusinessInvite(ctx, sqlcgen.AcceptBusinessInviteParams{ID: invite.ID, AcceptedByUserID: &u.ID}); err != nil {
+			return err
+		}
+		var err error
+		business, err = q.GetBusiness(ctx, invite.BusinessID)
+		return err
+	})
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+
+	pb, err := businessToProto(business)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting business: %v", err)
+	}
+	return &avav1.AcceptBusinessInviteResponse{Business: pb, Role: invite.Role}, nil
+}
+
+func businessInviteToProto(i sqlcgen.BusinessInvite) *avav1.BusinessInvite {
+	pb := &avav1.BusinessInvite{
+		Id:              i.ID,
+		BusinessId:      i.BusinessID,
+		Email:           i.Email,
+		Role:            i.Role,
+		InvitedByUserId: i.InvitedByUserID,
+		CreatedAt:       timestampProto(i.CreatedAt),
+		ExpiresAt:       timestampProto(i.ExpiresAt),
+	}
+	if i.AcceptedAt.Valid {
+		pb.AcceptedAt = timestampProto(i.AcceptedAt)
+	}
+	if i.RevokedAt.Valid {
+		pb.RevokedAt = timestampProto(i.RevokedAt)
+	}
+	return pb
 }
 
 func businessToProto(b sqlcgen.Business) (*avav1.Business, error) {

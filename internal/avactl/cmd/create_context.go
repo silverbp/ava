@@ -1,6 +1,11 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -75,38 +80,66 @@ func newCreateEntityContextCmd() *cobra.Command {
 }
 
 func newCreateAttachmentCmd() *cobra.Command {
-	var entityType, url, filename, contentType string
-	var entityID, size int64
+	var entityType, path, filename, contentType string
+	var entityID int64
 
 	cmd := &cobra.Command{
 		Use:   "attachment",
-		Short: "Attach a file reference to any entity",
-		Long: `Register a reference to a file already hosted elsewhere (this project has
-no object-storage integration of its own) against any entity.`,
+		Short: "Upload a file and attach it to any entity",
+		Long: `Streams a local file's bytes to ava through AttachmentService.UploadAttachment,
+which stores it in ava's own object-storage backend - not a caller-supplied URL.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f, err := os.Open(path)
+			if err != nil {
+				return fmt.Errorf("opening %s: %w", path, err)
+			}
+			defer f.Close()
+
+			if filename == "" {
+				filename = filepath.Base(path)
+			}
+
 			conn, _, businessID, err := dial()
 			if err != nil {
 				return err
 			}
 			defer conn.Close()
 
-			req := &avav1.CreateAttachmentRequest{
-				BusinessId: businessID,
-				EntityType: entityType,
-				EntityId:   entityID,
-				StorageUrl: url,
-			}
-			if filename != "" {
-				req.OriginalFilename = &filename
-			}
-			if contentType != "" {
-				req.ContentType = &contentType
-			}
-			if size != 0 {
-				req.FileSizeBytes = &size
+			stream, err := avav1.NewAttachmentServiceClient(conn).UploadAttachment(cmd.Context())
+			if err != nil {
+				return err
 			}
 
-			resp, err := avav1.NewAttachmentServiceClient(conn).CreateAttachment(cmd.Context(), req)
+			meta := &avav1.UploadAttachmentMetadata{
+				BusinessId:       businessID,
+				EntityType:       entityType,
+				EntityId:         entityID,
+				OriginalFilename: &filename,
+			}
+			if contentType != "" {
+				meta.ContentType = &contentType
+			}
+			if err := stream.Send(&avav1.UploadAttachmentRequest{Data: &avav1.UploadAttachmentRequest_Metadata{Metadata: meta}}); err != nil {
+				return err
+			}
+
+			buf := make([]byte, 256*1024)
+			for {
+				n, readErr := f.Read(buf)
+				if n > 0 {
+					if sendErr := stream.Send(&avav1.UploadAttachmentRequest{Data: &avav1.UploadAttachmentRequest_Chunk{Chunk: buf[:n]}}); sendErr != nil {
+						return sendErr
+					}
+				}
+				if errors.Is(readErr, io.EOF) {
+					break
+				}
+				if readErr != nil {
+					return fmt.Errorf("reading %s: %w", path, readErr)
+				}
+			}
+
+			resp, err := stream.CloseAndRecv()
 			if err != nil {
 				return err
 			}
@@ -116,12 +149,11 @@ no object-storage integration of its own) against any entity.`,
 	}
 	cmd.Flags().StringVar(&entityType, "entity-type", "", "target entity type, e.g. invoice, contact (required)")
 	cmd.Flags().Int64Var(&entityID, "entity-id", 0, "target entity id (required)")
-	cmd.Flags().StringVar(&url, "url", "", "storage URL of the already-hosted file (required)")
-	cmd.Flags().StringVar(&filename, "filename", "", "original filename")
+	cmd.Flags().StringVar(&path, "file", "", "local path of the file to upload (required)")
+	cmd.Flags().StringVar(&filename, "filename", "", "original filename (default: the uploaded file's base name)")
 	cmd.Flags().StringVar(&contentType, "content-type", "", "MIME content type")
-	cmd.Flags().Int64Var(&size, "size", 0, "file size, in bytes")
 	_ = cmd.MarkFlagRequired("entity-type")
 	_ = cmd.MarkFlagRequired("entity-id")
-	_ = cmd.MarkFlagRequired("url")
+	_ = cmd.MarkFlagRequired("file")
 	return cmd
 }

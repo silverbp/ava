@@ -420,21 +420,110 @@ func (x *BalanceSheetLine) GetBalance() *Decimal {
 	return nil
 }
 
-type BalanceSheet struct {
+// One balance_sheet_category grouping (Long-term Assets, Current Assets &
+// Liabilities, Long-term Liabilities, Capital & Reserves). asset_lines and
+// liability_lines are which column a line prints in, not which category
+// it's grouped under - "Current Assets & Liabilities" mixes both in the
+// same section, matching a classic UK-style statutory balance sheet.
+type BalanceSheetSection struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	Assets           []*BalanceSheetLine    `protobuf:"bytes,1,rep,name=assets,proto3" json:"assets,omitempty"`
-	TotalAssets      *Decimal               `protobuf:"bytes,2,opt,name=total_assets,json=totalAssets,proto3" json:"total_assets,omitempty"`
-	Liabilities      []*BalanceSheetLine    `protobuf:"bytes,3,rep,name=liabilities,proto3" json:"liabilities,omitempty"`
-	TotalLiabilities *Decimal               `protobuf:"bytes,4,opt,name=total_liabilities,json=totalLiabilities,proto3" json:"total_liabilities,omitempty"`
-	Equity           []*BalanceSheetLine    `protobuf:"bytes,5,rep,name=equity,proto3" json:"equity,omitempty"`
-	TotalEquity      *Decimal               `protobuf:"bytes,6,opt,name=total_equity,json=totalEquity,proto3" json:"total_equity,omitempty"`
+	Title            string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
+	AssetLines       []*BalanceSheetLine    `protobuf:"bytes,2,rep,name=asset_lines,json=assetLines,proto3" json:"asset_lines,omitempty"`
+	LiabilityLines   []*BalanceSheetLine    `protobuf:"bytes,3,rep,name=liability_lines,json=liabilityLines,proto3" json:"liability_lines,omitempty"`
+	TotalAssets      *Decimal               `protobuf:"bytes,4,opt,name=total_assets,json=totalAssets,proto3" json:"total_assets,omitempty"`
+	TotalLiabilities *Decimal               `protobuf:"bytes,5,opt,name=total_liabilities,json=totalLiabilities,proto3" json:"total_liabilities,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BalanceSheetSection) Reset() {
+	*x = BalanceSheetSection{}
+	mi := &file_ava_v1_reporting_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BalanceSheetSection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BalanceSheetSection) ProtoMessage() {}
+
+func (x *BalanceSheetSection) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_reporting_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BalanceSheetSection.ProtoReflect.Descriptor instead.
+func (*BalanceSheetSection) Descriptor() ([]byte, []int) {
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *BalanceSheetSection) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *BalanceSheetSection) GetAssetLines() []*BalanceSheetLine {
+	if x != nil {
+		return x.AssetLines
+	}
+	return nil
+}
+
+func (x *BalanceSheetSection) GetLiabilityLines() []*BalanceSheetLine {
+	if x != nil {
+		return x.LiabilityLines
+	}
+	return nil
+}
+
+func (x *BalanceSheetSection) GetTotalAssets() *Decimal {
+	if x != nil {
+		return x.TotalAssets
+	}
+	return nil
+}
+
+func (x *BalanceSheetSection) GetTotalLiabilities() *Decimal {
+	if x != nil {
+		return x.TotalLiabilities
+	}
+	return nil
+}
+
+type BalanceSheet struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Sections []*BalanceSheetSection `protobuf:"bytes,1,rep,name=sections,proto3" json:"sections,omitempty"`
+	// total_assets - total_liabilities within the "Current Assets &
+	// Liabilities" section only.
+	NetCurrentAssets *Decimal `protobuf:"bytes,2,opt,name=net_current_assets,json=netCurrentAssets,proto3" json:"net_current_assets,omitempty"`
+	// Long-term Assets' total_assets + net_current_assets.
+	TotalAssetsLessCurrentLiabilities *Decimal `protobuf:"bytes,3,opt,name=total_assets_less_current_liabilities,json=totalAssetsLessCurrentLiabilities,proto3" json:"total_assets_less_current_liabilities,omitempty"`
+	// total_assets_less_current_liabilities - Long-term Liabilities' total_liabilities.
+	TotalNetAssets *Decimal `protobuf:"bytes,4,opt,name=total_net_assets,json=totalNetAssets,proto3" json:"total_net_assets,omitempty"`
+	// Grand totals across every section - total_assets should equal
+	// total_liabilities (which includes Capital & Reserves), the same
+	// double-entry identity the old flat assets/liabilities/equity shape
+	// checked, now summed across sections instead.
+	TotalAssets      *Decimal `protobuf:"bytes,5,opt,name=total_assets,json=totalAssets,proto3" json:"total_assets,omitempty"`
+	TotalLiabilities *Decimal `protobuf:"bytes,6,opt,name=total_liabilities,json=totalLiabilities,proto3" json:"total_liabilities,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *BalanceSheet) Reset() {
 	*x = BalanceSheet{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[7]
+	mi := &file_ava_v1_reporting_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +535,7 @@ func (x *BalanceSheet) String() string {
 func (*BalanceSheet) ProtoMessage() {}
 
 func (x *BalanceSheet) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[7]
+	mi := &file_ava_v1_reporting_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,12 +548,33 @@ func (x *BalanceSheet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BalanceSheet.ProtoReflect.Descriptor instead.
 func (*BalanceSheet) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{7}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *BalanceSheet) GetAssets() []*BalanceSheetLine {
+func (x *BalanceSheet) GetSections() []*BalanceSheetSection {
 	if x != nil {
-		return x.Assets
+		return x.Sections
+	}
+	return nil
+}
+
+func (x *BalanceSheet) GetNetCurrentAssets() *Decimal {
+	if x != nil {
+		return x.NetCurrentAssets
+	}
+	return nil
+}
+
+func (x *BalanceSheet) GetTotalAssetsLessCurrentLiabilities() *Decimal {
+	if x != nil {
+		return x.TotalAssetsLessCurrentLiabilities
+	}
+	return nil
+}
+
+func (x *BalanceSheet) GetTotalNetAssets() *Decimal {
+	if x != nil {
+		return x.TotalNetAssets
 	}
 	return nil
 }
@@ -476,30 +586,9 @@ func (x *BalanceSheet) GetTotalAssets() *Decimal {
 	return nil
 }
 
-func (x *BalanceSheet) GetLiabilities() []*BalanceSheetLine {
-	if x != nil {
-		return x.Liabilities
-	}
-	return nil
-}
-
 func (x *BalanceSheet) GetTotalLiabilities() *Decimal {
 	if x != nil {
 		return x.TotalLiabilities
-	}
-	return nil
-}
-
-func (x *BalanceSheet) GetEquity() []*BalanceSheetLine {
-	if x != nil {
-		return x.Equity
-	}
-	return nil
-}
-
-func (x *BalanceSheet) GetTotalEquity() *Decimal {
-	if x != nil {
-		return x.TotalEquity
 	}
 	return nil
 }
@@ -515,7 +604,7 @@ type GetIncomeStatementRequest struct {
 
 func (x *GetIncomeStatementRequest) Reset() {
 	*x = GetIncomeStatementRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[8]
+	mi := &file_ava_v1_reporting_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +616,7 @@ func (x *GetIncomeStatementRequest) String() string {
 func (*GetIncomeStatementRequest) ProtoMessage() {}
 
 func (x *GetIncomeStatementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[8]
+	mi := &file_ava_v1_reporting_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +629,7 @@ func (x *GetIncomeStatementRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIncomeStatementRequest.ProtoReflect.Descriptor instead.
 func (*GetIncomeStatementRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{8}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetIncomeStatementRequest) GetBusinessId() int64 {
@@ -573,7 +662,7 @@ type GetIncomeStatementResponse struct {
 
 func (x *GetIncomeStatementResponse) Reset() {
 	*x = GetIncomeStatementResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[9]
+	mi := &file_ava_v1_reporting_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -585,7 +674,7 @@ func (x *GetIncomeStatementResponse) String() string {
 func (*GetIncomeStatementResponse) ProtoMessage() {}
 
 func (x *GetIncomeStatementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[9]
+	mi := &file_ava_v1_reporting_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -598,7 +687,7 @@ func (x *GetIncomeStatementResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIncomeStatementResponse.ProtoReflect.Descriptor instead.
 func (*GetIncomeStatementResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{9}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetIncomeStatementResponse) GetIncomeStatement() *IncomeStatement {
@@ -620,7 +709,7 @@ type IncomeStatementLine struct {
 
 func (x *IncomeStatementLine) Reset() {
 	*x = IncomeStatementLine{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[10]
+	mi := &file_ava_v1_reporting_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -632,7 +721,7 @@ func (x *IncomeStatementLine) String() string {
 func (*IncomeStatementLine) ProtoMessage() {}
 
 func (x *IncomeStatementLine) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[10]
+	mi := &file_ava_v1_reporting_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -645,7 +734,7 @@ func (x *IncomeStatementLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IncomeStatementLine.ProtoReflect.Descriptor instead.
 func (*IncomeStatementLine) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{10}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *IncomeStatementLine) GetAccountId() int32 {
@@ -676,20 +765,28 @@ func (x *IncomeStatementLine) GetAmount() *Decimal {
 	return nil
 }
 
+// Standard US multi-step income statement shape: Revenue - Cost of Goods Sold = Gross Profit;
+// Gross Profit - Operating Expenses = Net Income. cost_of_goods_sold/operating_expenses are
+// split via ledger_account.is_cost_of_goods_sold - only EXPENSES-type accounts ever populate
+// either list.
 type IncomeStatement struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Revenue       []*IncomeStatementLine `protobuf:"bytes,1,rep,name=revenue,proto3" json:"revenue,omitempty"`
-	TotalRevenue  *Decimal               `protobuf:"bytes,2,opt,name=total_revenue,json=totalRevenue,proto3" json:"total_revenue,omitempty"`
-	Expenses      []*IncomeStatementLine `protobuf:"bytes,3,rep,name=expenses,proto3" json:"expenses,omitempty"`
-	TotalExpenses *Decimal               `protobuf:"bytes,4,opt,name=total_expenses,json=totalExpenses,proto3" json:"total_expenses,omitempty"`
-	NetIncome     *Decimal               `protobuf:"bytes,5,opt,name=net_income,json=netIncome,proto3" json:"net_income,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Revenue                []*IncomeStatementLine `protobuf:"bytes,1,rep,name=revenue,proto3" json:"revenue,omitempty"`
+	TotalRevenue           *Decimal               `protobuf:"bytes,2,opt,name=total_revenue,json=totalRevenue,proto3" json:"total_revenue,omitempty"`
+	CostOfGoodsSold        []*IncomeStatementLine `protobuf:"bytes,3,rep,name=cost_of_goods_sold,json=costOfGoodsSold,proto3" json:"cost_of_goods_sold,omitempty"`
+	TotalCostOfGoodsSold   *Decimal               `protobuf:"bytes,4,opt,name=total_cost_of_goods_sold,json=totalCostOfGoodsSold,proto3" json:"total_cost_of_goods_sold,omitempty"`
+	GrossProfit            *Decimal               `protobuf:"bytes,5,opt,name=gross_profit,json=grossProfit,proto3" json:"gross_profit,omitempty"`
+	OperatingExpenses      []*IncomeStatementLine `protobuf:"bytes,6,rep,name=operating_expenses,json=operatingExpenses,proto3" json:"operating_expenses,omitempty"`
+	TotalOperatingExpenses *Decimal               `protobuf:"bytes,7,opt,name=total_operating_expenses,json=totalOperatingExpenses,proto3" json:"total_operating_expenses,omitempty"`
+	TotalExpenses          *Decimal               `protobuf:"bytes,8,opt,name=total_expenses,json=totalExpenses,proto3" json:"total_expenses,omitempty"`
+	NetIncome              *Decimal               `protobuf:"bytes,9,opt,name=net_income,json=netIncome,proto3" json:"net_income,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *IncomeStatement) Reset() {
 	*x = IncomeStatement{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[11]
+	mi := &file_ava_v1_reporting_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +798,7 @@ func (x *IncomeStatement) String() string {
 func (*IncomeStatement) ProtoMessage() {}
 
 func (x *IncomeStatement) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[11]
+	mi := &file_ava_v1_reporting_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +811,7 @@ func (x *IncomeStatement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IncomeStatement.ProtoReflect.Descriptor instead.
 func (*IncomeStatement) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{11}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *IncomeStatement) GetRevenue() []*IncomeStatementLine {
@@ -731,9 +828,37 @@ func (x *IncomeStatement) GetTotalRevenue() *Decimal {
 	return nil
 }
 
-func (x *IncomeStatement) GetExpenses() []*IncomeStatementLine {
+func (x *IncomeStatement) GetCostOfGoodsSold() []*IncomeStatementLine {
 	if x != nil {
-		return x.Expenses
+		return x.CostOfGoodsSold
+	}
+	return nil
+}
+
+func (x *IncomeStatement) GetTotalCostOfGoodsSold() *Decimal {
+	if x != nil {
+		return x.TotalCostOfGoodsSold
+	}
+	return nil
+}
+
+func (x *IncomeStatement) GetGrossProfit() *Decimal {
+	if x != nil {
+		return x.GrossProfit
+	}
+	return nil
+}
+
+func (x *IncomeStatement) GetOperatingExpenses() []*IncomeStatementLine {
+	if x != nil {
+		return x.OperatingExpenses
+	}
+	return nil
+}
+
+func (x *IncomeStatement) GetTotalOperatingExpenses() *Decimal {
+	if x != nil {
+		return x.TotalOperatingExpenses
 	}
 	return nil
 }
@@ -764,7 +889,7 @@ type GetGeneralLedgerRequest struct {
 
 func (x *GetGeneralLedgerRequest) Reset() {
 	*x = GetGeneralLedgerRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[12]
+	mi := &file_ava_v1_reporting_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -776,7 +901,7 @@ func (x *GetGeneralLedgerRequest) String() string {
 func (*GetGeneralLedgerRequest) ProtoMessage() {}
 
 func (x *GetGeneralLedgerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[12]
+	mi := &file_ava_v1_reporting_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -789,7 +914,7 @@ func (x *GetGeneralLedgerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGeneralLedgerRequest.ProtoReflect.Descriptor instead.
 func (*GetGeneralLedgerRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{12}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetGeneralLedgerRequest) GetBusinessId() int64 {
@@ -829,7 +954,7 @@ type GetGeneralLedgerResponse struct {
 
 func (x *GetGeneralLedgerResponse) Reset() {
 	*x = GetGeneralLedgerResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[13]
+	mi := &file_ava_v1_reporting_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -841,7 +966,7 @@ func (x *GetGeneralLedgerResponse) String() string {
 func (*GetGeneralLedgerResponse) ProtoMessage() {}
 
 func (x *GetGeneralLedgerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[13]
+	mi := &file_ava_v1_reporting_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -854,7 +979,7 @@ func (x *GetGeneralLedgerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGeneralLedgerResponse.ProtoReflect.Descriptor instead.
 func (*GetGeneralLedgerResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{13}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetGeneralLedgerResponse) GetGeneralLedger() *GeneralLedger {
@@ -878,7 +1003,7 @@ type GeneralLedgerLine struct {
 
 func (x *GeneralLedgerLine) Reset() {
 	*x = GeneralLedgerLine{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[14]
+	mi := &file_ava_v1_reporting_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +1015,7 @@ func (x *GeneralLedgerLine) String() string {
 func (*GeneralLedgerLine) ProtoMessage() {}
 
 func (x *GeneralLedgerLine) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[14]
+	mi := &file_ava_v1_reporting_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +1028,7 @@ func (x *GeneralLedgerLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GeneralLedgerLine.ProtoReflect.Descriptor instead.
 func (*GeneralLedgerLine) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{14}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GeneralLedgerLine) GetLedgerTransactionId() int64 {
@@ -961,7 +1086,7 @@ type GeneralLedger struct {
 
 func (x *GeneralLedger) Reset() {
 	*x = GeneralLedger{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[15]
+	mi := &file_ava_v1_reporting_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -973,7 +1098,7 @@ func (x *GeneralLedger) String() string {
 func (*GeneralLedger) ProtoMessage() {}
 
 func (x *GeneralLedger) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[15]
+	mi := &file_ava_v1_reporting_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -986,7 +1111,7 @@ func (x *GeneralLedger) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GeneralLedger.ProtoReflect.Descriptor instead.
 func (*GeneralLedger) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{15}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GeneralLedger) GetAccountId() int32 {
@@ -1035,7 +1160,7 @@ type GetCustomerStatementRequest struct {
 
 func (x *GetCustomerStatementRequest) Reset() {
 	*x = GetCustomerStatementRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[16]
+	mi := &file_ava_v1_reporting_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1047,7 +1172,7 @@ func (x *GetCustomerStatementRequest) String() string {
 func (*GetCustomerStatementRequest) ProtoMessage() {}
 
 func (x *GetCustomerStatementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[16]
+	mi := &file_ava_v1_reporting_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1060,7 +1185,7 @@ func (x *GetCustomerStatementRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCustomerStatementRequest.ProtoReflect.Descriptor instead.
 func (*GetCustomerStatementRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{16}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetCustomerStatementRequest) GetContactId() int64 {
@@ -1093,7 +1218,7 @@ type GetCustomerStatementResponse struct {
 
 func (x *GetCustomerStatementResponse) Reset() {
 	*x = GetCustomerStatementResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[17]
+	mi := &file_ava_v1_reporting_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1105,7 +1230,7 @@ func (x *GetCustomerStatementResponse) String() string {
 func (*GetCustomerStatementResponse) ProtoMessage() {}
 
 func (x *GetCustomerStatementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[17]
+	mi := &file_ava_v1_reporting_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1118,7 +1243,7 @@ func (x *GetCustomerStatementResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCustomerStatementResponse.ProtoReflect.Descriptor instead.
 func (*GetCustomerStatementResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{17}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetCustomerStatementResponse) GetStatement() *CustomerStatement {
@@ -1143,7 +1268,7 @@ type StatementInvoiceLine struct {
 
 func (x *StatementInvoiceLine) Reset() {
 	*x = StatementInvoiceLine{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[18]
+	mi := &file_ava_v1_reporting_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1155,7 +1280,7 @@ func (x *StatementInvoiceLine) String() string {
 func (*StatementInvoiceLine) ProtoMessage() {}
 
 func (x *StatementInvoiceLine) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[18]
+	mi := &file_ava_v1_reporting_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1168,7 +1293,7 @@ func (x *StatementInvoiceLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatementInvoiceLine.ProtoReflect.Descriptor instead.
 func (*StatementInvoiceLine) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{18}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *StatementInvoiceLine) GetInvoiceId() int64 {
@@ -1232,7 +1357,7 @@ type StatementPaymentLine struct {
 
 func (x *StatementPaymentLine) Reset() {
 	*x = StatementPaymentLine{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[19]
+	mi := &file_ava_v1_reporting_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1244,7 +1369,7 @@ func (x *StatementPaymentLine) String() string {
 func (*StatementPaymentLine) ProtoMessage() {}
 
 func (x *StatementPaymentLine) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[19]
+	mi := &file_ava_v1_reporting_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1257,7 +1382,7 @@ func (x *StatementPaymentLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatementPaymentLine.ProtoReflect.Descriptor instead.
 func (*StatementPaymentLine) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{19}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *StatementPaymentLine) GetPaymentId() int64 {
@@ -1303,7 +1428,7 @@ type StatementActivityLine struct {
 
 func (x *StatementActivityLine) Reset() {
 	*x = StatementActivityLine{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[20]
+	mi := &file_ava_v1_reporting_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1315,7 +1440,7 @@ func (x *StatementActivityLine) String() string {
 func (*StatementActivityLine) ProtoMessage() {}
 
 func (x *StatementActivityLine) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[20]
+	mi := &file_ava_v1_reporting_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1328,7 +1453,7 @@ func (x *StatementActivityLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatementActivityLine.ProtoReflect.Descriptor instead.
 func (*StatementActivityLine) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{20}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *StatementActivityLine) GetDate() *date.Date {
@@ -1376,7 +1501,7 @@ type AgingBucket struct {
 
 func (x *AgingBucket) Reset() {
 	*x = AgingBucket{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[21]
+	mi := &file_ava_v1_reporting_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1388,7 +1513,7 @@ func (x *AgingBucket) String() string {
 func (*AgingBucket) ProtoMessage() {}
 
 func (x *AgingBucket) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[21]
+	mi := &file_ava_v1_reporting_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1401,7 +1526,7 @@ func (x *AgingBucket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgingBucket.ProtoReflect.Descriptor instead.
 func (*AgingBucket) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{21}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *AgingBucket) GetLabel() string {
@@ -1438,7 +1563,7 @@ type CustomerStatement struct {
 
 func (x *CustomerStatement) Reset() {
 	*x = CustomerStatement{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[22]
+	mi := &file_ava_v1_reporting_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1450,7 +1575,7 @@ func (x *CustomerStatement) String() string {
 func (*CustomerStatement) ProtoMessage() {}
 
 func (x *CustomerStatement) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[22]
+	mi := &file_ava_v1_reporting_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1463,7 +1588,7 @@ func (x *CustomerStatement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CustomerStatement.ProtoReflect.Descriptor instead.
 func (*CustomerStatement) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{22}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CustomerStatement) GetContactId() int64 {
@@ -1539,7 +1664,7 @@ type GetTrialBalancePdfRequest struct {
 
 func (x *GetTrialBalancePdfRequest) Reset() {
 	*x = GetTrialBalancePdfRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[23]
+	mi := &file_ava_v1_reporting_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1551,7 +1676,7 @@ func (x *GetTrialBalancePdfRequest) String() string {
 func (*GetTrialBalancePdfRequest) ProtoMessage() {}
 
 func (x *GetTrialBalancePdfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[23]
+	mi := &file_ava_v1_reporting_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1564,7 +1689,7 @@ func (x *GetTrialBalancePdfRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTrialBalancePdfRequest.ProtoReflect.Descriptor instead.
 func (*GetTrialBalancePdfRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{23}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetTrialBalancePdfRequest) GetBusinessId() int64 {
@@ -1590,7 +1715,7 @@ type GetTrialBalancePdfResponse struct {
 
 func (x *GetTrialBalancePdfResponse) Reset() {
 	*x = GetTrialBalancePdfResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[24]
+	mi := &file_ava_v1_reporting_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1602,7 +1727,7 @@ func (x *GetTrialBalancePdfResponse) String() string {
 func (*GetTrialBalancePdfResponse) ProtoMessage() {}
 
 func (x *GetTrialBalancePdfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[24]
+	mi := &file_ava_v1_reporting_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1615,7 +1740,7 @@ func (x *GetTrialBalancePdfResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTrialBalancePdfResponse.ProtoReflect.Descriptor instead.
 func (*GetTrialBalancePdfResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{24}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetTrialBalancePdfResponse) GetContent() []byte {
@@ -1635,7 +1760,7 @@ type GetBalanceSheetPdfRequest struct {
 
 func (x *GetBalanceSheetPdfRequest) Reset() {
 	*x = GetBalanceSheetPdfRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[25]
+	mi := &file_ava_v1_reporting_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1647,7 +1772,7 @@ func (x *GetBalanceSheetPdfRequest) String() string {
 func (*GetBalanceSheetPdfRequest) ProtoMessage() {}
 
 func (x *GetBalanceSheetPdfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[25]
+	mi := &file_ava_v1_reporting_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1660,7 +1785,7 @@ func (x *GetBalanceSheetPdfRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBalanceSheetPdfRequest.ProtoReflect.Descriptor instead.
 func (*GetBalanceSheetPdfRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{25}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetBalanceSheetPdfRequest) GetBusinessId() int64 {
@@ -1686,7 +1811,7 @@ type GetBalanceSheetPdfResponse struct {
 
 func (x *GetBalanceSheetPdfResponse) Reset() {
 	*x = GetBalanceSheetPdfResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[26]
+	mi := &file_ava_v1_reporting_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1698,7 +1823,7 @@ func (x *GetBalanceSheetPdfResponse) String() string {
 func (*GetBalanceSheetPdfResponse) ProtoMessage() {}
 
 func (x *GetBalanceSheetPdfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[26]
+	mi := &file_ava_v1_reporting_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1711,7 +1836,7 @@ func (x *GetBalanceSheetPdfResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBalanceSheetPdfResponse.ProtoReflect.Descriptor instead.
 func (*GetBalanceSheetPdfResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{26}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetBalanceSheetPdfResponse) GetContent() []byte {
@@ -1732,7 +1857,7 @@ type GetIncomeStatementPdfRequest struct {
 
 func (x *GetIncomeStatementPdfRequest) Reset() {
 	*x = GetIncomeStatementPdfRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[27]
+	mi := &file_ava_v1_reporting_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1744,7 +1869,7 @@ func (x *GetIncomeStatementPdfRequest) String() string {
 func (*GetIncomeStatementPdfRequest) ProtoMessage() {}
 
 func (x *GetIncomeStatementPdfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[27]
+	mi := &file_ava_v1_reporting_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1757,7 +1882,7 @@ func (x *GetIncomeStatementPdfRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIncomeStatementPdfRequest.ProtoReflect.Descriptor instead.
 func (*GetIncomeStatementPdfRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{27}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetIncomeStatementPdfRequest) GetBusinessId() int64 {
@@ -1790,7 +1915,7 @@ type GetIncomeStatementPdfResponse struct {
 
 func (x *GetIncomeStatementPdfResponse) Reset() {
 	*x = GetIncomeStatementPdfResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[28]
+	mi := &file_ava_v1_reporting_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1802,7 +1927,7 @@ func (x *GetIncomeStatementPdfResponse) String() string {
 func (*GetIncomeStatementPdfResponse) ProtoMessage() {}
 
 func (x *GetIncomeStatementPdfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[28]
+	mi := &file_ava_v1_reporting_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1815,7 +1940,7 @@ func (x *GetIncomeStatementPdfResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIncomeStatementPdfResponse.ProtoReflect.Descriptor instead.
 func (*GetIncomeStatementPdfResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{28}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetIncomeStatementPdfResponse) GetContent() []byte {
@@ -1837,7 +1962,7 @@ type GetGeneralLedgerPdfRequest struct {
 
 func (x *GetGeneralLedgerPdfRequest) Reset() {
 	*x = GetGeneralLedgerPdfRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[29]
+	mi := &file_ava_v1_reporting_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1849,7 +1974,7 @@ func (x *GetGeneralLedgerPdfRequest) String() string {
 func (*GetGeneralLedgerPdfRequest) ProtoMessage() {}
 
 func (x *GetGeneralLedgerPdfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[29]
+	mi := &file_ava_v1_reporting_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1862,7 +1987,7 @@ func (x *GetGeneralLedgerPdfRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGeneralLedgerPdfRequest.ProtoReflect.Descriptor instead.
 func (*GetGeneralLedgerPdfRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{29}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetGeneralLedgerPdfRequest) GetBusinessId() int64 {
@@ -1902,7 +2027,7 @@ type GetGeneralLedgerPdfResponse struct {
 
 func (x *GetGeneralLedgerPdfResponse) Reset() {
 	*x = GetGeneralLedgerPdfResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[30]
+	mi := &file_ava_v1_reporting_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1914,7 +2039,7 @@ func (x *GetGeneralLedgerPdfResponse) String() string {
 func (*GetGeneralLedgerPdfResponse) ProtoMessage() {}
 
 func (x *GetGeneralLedgerPdfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[30]
+	mi := &file_ava_v1_reporting_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1927,7 +2052,7 @@ func (x *GetGeneralLedgerPdfResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGeneralLedgerPdfResponse.ProtoReflect.Descriptor instead.
 func (*GetGeneralLedgerPdfResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{30}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetGeneralLedgerPdfResponse) GetContent() []byte {
@@ -1948,7 +2073,7 @@ type GetCustomerStatementPdfRequest struct {
 
 func (x *GetCustomerStatementPdfRequest) Reset() {
 	*x = GetCustomerStatementPdfRequest{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[31]
+	mi := &file_ava_v1_reporting_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1960,7 +2085,7 @@ func (x *GetCustomerStatementPdfRequest) String() string {
 func (*GetCustomerStatementPdfRequest) ProtoMessage() {}
 
 func (x *GetCustomerStatementPdfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[31]
+	mi := &file_ava_v1_reporting_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1973,7 +2098,7 @@ func (x *GetCustomerStatementPdfRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCustomerStatementPdfRequest.ProtoReflect.Descriptor instead.
 func (*GetCustomerStatementPdfRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{31}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetCustomerStatementPdfRequest) GetContactId() int64 {
@@ -2006,7 +2131,7 @@ type GetCustomerStatementPdfResponse struct {
 
 func (x *GetCustomerStatementPdfResponse) Reset() {
 	*x = GetCustomerStatementPdfResponse{}
-	mi := &file_ava_v1_reporting_proto_msgTypes[32]
+	mi := &file_ava_v1_reporting_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2018,7 +2143,7 @@ func (x *GetCustomerStatementPdfResponse) String() string {
 func (*GetCustomerStatementPdfResponse) ProtoMessage() {}
 
 func (x *GetCustomerStatementPdfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_reporting_proto_msgTypes[32]
+	mi := &file_ava_v1_reporting_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2031,7 +2156,7 @@ func (x *GetCustomerStatementPdfResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCustomerStatementPdfResponse.ProtoReflect.Descriptor instead.
 func (*GetCustomerStatementPdfResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{32}
+	return file_ava_v1_reporting_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetCustomerStatementPdfResponse) GetContent() []byte {
@@ -2075,14 +2200,21 @@ const file_ava_v1_reporting_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\x05R\taccountId\x12!\n" +
 	"\faccount_code\x18\x02 \x01(\tR\vaccountCode\x12!\n" +
 	"\faccount_name\x18\x03 \x01(\tR\vaccountName\x12)\n" +
-	"\abalance\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\abalance\"\xd4\x02\n" +
-	"\fBalanceSheet\x120\n" +
-	"\x06assets\x18\x01 \x03(\v2\x18.ava.v1.BalanceSheetLineR\x06assets\x122\n" +
-	"\ftotal_assets\x18\x02 \x01(\v2\x0f.ava.v1.DecimalR\vtotalAssets\x12:\n" +
-	"\vliabilities\x18\x03 \x03(\v2\x18.ava.v1.BalanceSheetLineR\vliabilities\x12<\n" +
-	"\x11total_liabilities\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\x10totalLiabilities\x120\n" +
-	"\x06equity\x18\x05 \x03(\v2\x18.ava.v1.BalanceSheetLineR\x06equity\x122\n" +
-	"\ftotal_equity\x18\x06 \x01(\v2\x0f.ava.v1.DecimalR\vtotalEquity\"\xa4\x01\n" +
+	"\abalance\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\abalance\"\x9b\x02\n" +
+	"\x13BalanceSheetSection\x12\x14\n" +
+	"\x05title\x18\x01 \x01(\tR\x05title\x129\n" +
+	"\vasset_lines\x18\x02 \x03(\v2\x18.ava.v1.BalanceSheetLineR\n" +
+	"assetLines\x12A\n" +
+	"\x0fliability_lines\x18\x03 \x03(\v2\x18.ava.v1.BalanceSheetLineR\x0eliabilityLines\x122\n" +
+	"\ftotal_assets\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\vtotalAssets\x12<\n" +
+	"\x11total_liabilities\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\x10totalLiabilities\"\x96\x03\n" +
+	"\fBalanceSheet\x127\n" +
+	"\bsections\x18\x01 \x03(\v2\x1b.ava.v1.BalanceSheetSectionR\bsections\x12=\n" +
+	"\x12net_current_assets\x18\x02 \x01(\v2\x0f.ava.v1.DecimalR\x10netCurrentAssets\x12a\n" +
+	"%total_assets_less_current_liabilities\x18\x03 \x01(\v2\x0f.ava.v1.DecimalR!totalAssetsLessCurrentLiabilities\x129\n" +
+	"\x10total_net_assets\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\x0etotalNetAssets\x122\n" +
+	"\ftotal_assets\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\vtotalAssets\x12<\n" +
+	"\x11total_liabilities\x18\x06 \x01(\v2\x0f.ava.v1.DecimalR\x10totalLiabilities\"\xa4\x01\n" +
 	"\x19GetIncomeStatementRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x124\n" +
@@ -2096,14 +2228,18 @@ const file_ava_v1_reporting_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\x05R\taccountId\x12!\n" +
 	"\faccount_code\x18\x02 \x01(\tR\vaccountCode\x12!\n" +
 	"\faccount_name\x18\x03 \x01(\tR\vaccountName\x12'\n" +
-	"\x06amount\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\x06amount\"\x9f\x02\n" +
+	"\x06amount\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\x06amount\"\xc4\x04\n" +
 	"\x0fIncomeStatement\x125\n" +
 	"\arevenue\x18\x01 \x03(\v2\x1b.ava.v1.IncomeStatementLineR\arevenue\x124\n" +
-	"\rtotal_revenue\x18\x02 \x01(\v2\x0f.ava.v1.DecimalR\ftotalRevenue\x127\n" +
-	"\bexpenses\x18\x03 \x03(\v2\x1b.ava.v1.IncomeStatementLineR\bexpenses\x126\n" +
-	"\x0etotal_expenses\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\rtotalExpenses\x12.\n" +
+	"\rtotal_revenue\x18\x02 \x01(\v2\x0f.ava.v1.DecimalR\ftotalRevenue\x12H\n" +
+	"\x12cost_of_goods_sold\x18\x03 \x03(\v2\x1b.ava.v1.IncomeStatementLineR\x0fcostOfGoodsSold\x12G\n" +
+	"\x18total_cost_of_goods_sold\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\x14totalCostOfGoodsSold\x122\n" +
+	"\fgross_profit\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\vgrossProfit\x12J\n" +
+	"\x12operating_expenses\x18\x06 \x03(\v2\x1b.ava.v1.IncomeStatementLineR\x11operatingExpenses\x12I\n" +
+	"\x18total_operating_expenses\x18\a \x01(\v2\x0f.ava.v1.DecimalR\x16totalOperatingExpenses\x126\n" +
+	"\x0etotal_expenses\x18\b \x01(\v2\x0f.ava.v1.DecimalR\rtotalExpenses\x12.\n" +
 	"\n" +
-	"net_income\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\tnetIncome\"\xc1\x01\n" +
+	"net_income\x18\t \x01(\v2\x0f.ava.v1.DecimalR\tnetIncome\"\xc1\x01\n" +
 	"\x17GetGeneralLedgerRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12\x1d\n" +
@@ -2236,7 +2372,7 @@ func file_ava_v1_reporting_proto_rawDescGZIP() []byte {
 	return file_ava_v1_reporting_proto_rawDescData
 }
 
-var file_ava_v1_reporting_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_ava_v1_reporting_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_ava_v1_reporting_proto_goTypes = []any{
 	(*GetTrialBalanceRequest)(nil),          // 0: ava.v1.GetTrialBalanceRequest
 	(*GetTrialBalanceResponse)(nil),         // 1: ava.v1.GetTrialBalanceResponse
@@ -2245,124 +2381,133 @@ var file_ava_v1_reporting_proto_goTypes = []any{
 	(*GetBalanceSheetRequest)(nil),          // 4: ava.v1.GetBalanceSheetRequest
 	(*GetBalanceSheetResponse)(nil),         // 5: ava.v1.GetBalanceSheetResponse
 	(*BalanceSheetLine)(nil),                // 6: ava.v1.BalanceSheetLine
-	(*BalanceSheet)(nil),                    // 7: ava.v1.BalanceSheet
-	(*GetIncomeStatementRequest)(nil),       // 8: ava.v1.GetIncomeStatementRequest
-	(*GetIncomeStatementResponse)(nil),      // 9: ava.v1.GetIncomeStatementResponse
-	(*IncomeStatementLine)(nil),             // 10: ava.v1.IncomeStatementLine
-	(*IncomeStatement)(nil),                 // 11: ava.v1.IncomeStatement
-	(*GetGeneralLedgerRequest)(nil),         // 12: ava.v1.GetGeneralLedgerRequest
-	(*GetGeneralLedgerResponse)(nil),        // 13: ava.v1.GetGeneralLedgerResponse
-	(*GeneralLedgerLine)(nil),               // 14: ava.v1.GeneralLedgerLine
-	(*GeneralLedger)(nil),                   // 15: ava.v1.GeneralLedger
-	(*GetCustomerStatementRequest)(nil),     // 16: ava.v1.GetCustomerStatementRequest
-	(*GetCustomerStatementResponse)(nil),    // 17: ava.v1.GetCustomerStatementResponse
-	(*StatementInvoiceLine)(nil),            // 18: ava.v1.StatementInvoiceLine
-	(*StatementPaymentLine)(nil),            // 19: ava.v1.StatementPaymentLine
-	(*StatementActivityLine)(nil),           // 20: ava.v1.StatementActivityLine
-	(*AgingBucket)(nil),                     // 21: ava.v1.AgingBucket
-	(*CustomerStatement)(nil),               // 22: ava.v1.CustomerStatement
-	(*GetTrialBalancePdfRequest)(nil),       // 23: ava.v1.GetTrialBalancePdfRequest
-	(*GetTrialBalancePdfResponse)(nil),      // 24: ava.v1.GetTrialBalancePdfResponse
-	(*GetBalanceSheetPdfRequest)(nil),       // 25: ava.v1.GetBalanceSheetPdfRequest
-	(*GetBalanceSheetPdfResponse)(nil),      // 26: ava.v1.GetBalanceSheetPdfResponse
-	(*GetIncomeStatementPdfRequest)(nil),    // 27: ava.v1.GetIncomeStatementPdfRequest
-	(*GetIncomeStatementPdfResponse)(nil),   // 28: ava.v1.GetIncomeStatementPdfResponse
-	(*GetGeneralLedgerPdfRequest)(nil),      // 29: ava.v1.GetGeneralLedgerPdfRequest
-	(*GetGeneralLedgerPdfResponse)(nil),     // 30: ava.v1.GetGeneralLedgerPdfResponse
-	(*GetCustomerStatementPdfRequest)(nil),  // 31: ava.v1.GetCustomerStatementPdfRequest
-	(*GetCustomerStatementPdfResponse)(nil), // 32: ava.v1.GetCustomerStatementPdfResponse
-	(*date.Date)(nil),                       // 33: google.type.Date
-	(*Decimal)(nil),                         // 34: ava.v1.Decimal
+	(*BalanceSheetSection)(nil),             // 7: ava.v1.BalanceSheetSection
+	(*BalanceSheet)(nil),                    // 8: ava.v1.BalanceSheet
+	(*GetIncomeStatementRequest)(nil),       // 9: ava.v1.GetIncomeStatementRequest
+	(*GetIncomeStatementResponse)(nil),      // 10: ava.v1.GetIncomeStatementResponse
+	(*IncomeStatementLine)(nil),             // 11: ava.v1.IncomeStatementLine
+	(*IncomeStatement)(nil),                 // 12: ava.v1.IncomeStatement
+	(*GetGeneralLedgerRequest)(nil),         // 13: ava.v1.GetGeneralLedgerRequest
+	(*GetGeneralLedgerResponse)(nil),        // 14: ava.v1.GetGeneralLedgerResponse
+	(*GeneralLedgerLine)(nil),               // 15: ava.v1.GeneralLedgerLine
+	(*GeneralLedger)(nil),                   // 16: ava.v1.GeneralLedger
+	(*GetCustomerStatementRequest)(nil),     // 17: ava.v1.GetCustomerStatementRequest
+	(*GetCustomerStatementResponse)(nil),    // 18: ava.v1.GetCustomerStatementResponse
+	(*StatementInvoiceLine)(nil),            // 19: ava.v1.StatementInvoiceLine
+	(*StatementPaymentLine)(nil),            // 20: ava.v1.StatementPaymentLine
+	(*StatementActivityLine)(nil),           // 21: ava.v1.StatementActivityLine
+	(*AgingBucket)(nil),                     // 22: ava.v1.AgingBucket
+	(*CustomerStatement)(nil),               // 23: ava.v1.CustomerStatement
+	(*GetTrialBalancePdfRequest)(nil),       // 24: ava.v1.GetTrialBalancePdfRequest
+	(*GetTrialBalancePdfResponse)(nil),      // 25: ava.v1.GetTrialBalancePdfResponse
+	(*GetBalanceSheetPdfRequest)(nil),       // 26: ava.v1.GetBalanceSheetPdfRequest
+	(*GetBalanceSheetPdfResponse)(nil),      // 27: ava.v1.GetBalanceSheetPdfResponse
+	(*GetIncomeStatementPdfRequest)(nil),    // 28: ava.v1.GetIncomeStatementPdfRequest
+	(*GetIncomeStatementPdfResponse)(nil),   // 29: ava.v1.GetIncomeStatementPdfResponse
+	(*GetGeneralLedgerPdfRequest)(nil),      // 30: ava.v1.GetGeneralLedgerPdfRequest
+	(*GetGeneralLedgerPdfResponse)(nil),     // 31: ava.v1.GetGeneralLedgerPdfResponse
+	(*GetCustomerStatementPdfRequest)(nil),  // 32: ava.v1.GetCustomerStatementPdfRequest
+	(*GetCustomerStatementPdfResponse)(nil), // 33: ava.v1.GetCustomerStatementPdfResponse
+	(*date.Date)(nil),                       // 34: google.type.Date
+	(*Decimal)(nil),                         // 35: ava.v1.Decimal
 }
 var file_ava_v1_reporting_proto_depIdxs = []int32{
-	33, // 0: ava.v1.GetTrialBalanceRequest.as_of:type_name -> google.type.Date
+	34, // 0: ava.v1.GetTrialBalanceRequest.as_of:type_name -> google.type.Date
 	3,  // 1: ava.v1.GetTrialBalanceResponse.trial_balance:type_name -> ava.v1.TrialBalance
-	34, // 2: ava.v1.TrialBalanceLine.debit:type_name -> ava.v1.Decimal
-	34, // 3: ava.v1.TrialBalanceLine.credit:type_name -> ava.v1.Decimal
+	35, // 2: ava.v1.TrialBalanceLine.debit:type_name -> ava.v1.Decimal
+	35, // 3: ava.v1.TrialBalanceLine.credit:type_name -> ava.v1.Decimal
 	2,  // 4: ava.v1.TrialBalance.lines:type_name -> ava.v1.TrialBalanceLine
-	34, // 5: ava.v1.TrialBalance.total_debit:type_name -> ava.v1.Decimal
-	34, // 6: ava.v1.TrialBalance.total_credit:type_name -> ava.v1.Decimal
-	33, // 7: ava.v1.GetBalanceSheetRequest.as_of:type_name -> google.type.Date
-	7,  // 8: ava.v1.GetBalanceSheetResponse.balance_sheet:type_name -> ava.v1.BalanceSheet
-	34, // 9: ava.v1.BalanceSheetLine.balance:type_name -> ava.v1.Decimal
-	6,  // 10: ava.v1.BalanceSheet.assets:type_name -> ava.v1.BalanceSheetLine
-	34, // 11: ava.v1.BalanceSheet.total_assets:type_name -> ava.v1.Decimal
-	6,  // 12: ava.v1.BalanceSheet.liabilities:type_name -> ava.v1.BalanceSheetLine
-	34, // 13: ava.v1.BalanceSheet.total_liabilities:type_name -> ava.v1.Decimal
-	6,  // 14: ava.v1.BalanceSheet.equity:type_name -> ava.v1.BalanceSheetLine
-	34, // 15: ava.v1.BalanceSheet.total_equity:type_name -> ava.v1.Decimal
-	33, // 16: ava.v1.GetIncomeStatementRequest.period_start:type_name -> google.type.Date
-	33, // 17: ava.v1.GetIncomeStatementRequest.period_end:type_name -> google.type.Date
-	11, // 18: ava.v1.GetIncomeStatementResponse.income_statement:type_name -> ava.v1.IncomeStatement
-	34, // 19: ava.v1.IncomeStatementLine.amount:type_name -> ava.v1.Decimal
-	10, // 20: ava.v1.IncomeStatement.revenue:type_name -> ava.v1.IncomeStatementLine
-	34, // 21: ava.v1.IncomeStatement.total_revenue:type_name -> ava.v1.Decimal
-	10, // 22: ava.v1.IncomeStatement.expenses:type_name -> ava.v1.IncomeStatementLine
-	34, // 23: ava.v1.IncomeStatement.total_expenses:type_name -> ava.v1.Decimal
-	34, // 24: ava.v1.IncomeStatement.net_income:type_name -> ava.v1.Decimal
-	33, // 25: ava.v1.GetGeneralLedgerRequest.period_start:type_name -> google.type.Date
-	33, // 26: ava.v1.GetGeneralLedgerRequest.period_end:type_name -> google.type.Date
-	15, // 27: ava.v1.GetGeneralLedgerResponse.general_ledger:type_name -> ava.v1.GeneralLedger
-	33, // 28: ava.v1.GeneralLedgerLine.transaction_date:type_name -> google.type.Date
-	34, // 29: ava.v1.GeneralLedgerLine.debit:type_name -> ava.v1.Decimal
-	34, // 30: ava.v1.GeneralLedgerLine.credit:type_name -> ava.v1.Decimal
-	34, // 31: ava.v1.GeneralLedgerLine.running_balance:type_name -> ava.v1.Decimal
-	14, // 32: ava.v1.GeneralLedger.lines:type_name -> ava.v1.GeneralLedgerLine
-	34, // 33: ava.v1.GeneralLedger.ending_balance:type_name -> ava.v1.Decimal
-	33, // 34: ava.v1.GetCustomerStatementRequest.period_start:type_name -> google.type.Date
-	33, // 35: ava.v1.GetCustomerStatementRequest.period_end:type_name -> google.type.Date
-	22, // 36: ava.v1.GetCustomerStatementResponse.statement:type_name -> ava.v1.CustomerStatement
-	33, // 37: ava.v1.StatementInvoiceLine.invoice_date:type_name -> google.type.Date
-	33, // 38: ava.v1.StatementInvoiceLine.due_date:type_name -> google.type.Date
-	34, // 39: ava.v1.StatementInvoiceLine.total_amount:type_name -> ava.v1.Decimal
-	34, // 40: ava.v1.StatementInvoiceLine.balance_due:type_name -> ava.v1.Decimal
-	33, // 41: ava.v1.StatementPaymentLine.payment_date:type_name -> google.type.Date
-	34, // 42: ava.v1.StatementPaymentLine.amount:type_name -> ava.v1.Decimal
-	33, // 43: ava.v1.StatementActivityLine.date:type_name -> google.type.Date
-	34, // 44: ava.v1.StatementActivityLine.debit:type_name -> ava.v1.Decimal
-	34, // 45: ava.v1.StatementActivityLine.credit:type_name -> ava.v1.Decimal
-	34, // 46: ava.v1.StatementActivityLine.running_balance:type_name -> ava.v1.Decimal
-	34, // 47: ava.v1.AgingBucket.amount:type_name -> ava.v1.Decimal
-	33, // 48: ava.v1.CustomerStatement.period_start:type_name -> google.type.Date
-	33, // 49: ava.v1.CustomerStatement.period_end:type_name -> google.type.Date
-	18, // 50: ava.v1.CustomerStatement.invoices:type_name -> ava.v1.StatementInvoiceLine
-	19, // 51: ava.v1.CustomerStatement.payments:type_name -> ava.v1.StatementPaymentLine
-	20, // 52: ava.v1.CustomerStatement.activity:type_name -> ava.v1.StatementActivityLine
-	34, // 53: ava.v1.CustomerStatement.ending_balance:type_name -> ava.v1.Decimal
-	21, // 54: ava.v1.CustomerStatement.aging_buckets:type_name -> ava.v1.AgingBucket
-	33, // 55: ava.v1.GetTrialBalancePdfRequest.as_of:type_name -> google.type.Date
-	33, // 56: ava.v1.GetBalanceSheetPdfRequest.as_of:type_name -> google.type.Date
-	33, // 57: ava.v1.GetIncomeStatementPdfRequest.period_start:type_name -> google.type.Date
-	33, // 58: ava.v1.GetIncomeStatementPdfRequest.period_end:type_name -> google.type.Date
-	33, // 59: ava.v1.GetGeneralLedgerPdfRequest.period_start:type_name -> google.type.Date
-	33, // 60: ava.v1.GetGeneralLedgerPdfRequest.period_end:type_name -> google.type.Date
-	33, // 61: ava.v1.GetCustomerStatementPdfRequest.period_start:type_name -> google.type.Date
-	33, // 62: ava.v1.GetCustomerStatementPdfRequest.period_end:type_name -> google.type.Date
-	0,  // 63: ava.v1.ReportingService.GetTrialBalance:input_type -> ava.v1.GetTrialBalanceRequest
-	4,  // 64: ava.v1.ReportingService.GetBalanceSheet:input_type -> ava.v1.GetBalanceSheetRequest
-	8,  // 65: ava.v1.ReportingService.GetIncomeStatement:input_type -> ava.v1.GetIncomeStatementRequest
-	12, // 66: ava.v1.ReportingService.GetGeneralLedger:input_type -> ava.v1.GetGeneralLedgerRequest
-	16, // 67: ava.v1.ReportingService.GetCustomerStatement:input_type -> ava.v1.GetCustomerStatementRequest
-	23, // 68: ava.v1.ReportingService.GetTrialBalancePdf:input_type -> ava.v1.GetTrialBalancePdfRequest
-	25, // 69: ava.v1.ReportingService.GetBalanceSheetPdf:input_type -> ava.v1.GetBalanceSheetPdfRequest
-	27, // 70: ava.v1.ReportingService.GetIncomeStatementPdf:input_type -> ava.v1.GetIncomeStatementPdfRequest
-	29, // 71: ava.v1.ReportingService.GetGeneralLedgerPdf:input_type -> ava.v1.GetGeneralLedgerPdfRequest
-	31, // 72: ava.v1.ReportingService.GetCustomerStatementPdf:input_type -> ava.v1.GetCustomerStatementPdfRequest
-	1,  // 73: ava.v1.ReportingService.GetTrialBalance:output_type -> ava.v1.GetTrialBalanceResponse
-	5,  // 74: ava.v1.ReportingService.GetBalanceSheet:output_type -> ava.v1.GetBalanceSheetResponse
-	9,  // 75: ava.v1.ReportingService.GetIncomeStatement:output_type -> ava.v1.GetIncomeStatementResponse
-	13, // 76: ava.v1.ReportingService.GetGeneralLedger:output_type -> ava.v1.GetGeneralLedgerResponse
-	17, // 77: ava.v1.ReportingService.GetCustomerStatement:output_type -> ava.v1.GetCustomerStatementResponse
-	24, // 78: ava.v1.ReportingService.GetTrialBalancePdf:output_type -> ava.v1.GetTrialBalancePdfResponse
-	26, // 79: ava.v1.ReportingService.GetBalanceSheetPdf:output_type -> ava.v1.GetBalanceSheetPdfResponse
-	28, // 80: ava.v1.ReportingService.GetIncomeStatementPdf:output_type -> ava.v1.GetIncomeStatementPdfResponse
-	30, // 81: ava.v1.ReportingService.GetGeneralLedgerPdf:output_type -> ava.v1.GetGeneralLedgerPdfResponse
-	32, // 82: ava.v1.ReportingService.GetCustomerStatementPdf:output_type -> ava.v1.GetCustomerStatementPdfResponse
-	73, // [73:83] is the sub-list for method output_type
-	63, // [63:73] is the sub-list for method input_type
-	63, // [63:63] is the sub-list for extension type_name
-	63, // [63:63] is the sub-list for extension extendee
-	0,  // [0:63] is the sub-list for field type_name
+	35, // 5: ava.v1.TrialBalance.total_debit:type_name -> ava.v1.Decimal
+	35, // 6: ava.v1.TrialBalance.total_credit:type_name -> ava.v1.Decimal
+	34, // 7: ava.v1.GetBalanceSheetRequest.as_of:type_name -> google.type.Date
+	8,  // 8: ava.v1.GetBalanceSheetResponse.balance_sheet:type_name -> ava.v1.BalanceSheet
+	35, // 9: ava.v1.BalanceSheetLine.balance:type_name -> ava.v1.Decimal
+	6,  // 10: ava.v1.BalanceSheetSection.asset_lines:type_name -> ava.v1.BalanceSheetLine
+	6,  // 11: ava.v1.BalanceSheetSection.liability_lines:type_name -> ava.v1.BalanceSheetLine
+	35, // 12: ava.v1.BalanceSheetSection.total_assets:type_name -> ava.v1.Decimal
+	35, // 13: ava.v1.BalanceSheetSection.total_liabilities:type_name -> ava.v1.Decimal
+	7,  // 14: ava.v1.BalanceSheet.sections:type_name -> ava.v1.BalanceSheetSection
+	35, // 15: ava.v1.BalanceSheet.net_current_assets:type_name -> ava.v1.Decimal
+	35, // 16: ava.v1.BalanceSheet.total_assets_less_current_liabilities:type_name -> ava.v1.Decimal
+	35, // 17: ava.v1.BalanceSheet.total_net_assets:type_name -> ava.v1.Decimal
+	35, // 18: ava.v1.BalanceSheet.total_assets:type_name -> ava.v1.Decimal
+	35, // 19: ava.v1.BalanceSheet.total_liabilities:type_name -> ava.v1.Decimal
+	34, // 20: ava.v1.GetIncomeStatementRequest.period_start:type_name -> google.type.Date
+	34, // 21: ava.v1.GetIncomeStatementRequest.period_end:type_name -> google.type.Date
+	12, // 22: ava.v1.GetIncomeStatementResponse.income_statement:type_name -> ava.v1.IncomeStatement
+	35, // 23: ava.v1.IncomeStatementLine.amount:type_name -> ava.v1.Decimal
+	11, // 24: ava.v1.IncomeStatement.revenue:type_name -> ava.v1.IncomeStatementLine
+	35, // 25: ava.v1.IncomeStatement.total_revenue:type_name -> ava.v1.Decimal
+	11, // 26: ava.v1.IncomeStatement.cost_of_goods_sold:type_name -> ava.v1.IncomeStatementLine
+	35, // 27: ava.v1.IncomeStatement.total_cost_of_goods_sold:type_name -> ava.v1.Decimal
+	35, // 28: ava.v1.IncomeStatement.gross_profit:type_name -> ava.v1.Decimal
+	11, // 29: ava.v1.IncomeStatement.operating_expenses:type_name -> ava.v1.IncomeStatementLine
+	35, // 30: ava.v1.IncomeStatement.total_operating_expenses:type_name -> ava.v1.Decimal
+	35, // 31: ava.v1.IncomeStatement.total_expenses:type_name -> ava.v1.Decimal
+	35, // 32: ava.v1.IncomeStatement.net_income:type_name -> ava.v1.Decimal
+	34, // 33: ava.v1.GetGeneralLedgerRequest.period_start:type_name -> google.type.Date
+	34, // 34: ava.v1.GetGeneralLedgerRequest.period_end:type_name -> google.type.Date
+	16, // 35: ava.v1.GetGeneralLedgerResponse.general_ledger:type_name -> ava.v1.GeneralLedger
+	34, // 36: ava.v1.GeneralLedgerLine.transaction_date:type_name -> google.type.Date
+	35, // 37: ava.v1.GeneralLedgerLine.debit:type_name -> ava.v1.Decimal
+	35, // 38: ava.v1.GeneralLedgerLine.credit:type_name -> ava.v1.Decimal
+	35, // 39: ava.v1.GeneralLedgerLine.running_balance:type_name -> ava.v1.Decimal
+	15, // 40: ava.v1.GeneralLedger.lines:type_name -> ava.v1.GeneralLedgerLine
+	35, // 41: ava.v1.GeneralLedger.ending_balance:type_name -> ava.v1.Decimal
+	34, // 42: ava.v1.GetCustomerStatementRequest.period_start:type_name -> google.type.Date
+	34, // 43: ava.v1.GetCustomerStatementRequest.period_end:type_name -> google.type.Date
+	23, // 44: ava.v1.GetCustomerStatementResponse.statement:type_name -> ava.v1.CustomerStatement
+	34, // 45: ava.v1.StatementInvoiceLine.invoice_date:type_name -> google.type.Date
+	34, // 46: ava.v1.StatementInvoiceLine.due_date:type_name -> google.type.Date
+	35, // 47: ava.v1.StatementInvoiceLine.total_amount:type_name -> ava.v1.Decimal
+	35, // 48: ava.v1.StatementInvoiceLine.balance_due:type_name -> ava.v1.Decimal
+	34, // 49: ava.v1.StatementPaymentLine.payment_date:type_name -> google.type.Date
+	35, // 50: ava.v1.StatementPaymentLine.amount:type_name -> ava.v1.Decimal
+	34, // 51: ava.v1.StatementActivityLine.date:type_name -> google.type.Date
+	35, // 52: ava.v1.StatementActivityLine.debit:type_name -> ava.v1.Decimal
+	35, // 53: ava.v1.StatementActivityLine.credit:type_name -> ava.v1.Decimal
+	35, // 54: ava.v1.StatementActivityLine.running_balance:type_name -> ava.v1.Decimal
+	35, // 55: ava.v1.AgingBucket.amount:type_name -> ava.v1.Decimal
+	34, // 56: ava.v1.CustomerStatement.period_start:type_name -> google.type.Date
+	34, // 57: ava.v1.CustomerStatement.period_end:type_name -> google.type.Date
+	19, // 58: ava.v1.CustomerStatement.invoices:type_name -> ava.v1.StatementInvoiceLine
+	20, // 59: ava.v1.CustomerStatement.payments:type_name -> ava.v1.StatementPaymentLine
+	21, // 60: ava.v1.CustomerStatement.activity:type_name -> ava.v1.StatementActivityLine
+	35, // 61: ava.v1.CustomerStatement.ending_balance:type_name -> ava.v1.Decimal
+	22, // 62: ava.v1.CustomerStatement.aging_buckets:type_name -> ava.v1.AgingBucket
+	34, // 63: ava.v1.GetTrialBalancePdfRequest.as_of:type_name -> google.type.Date
+	34, // 64: ava.v1.GetBalanceSheetPdfRequest.as_of:type_name -> google.type.Date
+	34, // 65: ava.v1.GetIncomeStatementPdfRequest.period_start:type_name -> google.type.Date
+	34, // 66: ava.v1.GetIncomeStatementPdfRequest.period_end:type_name -> google.type.Date
+	34, // 67: ava.v1.GetGeneralLedgerPdfRequest.period_start:type_name -> google.type.Date
+	34, // 68: ava.v1.GetGeneralLedgerPdfRequest.period_end:type_name -> google.type.Date
+	34, // 69: ava.v1.GetCustomerStatementPdfRequest.period_start:type_name -> google.type.Date
+	34, // 70: ava.v1.GetCustomerStatementPdfRequest.period_end:type_name -> google.type.Date
+	0,  // 71: ava.v1.ReportingService.GetTrialBalance:input_type -> ava.v1.GetTrialBalanceRequest
+	4,  // 72: ava.v1.ReportingService.GetBalanceSheet:input_type -> ava.v1.GetBalanceSheetRequest
+	9,  // 73: ava.v1.ReportingService.GetIncomeStatement:input_type -> ava.v1.GetIncomeStatementRequest
+	13, // 74: ava.v1.ReportingService.GetGeneralLedger:input_type -> ava.v1.GetGeneralLedgerRequest
+	17, // 75: ava.v1.ReportingService.GetCustomerStatement:input_type -> ava.v1.GetCustomerStatementRequest
+	24, // 76: ava.v1.ReportingService.GetTrialBalancePdf:input_type -> ava.v1.GetTrialBalancePdfRequest
+	26, // 77: ava.v1.ReportingService.GetBalanceSheetPdf:input_type -> ava.v1.GetBalanceSheetPdfRequest
+	28, // 78: ava.v1.ReportingService.GetIncomeStatementPdf:input_type -> ava.v1.GetIncomeStatementPdfRequest
+	30, // 79: ava.v1.ReportingService.GetGeneralLedgerPdf:input_type -> ava.v1.GetGeneralLedgerPdfRequest
+	32, // 80: ava.v1.ReportingService.GetCustomerStatementPdf:input_type -> ava.v1.GetCustomerStatementPdfRequest
+	1,  // 81: ava.v1.ReportingService.GetTrialBalance:output_type -> ava.v1.GetTrialBalanceResponse
+	5,  // 82: ava.v1.ReportingService.GetBalanceSheet:output_type -> ava.v1.GetBalanceSheetResponse
+	10, // 83: ava.v1.ReportingService.GetIncomeStatement:output_type -> ava.v1.GetIncomeStatementResponse
+	14, // 84: ava.v1.ReportingService.GetGeneralLedger:output_type -> ava.v1.GetGeneralLedgerResponse
+	18, // 85: ava.v1.ReportingService.GetCustomerStatement:output_type -> ava.v1.GetCustomerStatementResponse
+	25, // 86: ava.v1.ReportingService.GetTrialBalancePdf:output_type -> ava.v1.GetTrialBalancePdfResponse
+	27, // 87: ava.v1.ReportingService.GetBalanceSheetPdf:output_type -> ava.v1.GetBalanceSheetPdfResponse
+	29, // 88: ava.v1.ReportingService.GetIncomeStatementPdf:output_type -> ava.v1.GetIncomeStatementPdfResponse
+	31, // 89: ava.v1.ReportingService.GetGeneralLedgerPdf:output_type -> ava.v1.GetGeneralLedgerPdfResponse
+	33, // 90: ava.v1.ReportingService.GetCustomerStatementPdf:output_type -> ava.v1.GetCustomerStatementPdfResponse
+	81, // [81:91] is the sub-list for method output_type
+	71, // [71:81] is the sub-list for method input_type
+	71, // [71:71] is the sub-list for extension type_name
+	71, // [71:71] is the sub-list for extension extendee
+	0,  // [0:71] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_reporting_proto_init() }
@@ -2371,14 +2516,14 @@ func file_ava_v1_reporting_proto_init() {
 		return
 	}
 	file_ava_v1_common_proto_init()
-	file_ava_v1_reporting_proto_msgTypes[14].OneofWrappers = []any{}
+	file_ava_v1_reporting_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_reporting_proto_rawDesc), len(file_ava_v1_reporting_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

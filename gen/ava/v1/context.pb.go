@@ -513,6 +513,9 @@ func (x *CreateEntityContextResponse) GetEntityContext() *EntityContext {
 	return nil
 }
 
+// No storage_url/storage_key here by design - the object-storage backend
+// stays entirely server-side (see AttachmentService above). Read the file
+// itself via DownloadAttachment.
 type Attachment struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -520,12 +523,11 @@ type Attachment struct {
 	EntityType       string                 `protobuf:"bytes,3,opt,name=entity_type,json=entityType,proto3" json:"entity_type,omitempty"`
 	EntityId         int64                  `protobuf:"varint,4,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	OriginalFilename *string                `protobuf:"bytes,5,opt,name=original_filename,json=originalFilename,proto3,oneof" json:"original_filename,omitempty"`
-	StorageUrl       string                 `protobuf:"bytes,6,opt,name=storage_url,json=storageUrl,proto3" json:"storage_url,omitempty"`
-	ContentType      *string                `protobuf:"bytes,7,opt,name=content_type,json=contentType,proto3,oneof" json:"content_type,omitempty"`
-	FileSizeBytes    *int64                 `protobuf:"varint,8,opt,name=file_size_bytes,json=fileSizeBytes,proto3,oneof" json:"file_size_bytes,omitempty"`
-	DisplaySequence  int32                  `protobuf:"varint,9,opt,name=display_sequence,json=displaySequence,proto3" json:"display_sequence,omitempty"`
-	CreatedByUserId  *int64                 `protobuf:"varint,10,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ContentType      *string                `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3,oneof" json:"content_type,omitempty"`
+	FileSizeBytes    *int64                 `protobuf:"varint,7,opt,name=file_size_bytes,json=fileSizeBytes,proto3,oneof" json:"file_size_bytes,omitempty"`
+	DisplaySequence  int32                  `protobuf:"varint,8,opt,name=display_sequence,json=displaySequence,proto3" json:"display_sequence,omitempty"`
+	CreatedByUserId  *int64                 `protobuf:"varint,9,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -591,13 +593,6 @@ func (x *Attachment) GetEntityId() int64 {
 func (x *Attachment) GetOriginalFilename() string {
 	if x != nil && x.OriginalFilename != nil {
 		return *x.OriginalFilename
-	}
-	return ""
-}
-
-func (x *Attachment) GetStorageUrl() string {
-	if x != nil {
-		return x.StorageUrl
 	}
 	return ""
 }
@@ -829,34 +824,34 @@ func (x *ListAttachmentsResponse) GetAttachments() []*Attachment {
 	return nil
 }
 
-type CreateAttachmentRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId       int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	EntityType       string                 `protobuf:"bytes,2,opt,name=entity_type,json=entityType,proto3" json:"entity_type,omitempty"`
-	EntityId         int64                  `protobuf:"varint,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
-	OriginalFilename *string                `protobuf:"bytes,4,opt,name=original_filename,json=originalFilename,proto3,oneof" json:"original_filename,omitempty"`
-	StorageUrl       string                 `protobuf:"bytes,5,opt,name=storage_url,json=storageUrl,proto3" json:"storage_url,omitempty"`
-	ContentType      *string                `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3,oneof" json:"content_type,omitempty"`
-	FileSizeBytes    *int64                 `protobuf:"varint,7,opt,name=file_size_bytes,json=fileSizeBytes,proto3,oneof" json:"file_size_bytes,omitempty"`
-	DisplaySequence  *int32                 `protobuf:"varint,8,opt,name=display_sequence,json=displaySequence,proto3,oneof" json:"display_sequence,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+// The first message on an UploadAttachment stream must carry metadata (and
+// only metadata); every message after that must carry a chunk. Any other
+// order is a client error.
+type UploadAttachmentRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Data:
+	//
+	//	*UploadAttachmentRequest_Metadata
+	//	*UploadAttachmentRequest_Chunk
+	Data          isUploadAttachmentRequest_Data `protobuf_oneof:"data"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CreateAttachmentRequest) Reset() {
-	*x = CreateAttachmentRequest{}
+func (x *UploadAttachmentRequest) Reset() {
+	*x = UploadAttachmentRequest{}
 	mi := &file_ava_v1_context_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateAttachmentRequest) String() string {
+func (x *UploadAttachmentRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateAttachmentRequest) ProtoMessage() {}
+func (*UploadAttachmentRequest) ProtoMessage() {}
 
-func (x *CreateAttachmentRequest) ProtoReflect() protoreflect.Message {
+func (x *UploadAttachmentRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_context_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -868,89 +863,158 @@ func (x *CreateAttachmentRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateAttachmentRequest.ProtoReflect.Descriptor instead.
-func (*CreateAttachmentRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UploadAttachmentRequest.ProtoReflect.Descriptor instead.
+func (*UploadAttachmentRequest) Descriptor() ([]byte, []int) {
 	return file_ava_v1_context_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *CreateAttachmentRequest) GetBusinessId() int64 {
+func (x *UploadAttachmentRequest) GetData() isUploadAttachmentRequest_Data {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *UploadAttachmentRequest) GetMetadata() *UploadAttachmentMetadata {
+	if x != nil {
+		if x, ok := x.Data.(*UploadAttachmentRequest_Metadata); ok {
+			return x.Metadata
+		}
+	}
+	return nil
+}
+
+func (x *UploadAttachmentRequest) GetChunk() []byte {
+	if x != nil {
+		if x, ok := x.Data.(*UploadAttachmentRequest_Chunk); ok {
+			return x.Chunk
+		}
+	}
+	return nil
+}
+
+type isUploadAttachmentRequest_Data interface {
+	isUploadAttachmentRequest_Data()
+}
+
+type UploadAttachmentRequest_Metadata struct {
+	Metadata *UploadAttachmentMetadata `protobuf:"bytes,1,opt,name=metadata,proto3,oneof"`
+}
+
+type UploadAttachmentRequest_Chunk struct {
+	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
+}
+
+func (*UploadAttachmentRequest_Metadata) isUploadAttachmentRequest_Data() {}
+
+func (*UploadAttachmentRequest_Chunk) isUploadAttachmentRequest_Data() {}
+
+type UploadAttachmentMetadata struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId       int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	EntityType       string                 `protobuf:"bytes,2,opt,name=entity_type,json=entityType,proto3" json:"entity_type,omitempty"`
+	EntityId         int64                  `protobuf:"varint,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	OriginalFilename *string                `protobuf:"bytes,4,opt,name=original_filename,json=originalFilename,proto3,oneof" json:"original_filename,omitempty"`
+	ContentType      *string                `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3,oneof" json:"content_type,omitempty"`
+	DisplaySequence  *int32                 `protobuf:"varint,6,opt,name=display_sequence,json=displaySequence,proto3,oneof" json:"display_sequence,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UploadAttachmentMetadata) Reset() {
+	*x = UploadAttachmentMetadata{}
+	mi := &file_ava_v1_context_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadAttachmentMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadAttachmentMetadata) ProtoMessage() {}
+
+func (x *UploadAttachmentMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_context_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadAttachmentMetadata.ProtoReflect.Descriptor instead.
+func (*UploadAttachmentMetadata) Descriptor() ([]byte, []int) {
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UploadAttachmentMetadata) GetBusinessId() int64 {
 	if x != nil {
 		return x.BusinessId
 	}
 	return 0
 }
 
-func (x *CreateAttachmentRequest) GetEntityType() string {
+func (x *UploadAttachmentMetadata) GetEntityType() string {
 	if x != nil {
 		return x.EntityType
 	}
 	return ""
 }
 
-func (x *CreateAttachmentRequest) GetEntityId() int64 {
+func (x *UploadAttachmentMetadata) GetEntityId() int64 {
 	if x != nil {
 		return x.EntityId
 	}
 	return 0
 }
 
-func (x *CreateAttachmentRequest) GetOriginalFilename() string {
+func (x *UploadAttachmentMetadata) GetOriginalFilename() string {
 	if x != nil && x.OriginalFilename != nil {
 		return *x.OriginalFilename
 	}
 	return ""
 }
 
-func (x *CreateAttachmentRequest) GetStorageUrl() string {
-	if x != nil {
-		return x.StorageUrl
-	}
-	return ""
-}
-
-func (x *CreateAttachmentRequest) GetContentType() string {
+func (x *UploadAttachmentMetadata) GetContentType() string {
 	if x != nil && x.ContentType != nil {
 		return *x.ContentType
 	}
 	return ""
 }
 
-func (x *CreateAttachmentRequest) GetFileSizeBytes() int64 {
-	if x != nil && x.FileSizeBytes != nil {
-		return *x.FileSizeBytes
-	}
-	return 0
-}
-
-func (x *CreateAttachmentRequest) GetDisplaySequence() int32 {
+func (x *UploadAttachmentMetadata) GetDisplaySequence() int32 {
 	if x != nil && x.DisplaySequence != nil {
 		return *x.DisplaySequence
 	}
 	return 0
 }
 
-type CreateAttachmentResponse struct {
+type UploadAttachmentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Attachment    *Attachment            `protobuf:"bytes,1,opt,name=attachment,proto3" json:"attachment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CreateAttachmentResponse) Reset() {
-	*x = CreateAttachmentResponse{}
-	mi := &file_ava_v1_context_proto_msgTypes[13]
+func (x *UploadAttachmentResponse) Reset() {
+	*x = UploadAttachmentResponse{}
+	mi := &file_ava_v1_context_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateAttachmentResponse) String() string {
+func (x *UploadAttachmentResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateAttachmentResponse) ProtoMessage() {}
+func (*UploadAttachmentResponse) ProtoMessage() {}
 
-func (x *CreateAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[13]
+func (x *UploadAttachmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_context_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -961,14 +1025,102 @@ func (x *CreateAttachmentResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateAttachmentResponse.ProtoReflect.Descriptor instead.
-func (*CreateAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{13}
+// Deprecated: Use UploadAttachmentResponse.ProtoReflect.Descriptor instead.
+func (*UploadAttachmentResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *CreateAttachmentResponse) GetAttachment() *Attachment {
+func (x *UploadAttachmentResponse) GetAttachment() *Attachment {
 	if x != nil {
 		return x.Attachment
+	}
+	return nil
+}
+
+type DownloadAttachmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadAttachmentRequest) Reset() {
+	*x = DownloadAttachmentRequest{}
+	mi := &file_ava_v1_context_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadAttachmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadAttachmentRequest) ProtoMessage() {}
+
+func (x *DownloadAttachmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_context_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadAttachmentRequest.ProtoReflect.Descriptor instead.
+func (*DownloadAttachmentRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DownloadAttachmentRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DownloadAttachmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Chunk         []byte                 `protobuf:"bytes,1,opt,name=chunk,proto3" json:"chunk,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadAttachmentResponse) Reset() {
+	*x = DownloadAttachmentResponse{}
+	mi := &file_ava_v1_context_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadAttachmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadAttachmentResponse) ProtoMessage() {}
+
+func (x *DownloadAttachmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_context_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadAttachmentResponse.ProtoReflect.Descriptor instead.
+func (*DownloadAttachmentResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DownloadAttachmentResponse) GetChunk() []byte {
+	if x != nil {
+		return x.Chunk
 	}
 	return nil
 }
@@ -982,7 +1134,7 @@ type DeleteAttachmentRequest struct {
 
 func (x *DeleteAttachmentRequest) Reset() {
 	*x = DeleteAttachmentRequest{}
-	mi := &file_ava_v1_context_proto_msgTypes[14]
+	mi := &file_ava_v1_context_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -994,7 +1146,7 @@ func (x *DeleteAttachmentRequest) String() string {
 func (*DeleteAttachmentRequest) ProtoMessage() {}
 
 func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[14]
+	mi := &file_ava_v1_context_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1007,7 +1159,7 @@ func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{14}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteAttachmentRequest) GetId() int64 {
@@ -1026,7 +1178,7 @@ type DeleteAttachmentResponse struct {
 
 func (x *DeleteAttachmentResponse) Reset() {
 	*x = DeleteAttachmentResponse{}
-	mi := &file_ava_v1_context_proto_msgTypes[15]
+	mi := &file_ava_v1_context_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1038,7 +1190,7 @@ func (x *DeleteAttachmentResponse) String() string {
 func (*DeleteAttachmentResponse) ProtoMessage() {}
 
 func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[15]
+	mi := &file_ava_v1_context_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1051,7 +1203,7 @@ func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{15}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeleteAttachmentResponse) GetAttachment() *Attachment {
@@ -1121,7 +1273,7 @@ const file_ava_v1_context_proto_rawDesc = "" +
 	"\a_sourceB\r\n" +
 	"\v_confidence\"[\n" +
 	"\x1bCreateEntityContextResponse\x12<\n" +
-	"\x0eentity_context\x18\x01 \x01(\v2\x15.ava.v1.EntityContextR\rentityContext\"\x8d\x04\n" +
+	"\x0eentity_context\x18\x01 \x01(\v2\x15.ava.v1.EntityContextR\rentityContext\"\xec\x03\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
@@ -1130,16 +1282,14 @@ const file_ava_v1_context_proto_rawDesc = "" +
 	"\ventity_type\x18\x03 \x01(\tR\n" +
 	"entityType\x12\x1b\n" +
 	"\tentity_id\x18\x04 \x01(\x03R\bentityId\x120\n" +
-	"\x11original_filename\x18\x05 \x01(\tH\x00R\x10originalFilename\x88\x01\x01\x12\x1f\n" +
-	"\vstorage_url\x18\x06 \x01(\tR\n" +
-	"storageUrl\x12&\n" +
-	"\fcontent_type\x18\a \x01(\tH\x01R\vcontentType\x88\x01\x01\x12+\n" +
-	"\x0ffile_size_bytes\x18\b \x01(\x03H\x02R\rfileSizeBytes\x88\x01\x01\x12)\n" +
-	"\x10display_sequence\x18\t \x01(\x05R\x0fdisplaySequence\x120\n" +
-	"\x12created_by_user_id\x18\n" +
-	" \x01(\x03H\x03R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
+	"\x11original_filename\x18\x05 \x01(\tH\x00R\x10originalFilename\x88\x01\x01\x12&\n" +
+	"\fcontent_type\x18\x06 \x01(\tH\x01R\vcontentType\x88\x01\x01\x12+\n" +
+	"\x0ffile_size_bytes\x18\a \x01(\x03H\x02R\rfileSizeBytes\x88\x01\x01\x12)\n" +
+	"\x10display_sequence\x18\b \x01(\x05R\x0fdisplaySequence\x120\n" +
+	"\x12created_by_user_id\x18\t \x01(\x03H\x03R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
 	"\n" +
-	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\x14\n" +
+	"created_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\x14\n" +
 	"\x12_original_filenameB\x0f\n" +
 	"\r_content_typeB\x12\n" +
 	"\x10_file_size_bytesB\x15\n" +
@@ -1157,27 +1307,31 @@ const file_ava_v1_context_proto_rawDesc = "" +
 	"entityType\x12\x1b\n" +
 	"\tentity_id\x18\x03 \x01(\x03R\bentityId\"O\n" +
 	"\x17ListAttachmentsResponse\x124\n" +
-	"\vattachments\x18\x01 \x03(\v2\x12.ava.v1.AttachmentR\vattachments\"\xa0\x03\n" +
-	"\x17CreateAttachmentRequest\x12\x1f\n" +
+	"\vattachments\x18\x01 \x03(\v2\x12.ava.v1.AttachmentR\vattachments\"y\n" +
+	"\x17UploadAttachmentRequest\x12>\n" +
+	"\bmetadata\x18\x01 \x01(\v2 .ava.v1.UploadAttachmentMetadataH\x00R\bmetadata\x12\x16\n" +
+	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
+	"\x04data\"\xbf\x02\n" +
+	"\x18UploadAttachmentMetadata\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12\x1f\n" +
 	"\ventity_type\x18\x02 \x01(\tR\n" +
 	"entityType\x12\x1b\n" +
 	"\tentity_id\x18\x03 \x01(\x03R\bentityId\x120\n" +
-	"\x11original_filename\x18\x04 \x01(\tH\x00R\x10originalFilename\x88\x01\x01\x12\x1f\n" +
-	"\vstorage_url\x18\x05 \x01(\tR\n" +
-	"storageUrl\x12&\n" +
-	"\fcontent_type\x18\x06 \x01(\tH\x01R\vcontentType\x88\x01\x01\x12+\n" +
-	"\x0ffile_size_bytes\x18\a \x01(\x03H\x02R\rfileSizeBytes\x88\x01\x01\x12.\n" +
-	"\x10display_sequence\x18\b \x01(\x05H\x03R\x0fdisplaySequence\x88\x01\x01B\x14\n" +
+	"\x11original_filename\x18\x04 \x01(\tH\x00R\x10originalFilename\x88\x01\x01\x12&\n" +
+	"\fcontent_type\x18\x05 \x01(\tH\x01R\vcontentType\x88\x01\x01\x12.\n" +
+	"\x10display_sequence\x18\x06 \x01(\x05H\x02R\x0fdisplaySequence\x88\x01\x01B\x14\n" +
 	"\x12_original_filenameB\x0f\n" +
-	"\r_content_typeB\x12\n" +
-	"\x10_file_size_bytesB\x13\n" +
+	"\r_content_typeB\x13\n" +
 	"\x11_display_sequence\"N\n" +
-	"\x18CreateAttachmentResponse\x122\n" +
+	"\x18UploadAttachmentResponse\x122\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x12.ava.v1.AttachmentR\n" +
-	"attachment\")\n" +
+	"attachment\"+\n" +
+	"\x19DownloadAttachmentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"2\n" +
+	"\x1aDownloadAttachmentResponse\x12\x14\n" +
+	"\x05chunk\x18\x01 \x01(\fR\x05chunk\")\n" +
 	"\x17DeleteAttachmentRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"N\n" +
 	"\x18DeleteAttachmentResponse\x122\n" +
@@ -1187,11 +1341,12 @@ const file_ava_v1_context_proto_rawDesc = "" +
 	"\x14EntityContextService\x12U\n" +
 	"\x10GetEntityContext\x12\x1f.ava.v1.GetEntityContextRequest\x1a .ava.v1.GetEntityContextResponse\x12X\n" +
 	"\x11ListEntityContext\x12 .ava.v1.ListEntityContextRequest\x1a!.ava.v1.ListEntityContextResponse\x12^\n" +
-	"\x13CreateEntityContext\x12\".ava.v1.CreateEntityContextRequest\x1a#.ava.v1.CreateEntityContextResponse2\xe3\x02\n" +
+	"\x13CreateEntityContext\x12\".ava.v1.CreateEntityContextRequest\x1a#.ava.v1.CreateEntityContextResponse2\xc4\x03\n" +
 	"\x11AttachmentService\x12L\n" +
 	"\rGetAttachment\x12\x1c.ava.v1.GetAttachmentRequest\x1a\x1d.ava.v1.GetAttachmentResponse\x12R\n" +
-	"\x0fListAttachments\x12\x1e.ava.v1.ListAttachmentsRequest\x1a\x1f.ava.v1.ListAttachmentsResponse\x12U\n" +
-	"\x10CreateAttachment\x12\x1f.ava.v1.CreateAttachmentRequest\x1a .ava.v1.CreateAttachmentResponse\x12U\n" +
+	"\x0fListAttachments\x12\x1e.ava.v1.ListAttachmentsRequest\x1a\x1f.ava.v1.ListAttachmentsResponse\x12W\n" +
+	"\x10UploadAttachment\x12\x1f.ava.v1.UploadAttachmentRequest\x1a .ava.v1.UploadAttachmentResponse(\x01\x12]\n" +
+	"\x12DownloadAttachment\x12!.ava.v1.DownloadAttachmentRequest\x1a\".ava.v1.DownloadAttachmentResponse0\x01\x12U\n" +
 	"\x10DeleteAttachment\x12\x1f.ava.v1.DeleteAttachmentRequest\x1a .ava.v1.DeleteAttachmentResponseB*Z(github.com/silverbp/ava/gen/ava/v1;avav1b\x06proto3"
 
 var (
@@ -1206,7 +1361,7 @@ func file_ava_v1_context_proto_rawDescGZIP() []byte {
 	return file_ava_v1_context_proto_rawDescData
 }
 
-var file_ava_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_ava_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_ava_v1_context_proto_goTypes = []any{
 	(*EntityContext)(nil),               // 0: ava.v1.EntityContext
 	(*GetEntityContextRequest)(nil),     // 1: ava.v1.GetEntityContextRequest
@@ -1220,44 +1375,50 @@ var file_ava_v1_context_proto_goTypes = []any{
 	(*GetAttachmentResponse)(nil),       // 9: ava.v1.GetAttachmentResponse
 	(*ListAttachmentsRequest)(nil),      // 10: ava.v1.ListAttachmentsRequest
 	(*ListAttachmentsResponse)(nil),     // 11: ava.v1.ListAttachmentsResponse
-	(*CreateAttachmentRequest)(nil),     // 12: ava.v1.CreateAttachmentRequest
-	(*CreateAttachmentResponse)(nil),    // 13: ava.v1.CreateAttachmentResponse
-	(*DeleteAttachmentRequest)(nil),     // 14: ava.v1.DeleteAttachmentRequest
-	(*DeleteAttachmentResponse)(nil),    // 15: ava.v1.DeleteAttachmentResponse
-	(*Decimal)(nil),                     // 16: ava.v1.Decimal
-	(*timestamppb.Timestamp)(nil),       // 17: google.protobuf.Timestamp
+	(*UploadAttachmentRequest)(nil),     // 12: ava.v1.UploadAttachmentRequest
+	(*UploadAttachmentMetadata)(nil),    // 13: ava.v1.UploadAttachmentMetadata
+	(*UploadAttachmentResponse)(nil),    // 14: ava.v1.UploadAttachmentResponse
+	(*DownloadAttachmentRequest)(nil),   // 15: ava.v1.DownloadAttachmentRequest
+	(*DownloadAttachmentResponse)(nil),  // 16: ava.v1.DownloadAttachmentResponse
+	(*DeleteAttachmentRequest)(nil),     // 17: ava.v1.DeleteAttachmentRequest
+	(*DeleteAttachmentResponse)(nil),    // 18: ava.v1.DeleteAttachmentResponse
+	(*Decimal)(nil),                     // 19: ava.v1.Decimal
+	(*timestamppb.Timestamp)(nil),       // 20: google.protobuf.Timestamp
 }
 var file_ava_v1_context_proto_depIdxs = []int32{
-	16, // 0: ava.v1.EntityContext.confidence:type_name -> ava.v1.Decimal
-	17, // 1: ava.v1.EntityContext.created_at:type_name -> google.protobuf.Timestamp
+	19, // 0: ava.v1.EntityContext.confidence:type_name -> ava.v1.Decimal
+	20, // 1: ava.v1.EntityContext.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: ava.v1.GetEntityContextResponse.entity_context:type_name -> ava.v1.EntityContext
 	0,  // 3: ava.v1.ListEntityContextResponse.entity_contexts:type_name -> ava.v1.EntityContext
-	16, // 4: ava.v1.CreateEntityContextRequest.confidence:type_name -> ava.v1.Decimal
+	19, // 4: ava.v1.CreateEntityContextRequest.confidence:type_name -> ava.v1.Decimal
 	0,  // 5: ava.v1.CreateEntityContextResponse.entity_context:type_name -> ava.v1.EntityContext
-	17, // 6: ava.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
+	20, // 6: ava.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
 	7,  // 7: ava.v1.GetAttachmentResponse.attachment:type_name -> ava.v1.Attachment
 	7,  // 8: ava.v1.ListAttachmentsResponse.attachments:type_name -> ava.v1.Attachment
-	7,  // 9: ava.v1.CreateAttachmentResponse.attachment:type_name -> ava.v1.Attachment
-	7,  // 10: ava.v1.DeleteAttachmentResponse.attachment:type_name -> ava.v1.Attachment
-	1,  // 11: ava.v1.EntityContextService.GetEntityContext:input_type -> ava.v1.GetEntityContextRequest
-	3,  // 12: ava.v1.EntityContextService.ListEntityContext:input_type -> ava.v1.ListEntityContextRequest
-	5,  // 13: ava.v1.EntityContextService.CreateEntityContext:input_type -> ava.v1.CreateEntityContextRequest
-	8,  // 14: ava.v1.AttachmentService.GetAttachment:input_type -> ava.v1.GetAttachmentRequest
-	10, // 15: ava.v1.AttachmentService.ListAttachments:input_type -> ava.v1.ListAttachmentsRequest
-	12, // 16: ava.v1.AttachmentService.CreateAttachment:input_type -> ava.v1.CreateAttachmentRequest
-	14, // 17: ava.v1.AttachmentService.DeleteAttachment:input_type -> ava.v1.DeleteAttachmentRequest
-	2,  // 18: ava.v1.EntityContextService.GetEntityContext:output_type -> ava.v1.GetEntityContextResponse
-	4,  // 19: ava.v1.EntityContextService.ListEntityContext:output_type -> ava.v1.ListEntityContextResponse
-	6,  // 20: ava.v1.EntityContextService.CreateEntityContext:output_type -> ava.v1.CreateEntityContextResponse
-	9,  // 21: ava.v1.AttachmentService.GetAttachment:output_type -> ava.v1.GetAttachmentResponse
-	11, // 22: ava.v1.AttachmentService.ListAttachments:output_type -> ava.v1.ListAttachmentsResponse
-	13, // 23: ava.v1.AttachmentService.CreateAttachment:output_type -> ava.v1.CreateAttachmentResponse
-	15, // 24: ava.v1.AttachmentService.DeleteAttachment:output_type -> ava.v1.DeleteAttachmentResponse
-	18, // [18:25] is the sub-list for method output_type
-	11, // [11:18] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	13, // 9: ava.v1.UploadAttachmentRequest.metadata:type_name -> ava.v1.UploadAttachmentMetadata
+	7,  // 10: ava.v1.UploadAttachmentResponse.attachment:type_name -> ava.v1.Attachment
+	7,  // 11: ava.v1.DeleteAttachmentResponse.attachment:type_name -> ava.v1.Attachment
+	1,  // 12: ava.v1.EntityContextService.GetEntityContext:input_type -> ava.v1.GetEntityContextRequest
+	3,  // 13: ava.v1.EntityContextService.ListEntityContext:input_type -> ava.v1.ListEntityContextRequest
+	5,  // 14: ava.v1.EntityContextService.CreateEntityContext:input_type -> ava.v1.CreateEntityContextRequest
+	8,  // 15: ava.v1.AttachmentService.GetAttachment:input_type -> ava.v1.GetAttachmentRequest
+	10, // 16: ava.v1.AttachmentService.ListAttachments:input_type -> ava.v1.ListAttachmentsRequest
+	12, // 17: ava.v1.AttachmentService.UploadAttachment:input_type -> ava.v1.UploadAttachmentRequest
+	15, // 18: ava.v1.AttachmentService.DownloadAttachment:input_type -> ava.v1.DownloadAttachmentRequest
+	17, // 19: ava.v1.AttachmentService.DeleteAttachment:input_type -> ava.v1.DeleteAttachmentRequest
+	2,  // 20: ava.v1.EntityContextService.GetEntityContext:output_type -> ava.v1.GetEntityContextResponse
+	4,  // 21: ava.v1.EntityContextService.ListEntityContext:output_type -> ava.v1.ListEntityContextResponse
+	6,  // 22: ava.v1.EntityContextService.CreateEntityContext:output_type -> ava.v1.CreateEntityContextResponse
+	9,  // 23: ava.v1.AttachmentService.GetAttachment:output_type -> ava.v1.GetAttachmentResponse
+	11, // 24: ava.v1.AttachmentService.ListAttachments:output_type -> ava.v1.ListAttachmentsResponse
+	14, // 25: ava.v1.AttachmentService.UploadAttachment:output_type -> ava.v1.UploadAttachmentResponse
+	16, // 26: ava.v1.AttachmentService.DownloadAttachment:output_type -> ava.v1.DownloadAttachmentResponse
+	18, // 27: ava.v1.AttachmentService.DeleteAttachment:output_type -> ava.v1.DeleteAttachmentResponse
+	20, // [20:28] is the sub-list for method output_type
+	12, // [12:20] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_context_proto_init() }
@@ -1269,14 +1430,18 @@ func file_ava_v1_context_proto_init() {
 	file_ava_v1_context_proto_msgTypes[0].OneofWrappers = []any{}
 	file_ava_v1_context_proto_msgTypes[5].OneofWrappers = []any{}
 	file_ava_v1_context_proto_msgTypes[7].OneofWrappers = []any{}
-	file_ava_v1_context_proto_msgTypes[12].OneofWrappers = []any{}
+	file_ava_v1_context_proto_msgTypes[12].OneofWrappers = []any{
+		(*UploadAttachmentRequest_Metadata)(nil),
+		(*UploadAttachmentRequest_Chunk)(nil),
+	}
+	file_ava_v1_context_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_context_proto_rawDesc), len(file_ava_v1_context_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

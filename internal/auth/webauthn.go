@@ -14,6 +14,7 @@ import (
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/silverbp/ava/internal/db"
 	"github.com/silverbp/ava/internal/db/sqlcgen"
 )
 
@@ -74,6 +75,10 @@ func credentialFromRow(r sqlcgen.WebauthnCredential) gowebauthn.Credential {
 		PublicKey:       r.PublicKey,
 		AttestationType: attestationType,
 		Transport:       transports,
+		Flags: gowebauthn.CredentialFlags{
+			BackupEligible: r.BackupEligible,
+			BackupState:    r.BackupState,
+		},
 		Authenticator: gowebauthn.Authenticator{
 			AAGUID:    r.Aaguid,
 			SignCount: uint32(r.SignCount),
@@ -117,13 +122,20 @@ func loadCeremonySession(id string) (*gowebauthn.SessionData, bool) {
 // --- registration ceremony ---
 
 // BeginRegistration starts a passkey registration for a user identified by
-// email, creating the app_user row if it doesn't exist yet — passkey
-// registration is how a new Ava user signs up, there's no separate
-// "create account" step.
-func BeginRegistration(ctx context.Context, q *sqlcgen.Queries, w *gowebauthn.WebAuthn, email, displayName string) (*protocol.CredentialCreation, string, error) {
+// email. Registering a new account (no existing app_user for that email)
+// requires a valid, unexpired, unrevoked business_invite addressed to that
+// exact email — passkey registration is how a new Ava user signs up, but
+// nobody can create an account out of thin air; someone (a global admin or
+// a business's own OWNER/ADMIN) has to have invited that email first, via
+// BusinessService.CreateBusinessInvite. An existing account registering an
+// additional device's passkey needs no token.
+func BeginRegistration(ctx context.Context, q *sqlcgen.Queries, w *gowebauthn.WebAuthn, email, displayName, inviteToken string) (*protocol.CredentialCreation, string, error) {
 	appUser, err := q.GetAppUserByEmail(ctx, email)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", err
+		}
+		if _, err := pendingInviteForEmail(ctx, q, inviteToken, email); err != nil {
 			return nil, "", err
 		}
 		appUser, err = q.CreateAppUser(ctx, sqlcgen.CreateAppUserParams{Email: email, DisplayName: &displayName})
@@ -148,19 +160,47 @@ func BeginRegistration(ctx context.Context, q *sqlcgen.Queries, w *gowebauthn.We
 	return creation, sessionID, nil
 }
 
+// pendingInviteForEmail resolves inviteToken to a still-pending
+// business_invite addressed to email, or an error explaining why not —
+// used both to gate a brand-new registration (BeginRegistration) and to
+// actually redeem the invite once the credential is safely persisted
+// (FinishRegistration).
+func pendingInviteForEmail(ctx context.Context, q *sqlcgen.Queries, inviteToken, email string) (sqlcgen.BusinessInvite, error) {
+	if inviteToken == "" {
+		return sqlcgen.BusinessInvite{}, fmt.Errorf("registration requires an invite - ask a global admin or a business owner to invite %s first", email)
+	}
+	invite, err := q.GetPendingBusinessInviteByTokenHash(ctx, HashInviteToken(inviteToken))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return sqlcgen.BusinessInvite{}, fmt.Errorf("invite token is invalid, expired, or already used")
+		}
+		return sqlcgen.BusinessInvite{}, err
+	}
+	if !strings.EqualFold(invite.Email, email) {
+		return sqlcgen.BusinessInvite{}, fmt.Errorf("this invite was sent to a different email address")
+	}
+	return invite, nil
+}
+
 // FinishRegistration completes the ceremony begun by BeginRegistration,
-// persisting the new credential.
-func FinishRegistration(ctx context.Context, q *sqlcgen.Queries, w *gowebauthn.WebAuthn, email, sessionID string, r *http.Request) (*User, error) {
+// persisting the new credential and — for a brand-new account — atomically
+// redeeming the invite that gated BeginRegistration into a real
+// business_user grant, in the same transaction as the credential itself:
+// if redemption fails for any reason (the invite was revoked in the
+// intervening seconds, say), the whole registration rolls back rather than
+// leaving an account that exists but was never actually granted the
+// access it was invited for.
+func FinishRegistration(ctx context.Context, store *db.Store, w *gowebauthn.WebAuthn, email, sessionID, inviteToken string, r *http.Request) (*User, error) {
 	session, ok := loadCeremonySession(sessionID)
 	if !ok {
 		return nil, fmt.Errorf("registration session expired or not found")
 	}
 
-	appUser, err := q.GetAppUserByEmail(ctx, email)
+	appUser, err := store.Queries.GetAppUserByEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}
-	u, err := loadWebAuthnUser(ctx, q, appUser)
+	u, err := loadWebAuthnUser(ctx, store.Queries, appUser)
 	if err != nil {
 		return nil, err
 	}
@@ -184,15 +224,39 @@ func FinishRegistration(ctx context.Context, q *sqlcgen.Queries, w *gowebauthn.W
 		attestationTypePtr = &cred.AttestationType
 	}
 
-	if _, err := q.CreateWebAuthnCredential(ctx, sqlcgen.CreateWebAuthnCredentialParams{
-		UserID:          appUser.ID,
-		CredentialID:    cred.ID,
-		PublicKey:       cred.PublicKey,
-		AttestationType: attestationTypePtr,
-		Transports:      transportsPtr,
-		Aaguid:          cred.Authenticator.AAGUID,
-		SignCount:       int64(cred.Authenticator.SignCount),
-	}); err != nil {
+	err = store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		if _, err := q.CreateWebAuthnCredential(ctx, sqlcgen.CreateWebAuthnCredentialParams{
+			UserID:          appUser.ID,
+			CredentialID:    cred.ID,
+			PublicKey:       cred.PublicKey,
+			AttestationType: attestationTypePtr,
+			Transports:      transportsPtr,
+			Aaguid:          cred.Authenticator.AAGUID,
+			SignCount:       int64(cred.Authenticator.SignCount),
+			BackupEligible:  cred.Flags.BackupEligible,
+			BackupState:     cred.Flags.BackupState,
+		}); err != nil {
+			return err
+		}
+
+		if inviteToken == "" {
+			return nil
+		}
+		invite, err := pendingInviteForEmail(ctx, q, inviteToken, email)
+		if err != nil {
+			return err
+		}
+		if _, err := q.CreateBusinessUser(ctx, sqlcgen.CreateBusinessUserParams{
+			BusinessID: invite.BusinessID,
+			UserID:     appUser.ID,
+			Role:       invite.Role,
+		}); err != nil {
+			return err
+		}
+		_, err = q.AcceptBusinessInvite(ctx, sqlcgen.AcceptBusinessInviteParams{ID: invite.ID, AcceptedByUserID: &appUser.ID})
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -248,13 +312,17 @@ func FinishLoginCeremony(ctx context.Context, q *sqlcgen.Queries, w *gowebauthn.
 	// Clone-detection bookkeeping: persist the authenticator's post-ceremony
 	// sign count (FinishPasskeyLogin already rejected the login if it looked
 	// cloned; this just keeps our stored baseline current for next time).
+	// backup_state can legitimately change between logins (e.g. a passkey
+	// newly synced to iCloud Keychain) and must be kept current too, or a
+	// later login's BE/BS consistency check can fail against a stale value.
 	credRow, err := q.GetWebAuthnCredentialByCredentialID(ctx, validatedCred.ID)
 	if err != nil {
 		return nil, err
 	}
-	if err := q.UpdateWebAuthnCredentialSignCount(ctx, sqlcgen.UpdateWebAuthnCredentialSignCountParams{
-		ID:        credRow.ID,
-		SignCount: int64(validatedCred.Authenticator.SignCount),
+	if err := q.UpdateWebAuthnCredentialAfterLogin(ctx, sqlcgen.UpdateWebAuthnCredentialAfterLoginParams{
+		ID:          credRow.ID,
+		SignCount:   int64(validatedCred.Authenticator.SignCount),
+		BackupState: validatedCred.Flags.BackupState,
 	}); err != nil {
 		return nil, err
 	}
