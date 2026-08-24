@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package ava.v1;
+
+import "ava/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+// LedgerAccountService manages the chart of accounts. is_system accounts
+// (Income Summary, Retained Earnings, ...) are provisioned internally by
+// period close, not through CreateLedgerAccount.
+service LedgerAccountService {
+  rpc GetLedgerAccount(GetLedgerAccountRequest) returns (GetLedgerAccountResponse);
+  rpc ListLedgerAccounts(ListLedgerAccountsRequest) returns (ListLedgerAccountsResponse);
+  rpc CreateLedgerAccount(CreateLedgerAccountRequest) returns (CreateLedgerAccountResponse);
+  rpc UpdateLedgerAccount(UpdateLedgerAccountRequest) returns (UpdateLedgerAccountResponse);
+  rpc DeactivateLedgerAccount(DeactivateLedgerAccountRequest) returns (DeactivateLedgerAccountResponse);
+}
+
+// LedgerTransactionService posts and reads the double-entry ledger.
+// CreateLedgerTransaction is the one composite write in this domain: a
+// transaction and all of its entries are created together, atomically, so
+// the API can never produce an unbalanced or partially-posted transaction.
+service LedgerTransactionService {
+  rpc GetLedgerTransaction(GetLedgerTransactionRequest) returns (GetLedgerTransactionResponse);
+  rpc ListLedgerTransactions(ListLedgerTransactionsRequest) returns (ListLedgerTransactionsResponse);
+  rpc CreateLedgerTransaction(CreateLedgerTransactionRequest) returns (CreateLedgerTransactionResponse);
+}
+
+message LedgerAccount {
+  int32 id = 1;
+  int64 business_id = 2;
+  int32 account_type_id = 3;
+  optional int32 parent_account_id = 4;
+  string code = 5;
+  string name = 6;
+  optional string description = 7;
+  bool is_system = 8;
+  bool is_reconcilable = 9;
+  bool is_container = 10;
+  optional int32 cash_flow_category_id = 11;
+  optional int64 default_tax_rate_id = 12;
+  bool is_active = 13;
+  optional int64 created_by_user_id = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+message GetLedgerAccountRequest {
+  int32 id = 1;
+}
+
+message GetLedgerAccountResponse {
+  LedgerAccount account = 1;
+}
+
+message ListLedgerAccountsRequest {
+  int64 business_id = 1;
+}
+
+message ListLedgerAccountsResponse {
+  repeated LedgerAccount accounts = 1;
+}
+
+message CreateLedgerAccountRequest {
+  int64 business_id = 1;
+  int32 account_type_id = 2;
+  optional int32 parent_account_id = 3;
+  string code = 4;
+  string name = 5;
+  optional string description = 6;
+  bool is_reconcilable = 7;
+  bool is_container = 8;
+  optional int32 cash_flow_category_id = 9;
+}
+
+message CreateLedgerAccountResponse {
+  LedgerAccount account = 1;
+}
+
+message UpdateLedgerAccountRequest {
+  int32 id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional bool is_reconcilable = 4;
+  optional bool is_container = 5;
+  optional int32 cash_flow_category_id = 6;
+}
+
+message UpdateLedgerAccountResponse {
+  LedgerAccount account = 1;
+}
+
+message DeactivateLedgerAccountRequest {
+  int32 id = 1;
+}
+
+message DeactivateLedgerAccountResponse {
+  LedgerAccount account = 1;
+}
+
+message LedgerEntry {
+  int64 id = 1;
+  int64 ledger_transaction_id = 2;
+  int32 account_id = 3;
+  Decimal debit_amount = 4;
+  Decimal credit_amount = 5;
+  optional string description = 6;
+}
+
+message LedgerTransaction {
+  int64 id = 1;
+  int64 business_id = 2;
+  google.type.Date transaction_date = 3;
+  optional string description = 4;
+  optional string reference_number = 5;
+  optional int64 created_by_user_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  repeated LedgerEntry entries = 8;
+}
+
+message GetLedgerTransactionRequest {
+  int64 id = 1;
+}
+
+message GetLedgerTransactionResponse {
+  LedgerTransaction transaction = 1;
+}
+
+message ListLedgerTransactionsRequest {
+  int64 business_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListLedgerTransactionsResponse {
+  repeated LedgerTransaction transactions = 1;
+  string next_page_token = 2;
+}
+
+// NewLedgerEntry omits id/ledger_transaction_id, which only exist once the
+// transaction is posted.
+message NewLedgerEntry {
+  int32 account_id = 1;
+  Decimal debit_amount = 2;
+  Decimal credit_amount = 3;
+  optional string description = 4;
+}
+
+message CreateLedgerTransactionRequest {
+  int64 business_id = 1;
+  google.type.Date transaction_date = 2;
+  optional string description = 3;
+  optional string reference_number = 4;
+  repeated NewLedgerEntry entries = 5;
+}
+
+message CreateLedgerTransactionResponse {
+  LedgerTransaction transaction = 1;
+}

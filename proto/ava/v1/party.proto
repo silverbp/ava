@@ -1,0 +1,233 @@
+syntax = "proto3";
+
+package ava.v1;
+
+import "ava/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+service ContactService {
+  rpc GetContact(GetContactRequest) returns (GetContactResponse);
+  rpc ListContacts(ListContactsRequest) returns (ListContactsResponse);
+  rpc CreateContact(CreateContactRequest) returns (CreateContactResponse);
+  rpc UpdateContact(UpdateContactRequest) returns (UpdateContactResponse);
+  rpc DeactivateContact(DeactivateContactRequest) returns (DeactivateContactResponse);
+}
+
+service ServiceCatalogService {
+  rpc GetService(GetServiceRequest) returns (GetServiceResponse);
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
+  rpc CreateService(CreateServiceRequest) returns (CreateServiceResponse);
+  rpc UpdateService(UpdateServiceRequest) returns (UpdateServiceResponse);
+  rpc DeactivateService(DeactivateServiceRequest) returns (DeactivateServiceResponse);
+}
+
+service TaxRateService {
+  rpc GetTaxRate(GetTaxRateRequest) returns (GetTaxRateResponse);
+  rpc ListTaxRates(ListTaxRatesRequest) returns (ListTaxRatesResponse);
+  rpc CreateTaxRate(CreateTaxRateRequest) returns (CreateTaxRateResponse);
+  rpc UpdateTaxRate(UpdateTaxRateRequest) returns (UpdateTaxRateResponse);
+  rpc DeactivateTaxRate(DeactivateTaxRateRequest) returns (DeactivateTaxRateResponse);
+}
+
+message Contact {
+  int64 id = 1;
+  int64 business_id = 2;
+  optional int32 ledger_account_id = 3;
+  string contact_number = 4;
+  bool is_customer = 5;
+  bool is_vendor = 6;
+  string name = 7;
+  optional string email = 8;
+  optional string phone = 9;
+  optional int32 payment_terms_days = 10;
+  Decimal credit_limit = 11;
+  bool is_active = 12;
+  optional int64 created_by_user_id = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+message GetContactRequest {
+  int64 id = 1;
+}
+
+message GetContactResponse {
+  Contact contact = 1;
+}
+
+message ListContactsRequest {
+  int64 business_id = 1;
+}
+
+message ListContactsResponse {
+  repeated Contact contacts = 1;
+}
+
+message CreateContactRequest {
+  int64 business_id = 1;
+  optional int32 ledger_account_id = 2;
+  string contact_number = 3;
+  bool is_customer = 4;
+  bool is_vendor = 5;
+  string name = 6;
+  optional string email = 7;
+  optional string phone = 8;
+  optional int32 payment_terms_days = 9;
+  optional Decimal credit_limit = 10;
+}
+
+message CreateContactResponse {
+  Contact contact = 1;
+}
+
+message UpdateContactRequest {
+  int64 id = 1;
+  optional string name = 2;
+  optional string email = 3;
+  optional string phone = 4;
+  optional int32 ledger_account_id = 5;
+  optional int32 payment_terms_days = 6;
+  optional Decimal credit_limit = 7;
+}
+
+message UpdateContactResponse {
+  Contact contact = 1;
+}
+
+message DeactivateContactRequest {
+  int64 id = 1;
+}
+
+message DeactivateContactResponse {
+  Contact contact = 1;
+}
+
+message Service {
+  int64 id = 1;
+  int64 business_id = 2;
+  string service_code = 3;
+  string name = 4;
+  optional string description = 5;
+  string unit_of_measure = 6;
+  Decimal cost_price = 7;
+  Decimal retail_price = 8;
+  bool is_taxable = 9;
+  Decimal default_tax_rate = 10;
+  bool is_active = 11;
+  optional int64 created_by_user_id = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message GetServiceRequest {
+  int64 id = 1;
+}
+
+message GetServiceResponse {
+  Service service = 1;
+}
+
+message ListServicesRequest {
+  int64 business_id = 1;
+}
+
+message ListServicesResponse {
+  repeated Service services = 1;
+}
+
+message CreateServiceRequest {
+  int64 business_id = 1;
+  string service_code = 2;
+  string name = 3;
+  optional string description = 4;
+  optional string unit_of_measure = 5;
+  optional Decimal cost_price = 6;
+  Decimal retail_price = 7;
+  bool is_taxable = 8;
+  optional Decimal default_tax_rate = 9;
+}
+
+message CreateServiceResponse {
+  Service service = 1;
+}
+
+message UpdateServiceRequest {
+  int64 id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional Decimal retail_price = 4;
+  optional Decimal cost_price = 5;
+  optional bool is_taxable = 6;
+  optional Decimal default_tax_rate = 7;
+}
+
+message UpdateServiceResponse {
+  Service service = 1;
+}
+
+message DeactivateServiceRequest {
+  int64 id = 1;
+}
+
+message DeactivateServiceResponse {
+  Service service = 1;
+}
+
+message TaxRate {
+  int64 id = 1;
+  int64 business_id = 2;
+  string name = 3;
+  Decimal rate = 4;
+  int32 tax_liability_account_id = 5;
+  bool is_active = 6;
+  optional int64 created_by_user_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message GetTaxRateRequest {
+  int64 id = 1;
+}
+
+message GetTaxRateResponse {
+  TaxRate tax_rate = 1;
+}
+
+message ListTaxRatesRequest {
+  int64 business_id = 1;
+}
+
+message ListTaxRatesResponse {
+  repeated TaxRate tax_rates = 1;
+}
+
+message CreateTaxRateRequest {
+  int64 business_id = 1;
+  string name = 2;
+  Decimal rate = 3;
+  int32 tax_liability_account_id = 4;
+}
+
+message CreateTaxRateResponse {
+  TaxRate tax_rate = 1;
+}
+
+message UpdateTaxRateRequest {
+  int64 id = 1;
+  optional string name = 2;
+  optional Decimal rate = 3;
+}
+
+message UpdateTaxRateResponse {
+  TaxRate tax_rate = 1;
+}
+
+message DeactivateTaxRateRequest {
+  int64 id = 1;
+}
+
+message DeactivateTaxRateResponse {
+  TaxRate tax_rate = 1;
+}

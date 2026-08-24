@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package ava.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+service PeriodCloseService {
+  rpc TriggerClose(TriggerCloseRequest) returns (TriggerCloseResponse);
+  rpc ReverseClose(ReverseCloseRequest) returns (ReverseCloseResponse);
+  rpc GetPeriodClose(GetPeriodCloseRequest) returns (GetPeriodCloseResponse);
+  rpc ListPeriodCloses(ListPeriodClosesRequest) returns (ListPeriodClosesResponse);
+}
+
+message PeriodClose {
+  int64 id = 1;
+  int64 business_id = 2;
+  google.type.Date period_start = 3;
+  google.type.Date period_end = 4;
+  int32 income_summary_account_id = 5;
+  int32 retained_earnings_account_id = 6;
+  google.protobuf.Timestamp closed_at = 7;
+  optional google.protobuf.Timestamp reversed_at = 8;
+  optional int64 created_by_user_id = 9;
+  // Every ledger_transaction this close generated (or, for a reversed
+  // close, generated at the time it ran).
+  repeated int64 generated_ledger_transaction_ids = 10;
+}
+
+message TriggerCloseRequest {
+  int64 business_id = 1;
+  google.type.Date period_end = 2;
+}
+
+message TriggerCloseResponse {
+  PeriodClose period_close = 1;
+}
+
+message ReverseCloseRequest {
+  int64 id = 1;
+}
+
+message ReverseCloseResponse {
+  PeriodClose period_close = 1;
+}
+
+message GetPeriodCloseRequest {
+  int64 id = 1;
+}
+
+message GetPeriodCloseResponse {
+  PeriodClose period_close = 1;
+}
+
+message ListPeriodClosesRequest {
+  int64 business_id = 1;
+}
+
+message ListPeriodClosesResponse {
+  repeated PeriodClose period_closes = 1;
+}

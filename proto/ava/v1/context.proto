@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package ava.v1;
+
+import "ava/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+// EntityContextService: polymorphic AI-generated context (summaries,
+// categorization hints, anomaly flags, user notes) attached to any entity
+// elsewhere in the schema. entity_type/entity_id carry no DB foreign key
+// (they span many possible target tables), so the server validates
+// entity_type against a fixed allowlist and confirms entity_id both exists
+// and belongs to business_id (see internal/server/entity_ref.go) —
+// tenant isolation the schema itself can't enforce here.
+service EntityContextService {
+  rpc GetEntityContext(GetEntityContextRequest) returns (GetEntityContextResponse);
+  rpc ListEntityContext(ListEntityContextRequest) returns (ListEntityContextResponse);
+  rpc CreateEntityContext(CreateEntityContextRequest) returns (CreateEntityContextResponse);
+}
+
+// AttachmentService: same polymorphic entity_type/entity_id pattern, for
+// files. storage_url is caller-supplied — the API registers a reference to
+// a file already hosted elsewhere (this project has no object-storage
+// integration of its own yet); a presigned-upload flow is a natural
+// addition once one exists.
+service AttachmentService {
+  rpc GetAttachment(GetAttachmentRequest) returns (GetAttachmentResponse);
+  rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse);
+  rpc CreateAttachment(CreateAttachmentRequest) returns (CreateAttachmentResponse);
+  rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+}
+
+message EntityContext {
+  int64 id = 1;
+  int64 business_id = 2;
+  string entity_type = 3;
+  int64 entity_id = 4;
+  string context_type = 5;
+  string content = 6;
+  // Raw JSON text (not google.protobuf.Struct, to keep this a thin pass
+  // through to the JSONB column rather than a typed structure).
+  optional string metadata_json = 7;
+  optional string source = 8;
+  optional Decimal confidence = 9;
+  optional int64 superseded_by_id = 10;
+  optional int64 created_by_user_id = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+message GetEntityContextRequest {
+  int64 id = 1;
+}
+
+message GetEntityContextResponse {
+  EntityContext entity_context = 1;
+}
+
+message ListEntityContextRequest {
+  int64 business_id = 1;
+  string entity_type = 2;
+  int64 entity_id = 3;
+  // Defaults to current context only (superseded_by_id IS NULL), matching
+  // docs/schema.md's retrieval convention.
+  bool include_superseded = 4;
+}
+
+message ListEntityContextResponse {
+  repeated EntityContext entity_contexts = 1;
+}
+
+message CreateEntityContextRequest {
+  int64 business_id = 1;
+  string entity_type = 2;
+  int64 entity_id = 3;
+  string context_type = 4;
+  string content = 5;
+  optional string metadata_json = 6;
+  optional string source = 7;
+  optional Decimal confidence = 8;
+  // Rolls up old context rows into this new one: after creating it, each
+  // id here gets its superseded_by_id set to the new row — the batch
+  // rollup pattern docs/schema.md describes, without deleting the trail.
+  repeated int64 supersedes_ids = 9;
+}
+
+message CreateEntityContextResponse {
+  EntityContext entity_context = 1;
+}
+
+message Attachment {
+  int64 id = 1;
+  int64 business_id = 2;
+  string entity_type = 3;
+  int64 entity_id = 4;
+  optional string original_filename = 5;
+  string storage_url = 6;
+  optional string content_type = 7;
+  optional int64 file_size_bytes = 8;
+  int32 display_sequence = 9;
+  optional int64 created_by_user_id = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message GetAttachmentRequest {
+  int64 id = 1;
+}
+
+message GetAttachmentResponse {
+  Attachment attachment = 1;
+}
+
+message ListAttachmentsRequest {
+  int64 business_id = 1;
+  string entity_type = 2;
+  int64 entity_id = 3;
+}
+
+message ListAttachmentsResponse {
+  repeated Attachment attachments = 1;
+}
+
+message CreateAttachmentRequest {
+  int64 business_id = 1;
+  string entity_type = 2;
+  int64 entity_id = 3;
+  optional string original_filename = 4;
+  string storage_url = 5;
+  optional string content_type = 6;
+  optional int64 file_size_bytes = 7;
+  optional int32 display_sequence = 8;
+}
+
+message CreateAttachmentResponse {
+  Attachment attachment = 1;
+}
+
+message DeleteAttachmentRequest {
+  int64 id = 1;
+}
+
+message DeleteAttachmentResponse {
+  Attachment attachment = 1;
+}

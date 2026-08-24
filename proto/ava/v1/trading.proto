@@ -1,0 +1,281 @@
+syntax = "proto3";
+
+package ava.v1;
+
+import "ava/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+// EstimateService: estimates have no ledger impact (nothing is owed until
+// they convert to an invoice — see docs/schema.md), so there's no posting
+// concern here, only the document lifecycle.
+service EstimateService {
+  rpc GetEstimate(GetEstimateRequest) returns (GetEstimateResponse);
+  rpc ListEstimates(ListEstimatesRequest) returns (ListEstimatesResponse);
+  rpc CreateEstimate(CreateEstimateRequest) returns (CreateEstimateResponse);
+  rpc UpdateEstimateStatus(UpdateEstimateStatusRequest) returns (UpdateEstimateStatusResponse);
+}
+
+// InvoiceService. CreateInvoice optionally posts to the ledger: if every
+// line item sets ledger_account_id (the revenue/expense account it hits,
+// chosen per line rather than defaulted), and the contact has a
+// ledger_account_id (its AR/AP account), the invoice posts atomically
+// alongside being created. Omit ledger_account_id on every line to save it
+// as an unposted document instead.
+service InvoiceService {
+  rpc GetInvoice(GetInvoiceRequest) returns (GetInvoiceResponse);
+  rpc ListInvoices(ListInvoicesRequest) returns (ListInvoicesResponse);
+  rpc CreateInvoice(CreateInvoiceRequest) returns (CreateInvoiceResponse);
+  rpc UpdateInvoiceStatus(UpdateInvoiceStatusRequest) returns (UpdateInvoiceStatusResponse);
+  rpc GetInvoicePdf(GetInvoicePdfRequest) returns (GetInvoicePdfResponse);
+}
+
+// PaymentService. CreatePayment applies to invoice_id's paid_amount/
+// balance_due (and flips status to PAID once fully paid) regardless of
+// posting; it additionally posts to the ledger under the same condition as
+// invoices — ledger_account_id (the cash/bank account) set, and the
+// contact has its own ledger_account_id.
+service PaymentService {
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+}
+
+message EstimateLineItem {
+  int64 id = 1;
+  int64 estimate_id = 2;
+  optional int64 service_id = 3;
+  int32 line_number = 4;
+  string description = 5;
+  Decimal quantity = 6;
+  Decimal unit_price = 7;
+  Decimal line_subtotal = 8;
+  bool is_taxable = 9;
+  optional int64 tax_rate_id = 10;
+  Decimal tax_amount = 11;
+  Decimal line_total = 12;
+}
+
+message Estimate {
+  int64 id = 1;
+  int64 business_id = 2;
+  int64 customer_id = 3;
+  string estimate_number = 4;
+  google.type.Date estimate_date = 5;
+  google.type.Date expiration_date = 6;
+  Decimal subtotal = 7;
+  Decimal total_tax_amount = 8;
+  Decimal total_amount = 9;
+  string status = 10;
+  optional string notes = 11;
+  optional string terms = 12;
+  optional int64 created_by_user_id = 13;
+  google.protobuf.Timestamp created_at = 14;
+  repeated EstimateLineItem line_items = 15;
+}
+
+message NewEstimateLineItem {
+  optional int64 service_id = 1;
+  int32 line_number = 2;
+  string description = 3;
+  Decimal quantity = 4;
+  Decimal unit_price = 5;
+  bool is_taxable = 6;
+  optional int64 tax_rate_id = 7;
+}
+
+message GetEstimateRequest {
+  int64 id = 1;
+}
+
+message GetEstimateResponse {
+  Estimate estimate = 1;
+}
+
+message ListEstimatesRequest {
+  int64 business_id = 1;
+}
+
+message ListEstimatesResponse {
+  repeated Estimate estimates = 1;
+}
+
+message CreateEstimateRequest {
+  int64 business_id = 1;
+  int64 customer_id = 2;
+  google.type.Date estimate_date = 3;
+  google.type.Date expiration_date = 4;
+  optional string notes = 5;
+  optional string terms = 6;
+  repeated NewEstimateLineItem line_items = 7;
+}
+
+message CreateEstimateResponse {
+  Estimate estimate = 1;
+}
+
+message UpdateEstimateStatusRequest {
+  int64 id = 1;
+  string status = 2;
+}
+
+message UpdateEstimateStatusResponse {
+  Estimate estimate = 1;
+}
+
+message InvoiceLineItem {
+  int64 id = 1;
+  int64 invoice_id = 2;
+  optional int64 service_id = 3;
+  optional int32 ledger_account_id = 4;
+  int32 line_number = 5;
+  string description = 6;
+  Decimal quantity = 7;
+  Decimal unit_price = 8;
+  Decimal line_subtotal = 9;
+  bool is_taxable = 10;
+  optional int64 tax_rate_id = 11;
+  Decimal tax_amount = 12;
+  Decimal line_total = 13;
+}
+
+message Invoice {
+  int64 id = 1;
+  int64 business_id = 2;
+  int64 contact_id = 3;
+  string invoice_type = 4;
+  optional int64 estimate_id = 5;
+  string invoice_number = 6;
+  google.type.Date invoice_date = 7;
+  google.type.Date due_date = 8;
+  Decimal subtotal = 9;
+  Decimal total_tax_amount = 10;
+  Decimal total_amount = 11;
+  Decimal paid_amount = 12;
+  Decimal balance_due = 13;
+  string status = 14;
+  optional string notes = 15;
+  optional string terms = 16;
+  optional int64 ledger_transaction_id = 17;
+  optional int64 created_by_user_id = 18;
+  google.protobuf.Timestamp created_at = 19;
+  repeated InvoiceLineItem line_items = 20;
+}
+
+message NewInvoiceLineItem {
+  optional int64 service_id = 1;
+  optional int32 ledger_account_id = 2;
+  int32 line_number = 3;
+  string description = 4;
+  Decimal quantity = 5;
+  Decimal unit_price = 6;
+  bool is_taxable = 7;
+  optional int64 tax_rate_id = 8;
+}
+
+message GetInvoiceRequest {
+  int64 id = 1;
+}
+
+message GetInvoiceResponse {
+  Invoice invoice = 1;
+}
+
+message ListInvoicesRequest {
+  int64 business_id = 1;
+}
+
+message ListInvoicesResponse {
+  repeated Invoice invoices = 1;
+}
+
+message CreateInvoiceRequest {
+  int64 business_id = 1;
+  int64 contact_id = 2;
+  string invoice_type = 3;
+  optional int64 estimate_id = 4;
+  // Required for PURCHASE (typically the vendor's own document number);
+  // ignored for SALES, which auto-numbers from the business's
+  // invoice_number_prefix/next_invoice_number.
+  optional string invoice_number = 5;
+  google.type.Date invoice_date = 6;
+  google.type.Date due_date = 7;
+  optional string notes = 8;
+  optional string terms = 9;
+  repeated NewInvoiceLineItem line_items = 10;
+}
+
+message CreateInvoiceResponse {
+  Invoice invoice = 1;
+}
+
+message UpdateInvoiceStatusRequest {
+  int64 id = 1;
+  string status = 2;
+}
+
+message UpdateInvoiceStatusResponse {
+  Invoice invoice = 1;
+}
+
+message Payment {
+  int64 id = 1;
+  int64 business_id = 2;
+  int64 contact_id = 3;
+  optional int64 invoice_id = 4;
+  string payment_type = 5;
+  string payment_number = 6;
+  google.type.Date payment_date = 7;
+  Decimal amount = 8;
+  string payment_method = 9;
+  optional int32 ledger_account_id = 10;
+  optional string reference_number = 11;
+  optional string notes = 12;
+  optional int64 ledger_transaction_id = 13;
+  optional int64 created_by_user_id = 14;
+  google.protobuf.Timestamp created_at = 15;
+}
+
+message GetPaymentRequest {
+  int64 id = 1;
+}
+
+message GetPaymentResponse {
+  Payment payment = 1;
+}
+
+message ListPaymentsRequest {
+  int64 business_id = 1;
+}
+
+message ListPaymentsResponse {
+  repeated Payment payments = 1;
+}
+
+message CreatePaymentRequest {
+  int64 business_id = 1;
+  int64 contact_id = 2;
+  optional int64 invoice_id = 3;
+  string payment_type = 4;
+  string payment_number = 5;
+  google.type.Date payment_date = 6;
+  Decimal amount = 7;
+  string payment_method = 8;
+  optional int32 ledger_account_id = 9;
+  optional string reference_number = 10;
+  optional string notes = 11;
+}
+
+message CreatePaymentResponse {
+  Payment payment = 1;
+}
+
+message GetInvoicePdfRequest {
+  int64 id = 1;
+}
+
+message GetInvoicePdfResponse {
+  bytes content = 1;
+}

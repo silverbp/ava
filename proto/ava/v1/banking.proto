@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package ava.v1;
+
+import "ava/v1/common.proto";
+import "ava/v1/ledger.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+service BankStatementService {
+  rpc GetBankStatement(GetBankStatementRequest) returns (GetBankStatementResponse);
+  rpc ListBankStatements(ListBankStatementsRequest) returns (ListBankStatementsResponse);
+  rpc CreateBankStatement(CreateBankStatementRequest) returns (CreateBankStatementResponse);
+  // ReconcileLedgerTransactions links ledger_transaction_ids to a bank
+  // statement, one bank_statement_line each — each transaction must already
+  // post to the statement's own ledger_account_id (see docs/schema.md).
+  rpc ReconcileLedgerTransactions(ReconcileLedgerTransactionsRequest) returns (ReconcileLedgerTransactionsResponse);
+  // ListUnreconciledLedgerTransactions lists candidates for reconciliation:
+  // transactions posting to account_id, through through_date, not yet
+  // linked to any bank_statement for that account.
+  rpc ListUnreconciledLedgerTransactions(ListUnreconciledLedgerTransactionsRequest) returns (ListUnreconciledLedgerTransactionsResponse);
+}
+
+message BankStatementLine {
+  int64 id = 1;
+  int64 bank_statement_id = 2;
+  int64 ledger_transaction_id = 3;
+  int32 display_sequence = 4;
+}
+
+message BankStatement {
+  int64 id = 1;
+  int64 business_id = 2;
+  int32 ledger_account_id = 3;
+  string statement_name = 4;
+  google.type.Date statement_date = 5;
+  Decimal opening_balance = 6;
+  Decimal closing_balance = 7;
+  // reconciled_balance = opening_balance + net activity of every
+  // reconciled transaction, in the account's own normal-balance direction
+  // — compare against closing_balance to see if reconciliation is
+  // complete.
+  Decimal reconciled_balance = 8;
+  repeated BankStatementLine lines = 9;
+  optional int64 created_by_user_id = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message GetBankStatementRequest {
+  int64 id = 1;
+}
+
+message GetBankStatementResponse {
+  BankStatement bank_statement = 1;
+}
+
+message ListBankStatementsRequest {
+  int64 business_id = 1;
+}
+
+message ListBankStatementsResponse {
+  repeated BankStatement bank_statements = 1;
+}
+
+message CreateBankStatementRequest {
+  int64 business_id = 1;
+  int32 ledger_account_id = 2;
+  string statement_name = 3;
+  google.type.Date statement_date = 4;
+  Decimal opening_balance = 5;
+  Decimal closing_balance = 6;
+}
+
+message CreateBankStatementResponse {
+  BankStatement bank_statement = 1;
+}
+
+message ReconcileLedgerTransactionsRequest {
+  int64 bank_statement_id = 1;
+  repeated int64 ledger_transaction_ids = 2;
+}
+
+message ReconcileLedgerTransactionsResponse {
+  BankStatement bank_statement = 1;
+}
+
+message ListUnreconciledLedgerTransactionsRequest {
+  int32 ledger_account_id = 1;
+  google.type.Date through_date = 2;
+}
+
+message ListUnreconciledLedgerTransactionsResponse {
+  repeated LedgerTransaction transactions = 1;
+}

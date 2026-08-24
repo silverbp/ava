@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package ava.v1;
+
+import "ava/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+// BusinessService is the first vertical slice through the stack (proto ->
+// sqlc -> service -> dev-bypass auth) and the template every later resource
+// domain follows. Membership-management RPCs (invite/change-role/remove a
+// business_user) are deliberately left for a later phase once real Apple
+// auth exists and there's a real second user to invite.
+service BusinessService {
+  rpc GetBusiness(GetBusinessRequest) returns (GetBusinessResponse);
+  rpc ListMyBusinesses(ListMyBusinessesRequest) returns (ListMyBusinessesResponse);
+  rpc CreateBusiness(CreateBusinessRequest) returns (CreateBusinessResponse);
+  rpc UpdateBusiness(UpdateBusinessRequest) returns (UpdateBusinessResponse);
+  rpc DeactivateBusiness(DeactivateBusinessRequest) returns (DeactivateBusinessResponse);
+}
+
+message Business {
+  int64 id = 1;
+  string name = 2;
+  optional string tax_id = 3;
+  optional string address_line1 = 4;
+  optional string address_line2 = 5;
+  optional string city = 6;
+  optional string state = 7;
+  optional string postal_code = 8;
+  optional string country = 9;
+  optional string phone = 10;
+  optional string email = 11;
+  optional int32 default_payment_terms_days = 12;
+  Decimal default_tax_rate = 13;
+  string invoice_number_prefix = 14;
+  string estimate_number_prefix = 15;
+  string timezone = 16;
+  string currency_code = 17;
+  bool is_active = 18;
+  optional int64 created_by_user_id = 19;
+  google.protobuf.Timestamp created_at = 20;
+  google.protobuf.Timestamp updated_at = 21;
+}
+
+message GetBusinessRequest {
+  int64 id = 1;
+}
+
+message GetBusinessResponse {
+  Business business = 1;
+}
+
+message ListMyBusinessesRequest {}
+
+message BusinessMembership {
+  Business business = 1;
+  string role = 2;
+}
+
+message ListMyBusinessesResponse {
+  repeated BusinessMembership memberships = 1;
+}
+
+message CreateBusinessRequest {
+  string name = 1;
+  optional string tax_id = 2;
+  optional string address_line1 = 3;
+  optional string address_line2 = 4;
+  optional string city = 5;
+  optional string state = 6;
+  optional string postal_code = 7;
+  optional string country = 8;
+  optional string phone = 9;
+  optional string email = 10;
+}
+
+message CreateBusinessResponse {
+  Business business = 1;
+}
+
+message UpdateBusinessRequest {
+  int64 id = 1;
+  optional string name = 2;
+  optional string tax_id = 3;
+  optional string address_line1 = 4;
+  optional string address_line2 = 5;
+  optional string city = 6;
+  optional string state = 7;
+  optional string postal_code = 8;
+  optional string country = 9;
+  optional string phone = 10;
+  optional string email = 11;
+}
+
+message UpdateBusinessResponse {
+  Business business = 1;
+}
+
+message DeactivateBusinessRequest {
+  int64 id = 1;
+}
+
+message DeactivateBusinessResponse {
+  Business business = 1;
+}

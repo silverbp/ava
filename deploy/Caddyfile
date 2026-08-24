@@ -1,0 +1,21 @@
+# Fronts cmd/ava's two internal listeners on one public domain + port,
+# with automatic TLS. cmd/ava itself never terminates TLS or serves on
+# :443 directly — see internal/config/config.go (AVA_GRPC_ADDR,
+# AVA_HTTP_ADDR) and docs/implementation-plan.md's Phase 9 notes for why
+# this is a reverse proxy rather than cmux or grpc-gateway: Caddy already
+# solves "one port" for free while also handling TLS, and there's no
+# REST/JSON requirement (avactl speaks gRPC directly).
+ava.silverblueprints.net {
+	# WebAuthn registration/login pages and callback endpoints
+	# (internal/server/httpauth.go) — plain HTTP/1.1.
+	handle /auth/* {
+		reverse_proxy localhost:9091
+	}
+
+	# Everything else is gRPC (h2c) — avav1's generated services all use
+	# the standard "/package.Service/Method" path convention, which never
+	# collides with /auth/*.
+	handle {
+		reverse_proxy h2c://localhost:9090
+	}
+}

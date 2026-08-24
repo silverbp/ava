@@ -1,0 +1,119 @@
+// Package server wires the gRPC server: the Postgres-backed Store, the auth
+// interceptor, and one implementation per proto service.
+package server
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	avav1 "github.com/silverbp/ava/gen/ava/v1"
+	"github.com/silverbp/ava/internal/auth"
+	"github.com/silverbp/ava/internal/config"
+	"github.com/silverbp/ava/internal/db"
+)
+
+type Server struct {
+	cfg        config.Config
+	store      *db.Store
+	grpc       *grpc.Server
+	httpServer *http.Server
+}
+
+func New(ctx context.Context, cfg config.Config) (*Server, error) {
+	store, err := db.NewStore(ctx, cfg.PostgresDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	var devUser *auth.User
+	if cfg.AuthMode == config.AuthModeDev {
+		devUser, err = auth.EnsureDevUser(ctx, store)
+		if err != nil {
+			store.Close()
+			return nil, fmt.Errorf("provisioning dev user: %w", err)
+		}
+		slog.Info("dev auth bypass active", "user_id", devUser.ID, "business", auth.DevBusinessName)
+	}
+
+	verifyAccessToken := func(token string) (*auth.User, error) {
+		return auth.VerifyAccessToken(cfg.JWTSecret, token)
+	}
+
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(auth.UnaryInterceptor(cfg.AuthMode, devUser, verifyAccessToken)),
+	)
+
+	avav1.RegisterBusinessServiceServer(grpcServer, newBusinessService(store))
+	avav1.RegisterLedgerAccountServiceServer(grpcServer, newLedgerAccountService(store))
+	avav1.RegisterLedgerTransactionServiceServer(grpcServer, newLedgerTransactionService(store))
+	avav1.RegisterReportingServiceServer(grpcServer, newReportingService(store))
+	avav1.RegisterPeriodCloseServiceServer(grpcServer, newPeriodCloseService(store))
+	avav1.RegisterContactServiceServer(grpcServer, newContactService(store))
+	avav1.RegisterServiceCatalogServiceServer(grpcServer, newServiceCatalogService(store))
+	avav1.RegisterTaxRateServiceServer(grpcServer, newTaxRateService(store))
+	avav1.RegisterEstimateServiceServer(grpcServer, newEstimateService(store))
+	avav1.RegisterInvoiceServiceServer(grpcServer, newInvoiceService(store))
+	avav1.RegisterPaymentServiceServer(grpcServer, newPaymentService(store))
+	avav1.RegisterBankStatementServiceServer(grpcServer, newBankStatementService(store))
+	avav1.RegisterEntityContextServiceServer(grpcServer, newEntityContextService(store))
+	avav1.RegisterAttachmentServiceServer(grpcServer, newAttachmentService(store))
+	avav1.RegisterAuthServiceServer(grpcServer, newAuthService(store, cfg))
+
+	// Reflection lets grpcurl/grpcui introspect the API without shipping
+	// .proto files alongside every deploy. Revisit gating this behind
+	// AVA_ENV before a real production launch.
+	reflection.Register(grpcServer)
+
+	authMux, err := newAuthMux(store, cfg)
+	if err != nil {
+		store.Close()
+		return nil, fmt.Errorf("configuring auth HTTP server: %w", err)
+	}
+	httpServer := &http.Server{
+		Addr:    cfg.HTTPAddr,
+		Handler: authMux,
+	}
+
+	return &Server{cfg: cfg, store: store, grpc: grpcServer, httpServer: httpServer}, nil
+}
+
+// Run serves both listeners until either exits; an error from one stops
+// the other. In dev mode the HTTP/WebAuthn listener still starts (harmless
+// — nothing exercises it while AVA_AUTH_MODE=dev, and starting it
+// unconditionally means switching modes doesn't require restructuring how
+// the server is run).
+func (s *Server) Run() error {
+	lis, err := net.Listen("tcp", s.cfg.GRPCAddr)
+	if err != nil {
+		return fmt.Errorf("listening on %s: %w", s.cfg.GRPCAddr, err)
+	}
+
+	errCh := make(chan error, 2)
+	go func() {
+		slog.Info("ava gRPC server listening", "addr", s.cfg.GRPCAddr, "auth_mode", s.cfg.AuthMode)
+		errCh <- s.grpc.Serve(lis)
+	}()
+	go func() {
+		slog.Info("ava auth HTTP server listening", "addr", s.cfg.HTTPAddr)
+		err := s.httpServer.ListenAndServe()
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
+		}
+		errCh <- err
+	}()
+
+	return <-errCh
+}
+
+func (s *Server) Close() {
+	s.grpc.GracefulStop()
+	_ = s.httpServer.Close()
+	s.store.Close()
+}

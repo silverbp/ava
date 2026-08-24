@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package ava.v1;
+
+option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
+
+// Decimal represents an exact decimal value the way it round-trips through a
+// Postgres NUMERIC column (money at scale 2, quantities at scale 4, rates at
+// scale 4) without float precision loss, e.g. "1234.56", "-0.0425".
+message Decimal {
+  string value = 1;
+}

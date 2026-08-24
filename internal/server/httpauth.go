@@ -1,0 +1,292 @@
+package server
+
+import (
+	"encoding/json"
+	"fmt"
+	"html/template"
+	"log/slog"
+	"net/http"
+
+	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
+
+	"github.com/silverbp/ava/internal/auth"
+	"github.com/silverbp/ava/internal/config"
+	"github.com/silverbp/ava/internal/db"
+)
+
+// rpDisplayName is shown to the user by their browser/OS passkey UI.
+const rpDisplayName = "Ava"
+
+// newAuthMux serves the WebAuthn registration/login pages and their
+// begin/finish endpoints. In dev mode, avactl never reaches these (the
+// interceptor doesn't require a token at all), so the mux just answers
+// cleanly rather than starting a broken WebAuthn relying party.
+func newAuthMux(store *db.Store, cfg config.Config) (http.Handler, error) {
+	mux := http.NewServeMux()
+
+	if cfg.AuthMode != config.AuthModePasskey {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "passkey auth is disabled (AVA_AUTH_MODE=dev)", http.StatusServiceUnavailable)
+		})
+		return mux, nil
+	}
+
+	w, err := auth.NewWebAuthn(cfg.RPID, rpDisplayName, cfg.PublicBaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid WebAuthn config (check AVA_RP_ID/AVA_PUBLIC_BASE_URL): %w", err)
+	}
+
+	h := &authHandlers{store: store, webauthn: w}
+	mux.HandleFunc("/auth/start", h.start)
+	mux.HandleFunc("/auth/webauthn/register/begin", h.registerBegin)
+	mux.HandleFunc("/auth/webauthn/register/finish", h.registerFinish)
+	mux.HandleFunc("/auth/webauthn/login/begin", h.loginBegin)
+	mux.HandleFunc("/auth/webauthn/login/finish", h.loginFinish)
+	return mux, nil
+}
+
+type authHandlers struct {
+	store    *db.Store
+	webauthn *gowebauthn.WebAuthn
+}
+
+// start serves the page avactl login opens: it reads redirect_uri/state
+// from its own query string and, on success, hands the CLI's loopback
+// listener a one-time code via that redirect — see the inline JS below and
+// internal/auth/authcode.go.
+func (h *authHandlers) start(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := authStartTemplate.Execute(w, map[string]string{
+		"RedirectURI": r.URL.Query().Get("redirect_uri"),
+		"State":       r.URL.Query().Get("state"),
+	}); err != nil {
+		slog.Error("rendering auth start page", "error", err)
+	}
+}
+
+func (h *authHandlers) registerBegin(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email       string `json:"email"`
+		DisplayName string `json:"displayName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	displayName := req.DisplayName
+	if displayName == "" {
+		displayName = req.Email
+	}
+
+	creation, sessionID, err := auth.BeginRegistration(r.Context(), h.store.Queries, h.webauthn, req.Email, displayName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"options": creation, "session_id": sessionID})
+}
+
+func (h *authHandlers) registerFinish(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	sessionID := r.URL.Query().Get("session_id")
+	if email == "" || sessionID == "" {
+		http.Error(w, "email and session_id are required", http.StatusBadRequest)
+		return
+	}
+	u, err := auth.FinishRegistration(r.Context(), h.store.Queries, h.webauthn, email, sessionID, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	h.issueCodeAndRespond(w, u)
+}
+
+func (h *authHandlers) loginBegin(w http.ResponseWriter, r *http.Request) {
+	assertion, sessionID, err := auth.BeginLoginCeremony(h.webauthn)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"options": assertion, "session_id": sessionID})
+}
+
+func (h *authHandlers) loginFinish(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "session_id is required", http.StatusBadRequest)
+		return
+	}
+	u, err := auth.FinishLoginCeremony(r.Context(), h.store.Queries, h.webauthn, sessionID, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	h.issueCodeAndRespond(w, u)
+}
+
+func (h *authHandlers) issueCodeAndRespond(w http.ResponseWriter, u *auth.User) {
+	code, err := auth.IssueAuthCode(u.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"code": code})
+}
+
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+// authStartTemplate is the entire browser-side half of the login flow:
+// plain HTML + vanilla JS calling navigator.credentials.create()/get()
+// directly. Cross-device sign-in (scan a QR code from your phone) is the
+// browser's own built-in passkey UI — nothing here implements that
+// transport.
+var authStartTemplate = template.Must(template.New("auth-start").Parse(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sign in to Ava</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 420px; margin: 80px auto; padding: 0 20px; }
+  h1 { font-size: 20px; }
+  input { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+  button { width: 100%; padding: 10px; margin: 6px 0; cursor: pointer; }
+  #error { color: #b00020; white-space: pre-wrap; }
+  #status { color: #444; }
+</style>
+</head>
+<body>
+<h1>Sign in to Ava</h1>
+<button id="login-btn">Sign in with a passkey</button>
+<hr>
+<p>New here?</p>
+<input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+<button id="register-btn">Create a passkey</button>
+<p id="status"></p>
+<p id="error"></p>
+
+<script>
+const redirectURI = {{.RedirectURI}};
+const state = {{.State}};
+
+function status(msg) { document.getElementById('status').textContent = msg; }
+function fail(msg) { document.getElementById('error').textContent = msg; }
+
+function base64urlToBuffer(base64url) {
+  const padding = '='.repeat((4 - base64url.length % 4) % 4);
+  const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function bufferToBase64url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let str = '';
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function finishWithCode(code) {
+  status('Success! Redirecting...');
+  window.location.href = redirectURI + '?code=' + encodeURIComponent(code) + '&state=' + encodeURIComponent(state);
+}
+
+async function register() {
+  fail(''); status('');
+  const email = document.getElementById('email').value.trim();
+  if (!email) { fail('Enter an email address.'); return; }
+  try {
+    status('Requesting a new passkey challenge...');
+    const beginResp = await fetch('/auth/webauthn/register/begin', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: email}),
+    });
+    if (!beginResp.ok) throw new Error(await beginResp.text());
+    const {options, session_id} = await beginResp.json();
+
+    const publicKey = options.publicKey;
+    publicKey.challenge = base64urlToBuffer(publicKey.challenge);
+    publicKey.user.id = base64urlToBuffer(publicKey.user.id);
+    if (publicKey.excludeCredentials) {
+      for (const c of publicKey.excludeCredentials) c.id = base64urlToBuffer(c.id);
+    }
+
+    status('Waiting for your device...');
+    const cred = await navigator.credentials.create({publicKey});
+
+    const credentialJSON = {
+      id: cred.id,
+      rawId: bufferToBase64url(cred.rawId),
+      type: cred.type,
+      response: {
+        clientDataJSON: bufferToBase64url(cred.response.clientDataJSON),
+        attestationObject: bufferToBase64url(cred.response.attestationObject),
+        transports: cred.response.getTransports ? cred.response.getTransports() : [],
+      },
+      clientExtensionResults: cred.getClientExtensionResults(),
+    };
+
+    status('Finishing registration...');
+    const finishResp = await fetch(
+      '/auth/webauthn/register/finish?email=' + encodeURIComponent(email) + '&session_id=' + encodeURIComponent(session_id),
+      {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(credentialJSON)});
+    if (!finishResp.ok) throw new Error(await finishResp.text());
+    const {code} = await finishResp.json();
+    finishWithCode(code);
+  } catch (e) {
+    fail(String(e));
+  }
+}
+
+async function login() {
+  fail(''); status('');
+  try {
+    status('Requesting a login challenge...');
+    const beginResp = await fetch('/auth/webauthn/login/begin', {method: 'POST'});
+    if (!beginResp.ok) throw new Error(await beginResp.text());
+    const {options, session_id} = await beginResp.json();
+
+    const publicKey = options.publicKey;
+    publicKey.challenge = base64urlToBuffer(publicKey.challenge);
+    if (publicKey.allowCredentials) {
+      for (const c of publicKey.allowCredentials) c.id = base64urlToBuffer(c.id);
+    }
+
+    status('Waiting for your device...');
+    const cred = await navigator.credentials.get({publicKey, mediation: 'optional'});
+
+    const credentialJSON = {
+      id: cred.id,
+      rawId: bufferToBase64url(cred.rawId),
+      type: cred.type,
+      response: {
+        clientDataJSON: bufferToBase64url(cred.response.clientDataJSON),
+        authenticatorData: bufferToBase64url(cred.response.authenticatorData),
+        signature: bufferToBase64url(cred.response.signature),
+        userHandle: cred.response.userHandle ? bufferToBase64url(cred.response.userHandle) : undefined,
+      },
+      clientExtensionResults: cred.getClientExtensionResults(),
+    };
+
+    status('Finishing login...');
+    const finishResp = await fetch(
+      '/auth/webauthn/login/finish?session_id=' + encodeURIComponent(session_id),
+      {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(credentialJSON)});
+    if (!finishResp.ok) throw new Error(await finishResp.text());
+    const {code} = await finishResp.json();
+    finishWithCode(code);
+  } catch (e) {
+    fail(String(e));
+  }
+}
+
+document.getElementById('login-btn').addEventListener('click', login);
+document.getElementById('register-btn').addEventListener('click', register);
+</script>
+</body>
+</html>
+`))
