@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreatePeriodClose :one
 INSERT INTO period_close (
     business_id, period_start, period_end, income_summary_account_id,

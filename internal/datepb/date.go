@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package datepb converts between Postgres DATE columns (as scanned by
 // sqlc/pgx into pgtype.Date) and google.type.Date — not
 // google.protobuf.Timestamp, which implies a time-of-day these columns

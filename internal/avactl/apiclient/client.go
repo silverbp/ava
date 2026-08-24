@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package apiclient dials the ava gRPC API for avactl.
 package apiclient
 

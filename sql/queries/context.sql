@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreateEntityContext :one
 INSERT INTO entity_context (
     business_id, entity_type, entity_id, context_type, content, metadata,

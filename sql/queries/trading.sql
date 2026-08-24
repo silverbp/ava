@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreateEstimate :one
 INSERT INTO estimate (
     business_id, customer_id, estimate_number, estimate_date, expiration_date,

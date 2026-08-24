@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: AccountBalancesAsOf :many
 -- One row per ledger_account, with total debit/credit activity from
 -- ledger_entry within [period_start, period_end]. Used, with different

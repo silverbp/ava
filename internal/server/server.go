@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package server wires the gRPC server: the Postgres-backed Store, the auth
 // interceptor, and one implementation per proto service.
 package server

@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreateLedgerAccount :one
 INSERT INTO ledger_account (
     business_id, account_type_id, parent_account_id, code, name, description,

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 package reporting
 
 // account_type_id values seeded by migrations/00001_initial.up.sql. Sign

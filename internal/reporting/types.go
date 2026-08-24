@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package reporting computes the financial reports over the ledger — trial
 // balance, balance sheet, income statement, general ledger — as plain Go
 // (native time.Time/decimal.Decimal, no proto dependency), so it's directly

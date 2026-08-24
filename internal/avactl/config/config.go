@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package config manages ~/.avactl/config, a kubeconfig-shaped file: named
 // clusters (server addresses), named contexts (a cluster + the business id
 // to operate on — the --namespace analog), and a current context.

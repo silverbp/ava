@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package storage wraps an S3-compatible object store (SeaweedFS locally -
 // see docker-compose.yml's seaweedfs service, chrislusf/seaweedfs's `-s3`
 // gateway) behind a small Put/Get/Delete interface. AttachmentService

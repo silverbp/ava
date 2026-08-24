@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package resource is avactl's registry of resource types — the generic
 // `get`/`delete` commands dispatch through it by resource name, the same
 // way kubectl's RESTMapper resolves "pods" to the Pod type. `create` stays

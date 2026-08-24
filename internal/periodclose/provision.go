@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package periodclose implements the period-close algorithm documented in
 // docs/architecture.md, as plain Go over *sqlcgen.Queries — no gRPC
 // dependency, so it's directly unit-testable against a real Postgres and

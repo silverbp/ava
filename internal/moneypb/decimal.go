@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package moneypb converts between Postgres NUMERIC columns (as scanned by
 // sqlc/pgx into pgtype.Numeric) and the wire-level ava.v1.Decimal message,
 // keeping every conversion an exact decimal-string round trip.

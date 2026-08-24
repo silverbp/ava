@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: GetAppUser :one
 SELECT * FROM app_user WHERE id = $1 AND deleted_at IS NULL;
 

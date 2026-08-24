@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreateBusiness :one
 INSERT INTO business (
     name, tax_id, address_line1, address_line2, city, state, postal_code,

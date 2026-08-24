@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package output renders resources as a table, JSON, or YAML — avactl's
 // -o flag, matching kubectl.
 package output

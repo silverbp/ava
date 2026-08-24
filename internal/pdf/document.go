@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package pdf renders reports and trading documents to PDF using
 // github.com/go-pdf/fpdf — a pure-Go library, so cmd/ava stays a single
 // static binary with no runtime dependency (no headless Chrome, no

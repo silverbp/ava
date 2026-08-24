@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package db wires up the pgx connection pool and the sqlc-generated
 // Queries, plus a transaction helper used by any service that needs more
 // than one statement to commit atomically (most notably period close).

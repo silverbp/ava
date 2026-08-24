@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreateContact :one
 INSERT INTO contact (
     business_id, ledger_account_id, contact_number, is_customer, is_vendor, name,

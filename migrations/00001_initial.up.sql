@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- Application user, authenticated via passkeys (WebAuthn) - see
 -- webauthn_credential below. email is the human-facing identifier used for
 -- account lookup/display and as the WebAuthn "user.name" during passkey

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package ledgermath holds double-entry sign-convention arithmetic shared
 // by internal/reporting and internal/periodclose — normal_balance direction
 // handling lives in exactly one place, since a subtle sign error here would

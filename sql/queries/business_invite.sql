@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreateBusinessInvite :one
 INSERT INTO business_invite (business_id, email, role, token_hash, invited_by_user_id, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)

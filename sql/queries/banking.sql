@@ -1,3 +1,6 @@
+-- Copyright (c) 2025 Casey Entzi
+-- SPDX-License-Identifier: MIT
+
 -- name: CreateBankStatement :one
 INSERT INTO bank_statement (
     business_id, ledger_account_id, statement_name, statement_date,

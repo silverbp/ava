@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
+
 // Package cmd is avactl's cobra command tree, modeled on kubectl:
 // verb-first resource commands (get/create/delete/config/login), -o
 // json|yaml|table, and a kubeconfig-shaped ~/.avactl/config for server +
