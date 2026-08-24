@@ -10,9 +10,10 @@ import (
 )
 
 // Dial connects to server. insecure disables TLS — for a local dev server
-// with no cert; a real deployment behind deploy/Caddyfile terminates TLS,
-// so the client must use real transport credentials there. accessToken, if
-// non-empty, is attached as "authorization: Bearer <token>" on every call.
+// with no cert; a real deployment sits behind a TLS-terminating reverse
+// proxy, so the client must use real transport credentials there.
+// accessToken, if non-empty, is attached as "authorization: Bearer <token>"
+// on every call.
 func Dial(server string, insecureTransport bool, accessToken string) (*grpc.ClientConn, error) {
 	transportCreds := credentials.NewClientTLSFromCert(nil, "")
 	if insecureTransport {

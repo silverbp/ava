@@ -151,7 +151,7 @@ func loginCallbackHandler(wantState string, codeCh chan<- string, errCh chan<- e
 
 // httpBaseURL derives the plain-HTTP auth base URL from the gRPC server
 // address. In dev (insecureTransport), the auth pages share the same host
-// on AVA_HTTP_ADDR's default port; in a real deployment, deploy/Caddyfile
+// on AVA_HTTP_ADDR's default port; in a real deployment, a reverse proxy
 // fronts both on the same public host + port, routed by path.
 func httpBaseURL(grpcServer string, insecureTransport bool) string {
 	host := grpcServer

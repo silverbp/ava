@@ -136,10 +136,11 @@ in rough priority order:
    `localhost` as a secure context even over plain HTTP) — the one thing
    this environment couldn't drive itself. See the Phase 9 verification
    note above for exactly what's already been checked.
-2. **Register `ava.silverblueprints.net`** and point it at wherever
-   `cmd/ava` + `deploy/Caddyfile` actually get deployed, set real
-   `AVA_JWT_SECRET`/`AVA_RP_ID`/`AVA_PUBLIC_BASE_URL` values, and confirm
-   Caddy's automatic TLS issuance succeeds against the live domain.
+2. **Register `ava.silverblueprints.net`** and point it at wherever `cmd/ava`
+   actually gets deployed (see `tf-jarvis/modules/ava`), set real
+   `AVA_JWT_SECRET`/`AVA_RP_ID`/`AVA_PUBLIC_BASE_URL` values, and confirm the
+   reverse proxy in front of it issues/serves a real TLS cert for the live
+   domain.
 3. Everything under "Known deferred/simplified items" below — none of it
    blocks what's already built, but each is a real gap if the business
    need for it shows up (discounts, PURCHASE-side tax handling review,

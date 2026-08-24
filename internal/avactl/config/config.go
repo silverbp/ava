@@ -29,7 +29,8 @@ type NamedCluster struct {
 type Cluster struct {
 	Server string `yaml:"server"`
 	// Insecure disables TLS — for a local dev server with no certificate.
-	// A real deployment (behind deploy/Caddyfile) leaves this false.
+	// A real deployment, behind a TLS-terminating reverse proxy, leaves
+	// this false.
 	Insecure bool `yaml:"insecure,omitempty"`
 }
 

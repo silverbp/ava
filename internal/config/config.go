@@ -13,8 +13,8 @@ type Config struct {
 	GRPCAddr string
 	// HTTPAddr is the listen address for the plain HTTP server that hosts
 	// the WebAuthn registration/login pages and callback endpoints. A
-	// reverse proxy (see deploy/Caddyfile) fronts both this and GRPCAddr on
-	// one public domain + port.
+	// reverse proxy fronts both this and GRPCAddr on one public domain +
+	// port, routed by path (see internal/avactl/cmd/login.go's httpBaseURL).
 	HTTPAddr string
 	// PublicBaseURL is this server's own externally-reachable origin, e.g.
 	// "https://ava.silverblueprints.net" — used both as the WebAuthn
