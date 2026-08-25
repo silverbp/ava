@@ -495,8 +495,11 @@ func (x *GetEstimateResponse) GetEstimate() *Estimate {
 }
 
 type ListEstimatesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	// By default only DRAFT/SENT estimates are returned; set to also include
+	// ACCEPTED/DECLINED/EXPIRED ones.
+	IncludeAll    bool `protobuf:"varint,2,opt,name=include_all,json=includeAll,proto3" json:"include_all,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -536,6 +539,13 @@ func (x *ListEstimatesRequest) GetBusinessId() int64 {
 		return x.BusinessId
 	}
 	return 0
+}
+
+func (x *ListEstimatesRequest) GetIncludeAll() bool {
+	if x != nil {
+		return x.IncludeAll
+	}
+	return false
 }
 
 type ListEstimatesResponse struct {
@@ -2488,10 +2498,12 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x12GetEstimateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"C\n" +
 	"\x13GetEstimateResponse\x12,\n" +
-	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"7\n" +
+	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"X\n" +
 	"\x14ListEstimatesRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
-	"businessId\"G\n" +
+	"businessId\x12\x1f\n" +
+	"\vinclude_all\x18\x02 \x01(\bR\n" +
+	"includeAll\"G\n" +
 	"\x15ListEstimatesResponse\x12.\n" +
 	"\testimates\x18\x01 \x03(\v2\x10.ava.v1.EstimateR\testimates\"\xd3\x02\n" +
 	"\x15CreateEstimateRequest\x12\x1f\n" +

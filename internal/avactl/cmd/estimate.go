@@ -31,7 +31,14 @@ var estimateNoun = resource.Noun{
 
 func newEstimateCmd() *cobra.Command {
 	root := newGroupCmd(estimateNoun, "Manage estimates")
-	root.AddCommand(newListCmd(estimateNoun, listEstimates))
+
+	var includeAll bool
+	listCmd := newListCmd(estimateNoun, func(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
+		return listEstimates(ctx, conn, businessID, includeAll)
+	})
+	listCmd.Flags().BoolVar(&includeAll, "all", false, "also include accepted, declined, and expired estimates")
+	root.AddCommand(listCmd)
+
 	root.AddCommand(newGetCmd(estimateNoun, getEstimate))
 	root.AddCommand(newEstimateCreateCmd())
 	root.AddCommand(newMutateCmd(estimateNoun, "send", "Mark an estimate SENT", sendEstimate))
@@ -53,8 +60,8 @@ func getEstimate(ctx context.Context, conn *grpc.ClientConn, id string) (proto.M
 	return resp.GetEstimate(), nil
 }
 
-func listEstimates(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
-	resp, err := avav1.NewEstimateServiceClient(conn).ListEstimates(ctx, &avav1.ListEstimatesRequest{BusinessId: businessID})
+func listEstimates(ctx context.Context, conn *grpc.ClientConn, businessID int64, includeAll bool) ([]proto.Message, error) {
+	resp, err := avav1.NewEstimateServiceClient(conn).ListEstimates(ctx, &avav1.ListEstimatesRequest{BusinessId: businessID, IncludeAll: includeAll})
 	if err != nil {
 		return nil, err
 	}

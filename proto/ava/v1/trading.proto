@@ -101,6 +101,9 @@ message GetEstimateResponse {
 
 message ListEstimatesRequest {
   int64 business_id = 1;
+  // By default only DRAFT/SENT estimates are returned; set to also include
+  // ACCEPTED/DECLINED/EXPIRED ones.
+  bool include_all = 2;
 }
 
 message ListEstimatesResponse {

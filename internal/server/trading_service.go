@@ -204,7 +204,10 @@ func (s *estimateService) ListEstimates(ctx context.Context, req *avav1.ListEsti
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "VIEWER"); err != nil {
 		return nil, err
 	}
-	rows, err := s.store.Queries.ListEstimates(ctx, req.GetBusinessId())
+	rows, err := s.store.Queries.ListEstimates(ctx, sqlcgen.ListEstimatesParams{
+		BusinessID: req.GetBusinessId(),
+		IncludeAll: req.GetIncludeAll(),
+	})
 	if err != nil {
 		return nil, translatePgError(err)
 	}

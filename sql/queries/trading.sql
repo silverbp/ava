@@ -26,7 +26,10 @@ SELECT * FROM estimate WHERE id = $1 AND deleted_at IS NULL;
 SELECT * FROM estimate_line_item WHERE estimate_id = $1 AND deleted_at IS NULL ORDER BY line_number;
 
 -- name: ListEstimates :many
-SELECT * FROM estimate WHERE business_id = $1 AND deleted_at IS NULL ORDER BY estimate_date DESC;
+SELECT * FROM estimate
+WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL
+    AND (sqlc.arg('include_all')::bool OR status IN ('DRAFT', 'SENT'))
+ORDER BY estimate_date DESC;
 
 -- name: UpdateEstimateStatus :one
 UPDATE estimate SET status = $2, updated_at = NOW()

@@ -538,11 +538,19 @@ func (q *Queries) ListEstimateLineItems(ctx context.Context, estimateID int64) (
 }
 
 const listEstimates = `-- name: ListEstimates :many
-SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at FROM estimate WHERE business_id = $1 AND deleted_at IS NULL ORDER BY estimate_date DESC
+SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at FROM estimate
+WHERE business_id = $1 AND deleted_at IS NULL
+    AND ($2::bool OR status IN ('DRAFT', 'SENT'))
+ORDER BY estimate_date DESC
 `
 
-func (q *Queries) ListEstimates(ctx context.Context, businessID int64) ([]Estimate, error) {
-	rows, err := q.db.Query(ctx, listEstimates, businessID)
+type ListEstimatesParams struct {
+	BusinessID int64 `json:"business_id"`
+	IncludeAll bool  `json:"include_all"`
+}
+
+func (q *Queries) ListEstimates(ctx context.Context, arg ListEstimatesParams) ([]Estimate, error) {
+	rows, err := q.db.Query(ctx, listEstimates, arg.BusinessID, arg.IncludeAll)
 	if err != nil {
 		return nil, err
 	}
