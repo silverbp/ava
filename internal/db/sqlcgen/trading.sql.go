@@ -405,6 +405,26 @@ func (q *Queries) CreatePaymentApplication(ctx context.Context, arg CreatePaymen
 	return i, err
 }
 
+const deleteEstimateLineItems = `-- name: DeleteEstimateLineItems :exec
+UPDATE estimate_line_item SET deleted_at = NOW()
+WHERE estimate_id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) DeleteEstimateLineItems(ctx context.Context, estimateID int64) error {
+	_, err := q.db.Exec(ctx, deleteEstimateLineItems, estimateID)
+	return err
+}
+
+const deleteInvoiceLineItems = `-- name: DeleteInvoiceLineItems :exec
+UPDATE invoice_line_item SET deleted_at = NOW()
+WHERE invoice_id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) DeleteInvoiceLineItems(ctx context.Context, invoiceID int64) error {
+	_, err := q.db.Exec(ctx, deleteInvoiceLineItems, invoiceID)
+	return err
+}
+
 const getEstimate = `-- name: GetEstimate :one
 SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at FROM estimate WHERE id = $1 AND deleted_at IS NULL
 `
@@ -973,6 +993,49 @@ func (q *Queries) UpdateEstimateStatus(ctx context.Context, arg UpdateEstimateSt
 	return i, err
 }
 
+const updateEstimateTotals = `-- name: UpdateEstimateTotals :one
+UPDATE estimate SET subtotal = $2, total_tax_amount = $3, total_amount = $4, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at
+`
+
+type UpdateEstimateTotalsParams struct {
+	ID             int64          `json:"id"`
+	Subtotal       pgtype.Numeric `json:"subtotal"`
+	TotalTaxAmount pgtype.Numeric `json:"total_tax_amount"`
+	TotalAmount    pgtype.Numeric `json:"total_amount"`
+}
+
+func (q *Queries) UpdateEstimateTotals(ctx context.Context, arg UpdateEstimateTotalsParams) (Estimate, error) {
+	row := q.db.QueryRow(ctx, updateEstimateTotals,
+		arg.ID,
+		arg.Subtotal,
+		arg.TotalTaxAmount,
+		arg.TotalAmount,
+	)
+	var i Estimate
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.CustomerID,
+		&i.EstimateNumber,
+		&i.EstimateDate,
+		&i.ExpirationDate,
+		&i.Subtotal,
+		&i.TotalTaxAmount,
+		&i.DiscountAmount,
+		&i.TotalAmount,
+		&i.Status,
+		&i.Notes,
+		&i.Terms,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const updateInvoiceStatus = `-- name: UpdateInvoiceStatus :one
 UPDATE invoice SET status = $2, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
@@ -986,6 +1049,57 @@ type UpdateInvoiceStatusParams struct {
 
 func (q *Queries) UpdateInvoiceStatus(ctx context.Context, arg UpdateInvoiceStatusParams) (Invoice, error) {
 	row := q.db.QueryRow(ctx, updateInvoiceStatus, arg.ID, arg.Status)
+	var i Invoice
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.ContactID,
+		&i.InvoiceType,
+		&i.EstimateID,
+		&i.InvoiceNumber,
+		&i.InvoiceDate,
+		&i.DueDate,
+		&i.Subtotal,
+		&i.TotalTaxAmount,
+		&i.DiscountAmount,
+		&i.TotalAmount,
+		&i.PaidAmount,
+		&i.BalanceDue,
+		&i.Status,
+		&i.Notes,
+		&i.Terms,
+		&i.LedgerTransactionID,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const updateInvoiceTotals = `-- name: UpdateInvoiceTotals :one
+UPDATE invoice SET
+    subtotal = $2, total_tax_amount = $3, total_amount = $4, balance_due = $5, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+`
+
+type UpdateInvoiceTotalsParams struct {
+	ID             int64          `json:"id"`
+	Subtotal       pgtype.Numeric `json:"subtotal"`
+	TotalTaxAmount pgtype.Numeric `json:"total_tax_amount"`
+	TotalAmount    pgtype.Numeric `json:"total_amount"`
+	BalanceDue     pgtype.Numeric `json:"balance_due"`
+}
+
+func (q *Queries) UpdateInvoiceTotals(ctx context.Context, arg UpdateInvoiceTotalsParams) (Invoice, error) {
+	row := q.db.QueryRow(ctx, updateInvoiceTotals,
+		arg.ID,
+		arg.Subtotal,
+		arg.TotalTaxAmount,
+		arg.TotalAmount,
+		arg.BalanceDue,
+	)
 	var i Invoice
 	err := row.Scan(
 		&i.ID,

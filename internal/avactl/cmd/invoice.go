@@ -44,6 +44,7 @@ func newInvoiceCmd() *cobra.Command {
 
 	root.AddCommand(newGetCmd(invoiceNoun, getInvoice))
 	root.AddCommand(newInvoiceCreateCmd())
+	root.AddCommand(newInvoiceUpdateLinesCmd())
 	root.AddCommand(newMutateCmd(invoiceNoun, "send", "Mark an invoice SENT", sendInvoice))
 	root.AddCommand(newMutateCmd(invoiceNoun, "cancel", "Cancel an invoice", cancelInvoice))
 	root.AddCommand(newMutateCmd(invoiceNoun, "mark-overdue", "Mark an invoice OVERDUE", markInvoiceOverdue))
@@ -212,6 +213,76 @@ func newInvoiceCreateCmd() *cobra.Command {
 		Detail: "Add account=<id> to every line (plus a contact with --ledger-account " +
 			"already set) to post the invoice to the ledger atomically.",
 		Examples: []resource.Example{{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
+			`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`}},
+	}.Apply(cmd)
+	return cmd
+}
+
+func newInvoiceUpdateLinesCmd() *cobra.Command {
+	var rawLines []string
+
+	cmd := &cobra.Command{
+		Use:  "update-lines <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid invoice id %q: %w", args[0], err)
+			}
+			rawFields, err := parseLineFlags(rawLines)
+			if err != nil {
+				return err
+			}
+
+			var lineItems []*avav1.NewInvoiceLineItem
+			for i, f := range rawFields {
+				serviceID, err := parseOptionalInt64(f, "service")
+				if err != nil {
+					return err
+				}
+				taxRateID, err := parseOptionalInt64(f, "tax-rate")
+				if err != nil {
+					return err
+				}
+				ledgerAccountID, err := parseOptionalInt32(f, "account")
+				if err != nil {
+					return err
+				}
+				lineItems = append(lineItems, &avav1.NewInvoiceLineItem{
+					ServiceId:       serviceID,
+					LedgerAccountId: ledgerAccountID,
+					LineNumber:      int32(i + 1),
+					Description:     f["desc"],
+					Quantity:        parseDecimalField(f, "qty"),
+					UnitPrice:       parseDecimalField(f, "price"),
+					IsTaxable:       f["taxable"] == "true",
+					TaxRateId:       taxRateID,
+				})
+			}
+
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			resp, err := avav1.NewInvoiceServiceClient(conn).UpdateInvoiceLineItems(cmd.Context(), &avav1.UpdateInvoiceLineItemsRequest{
+				Id:        id,
+				LineItems: lineItems,
+			})
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetInvoice(), invoiceNoun.Columns)
+		},
+	}
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...[,account=<id>][,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	_ = cmd.MarkFlagRequired("line")
+	resource.Doc{
+		Summary: "Replace an invoice's line items",
+		Detail: "Replaces the entire line item set - repeat --line once per line item, including ones you're " +
+			"keeping unchanged. Rejected once the invoice is posted to the ledger.",
+		Examples: []resource.Example{{Cmd: "avactl invoice update-lines 42 " +
 			`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`}},
 	}.Apply(cmd)
 	return cmd

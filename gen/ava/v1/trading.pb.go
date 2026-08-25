@@ -824,6 +824,105 @@ func (x *UpdateEstimateStatusResponse) GetEstimate() *Estimate {
 	return nil
 }
 
+// UpdateEstimateLineItemsRequest replaces an estimate's entire line item
+// set (not a per-line patch) and recomputes subtotal/total_tax_amount/
+// total_amount server-side, same as CreateEstimate.
+type UpdateEstimateLineItemsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	LineItems     []*NewEstimateLineItem `protobuf:"bytes,2,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateEstimateLineItemsRequest) Reset() {
+	*x = UpdateEstimateLineItemsRequest{}
+	mi := &file_ava_v1_trading_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateEstimateLineItemsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateEstimateLineItemsRequest) ProtoMessage() {}
+
+func (x *UpdateEstimateLineItemsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_trading_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateEstimateLineItemsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateEstimateLineItemsRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UpdateEstimateLineItemsRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateEstimateLineItemsRequest) GetLineItems() []*NewEstimateLineItem {
+	if x != nil {
+		return x.LineItems
+	}
+	return nil
+}
+
+type UpdateEstimateLineItemsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Estimate      *Estimate              `protobuf:"bytes,1,opt,name=estimate,proto3" json:"estimate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateEstimateLineItemsResponse) Reset() {
+	*x = UpdateEstimateLineItemsResponse{}
+	mi := &file_ava_v1_trading_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateEstimateLineItemsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateEstimateLineItemsResponse) ProtoMessage() {}
+
+func (x *UpdateEstimateLineItemsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_trading_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateEstimateLineItemsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateEstimateLineItemsResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *UpdateEstimateLineItemsResponse) GetEstimate() *Estimate {
+	if x != nil {
+		return x.Estimate
+	}
+	return nil
+}
+
 type InvoiceLineItem struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -845,7 +944,7 @@ type InvoiceLineItem struct {
 
 func (x *InvoiceLineItem) Reset() {
 	*x = InvoiceLineItem{}
-	mi := &file_ava_v1_trading_proto_msgTypes[11]
+	mi := &file_ava_v1_trading_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -857,7 +956,7 @@ func (x *InvoiceLineItem) String() string {
 func (*InvoiceLineItem) ProtoMessage() {}
 
 func (x *InvoiceLineItem) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[11]
+	mi := &file_ava_v1_trading_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -870,7 +969,7 @@ func (x *InvoiceLineItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvoiceLineItem.ProtoReflect.Descriptor instead.
 func (*InvoiceLineItem) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{11}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *InvoiceLineItem) GetId() int64 {
@@ -992,7 +1091,7 @@ type Invoice struct {
 
 func (x *Invoice) Reset() {
 	*x = Invoice{}
-	mi := &file_ava_v1_trading_proto_msgTypes[12]
+	mi := &file_ava_v1_trading_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1004,7 +1103,7 @@ func (x *Invoice) String() string {
 func (*Invoice) ProtoMessage() {}
 
 func (x *Invoice) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[12]
+	mi := &file_ava_v1_trading_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1017,7 +1116,7 @@ func (x *Invoice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Invoice.ProtoReflect.Descriptor instead.
 func (*Invoice) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{12}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Invoice) GetId() int64 {
@@ -1176,7 +1275,7 @@ type NewInvoiceLineItem struct {
 
 func (x *NewInvoiceLineItem) Reset() {
 	*x = NewInvoiceLineItem{}
-	mi := &file_ava_v1_trading_proto_msgTypes[13]
+	mi := &file_ava_v1_trading_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1188,7 +1287,7 @@ func (x *NewInvoiceLineItem) String() string {
 func (*NewInvoiceLineItem) ProtoMessage() {}
 
 func (x *NewInvoiceLineItem) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[13]
+	mi := &file_ava_v1_trading_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1201,7 +1300,7 @@ func (x *NewInvoiceLineItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NewInvoiceLineItem.ProtoReflect.Descriptor instead.
 func (*NewInvoiceLineItem) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{13}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *NewInvoiceLineItem) GetServiceId() int64 {
@@ -1269,7 +1368,7 @@ type GetInvoiceRequest struct {
 
 func (x *GetInvoiceRequest) Reset() {
 	*x = GetInvoiceRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[14]
+	mi := &file_ava_v1_trading_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1281,7 +1380,7 @@ func (x *GetInvoiceRequest) String() string {
 func (*GetInvoiceRequest) ProtoMessage() {}
 
 func (x *GetInvoiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[14]
+	mi := &file_ava_v1_trading_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1294,7 +1393,7 @@ func (x *GetInvoiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInvoiceRequest.ProtoReflect.Descriptor instead.
 func (*GetInvoiceRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{14}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetInvoiceRequest) GetId() int64 {
@@ -1313,7 +1412,7 @@ type GetInvoiceResponse struct {
 
 func (x *GetInvoiceResponse) Reset() {
 	*x = GetInvoiceResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[15]
+	mi := &file_ava_v1_trading_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1325,7 +1424,7 @@ func (x *GetInvoiceResponse) String() string {
 func (*GetInvoiceResponse) ProtoMessage() {}
 
 func (x *GetInvoiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[15]
+	mi := &file_ava_v1_trading_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1338,7 +1437,7 @@ func (x *GetInvoiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInvoiceResponse.ProtoReflect.Descriptor instead.
 func (*GetInvoiceResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{15}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetInvoiceResponse) GetInvoice() *Invoice {
@@ -1360,7 +1459,7 @@ type ListInvoicesRequest struct {
 
 func (x *ListInvoicesRequest) Reset() {
 	*x = ListInvoicesRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[16]
+	mi := &file_ava_v1_trading_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1372,7 +1471,7 @@ func (x *ListInvoicesRequest) String() string {
 func (*ListInvoicesRequest) ProtoMessage() {}
 
 func (x *ListInvoicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[16]
+	mi := &file_ava_v1_trading_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1385,7 +1484,7 @@ func (x *ListInvoicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvoicesRequest.ProtoReflect.Descriptor instead.
 func (*ListInvoicesRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{16}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListInvoicesRequest) GetBusinessId() int64 {
@@ -1411,7 +1510,7 @@ type ListInvoicesResponse struct {
 
 func (x *ListInvoicesResponse) Reset() {
 	*x = ListInvoicesResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[17]
+	mi := &file_ava_v1_trading_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1522,7 @@ func (x *ListInvoicesResponse) String() string {
 func (*ListInvoicesResponse) ProtoMessage() {}
 
 func (x *ListInvoicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[17]
+	mi := &file_ava_v1_trading_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1535,7 @@ func (x *ListInvoicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvoicesResponse.ProtoReflect.Descriptor instead.
 func (*ListInvoicesResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{17}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListInvoicesResponse) GetInvoices() []*Invoice {
@@ -1467,7 +1566,7 @@ type CreateInvoiceRequest struct {
 
 func (x *CreateInvoiceRequest) Reset() {
 	*x = CreateInvoiceRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[18]
+	mi := &file_ava_v1_trading_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1479,7 +1578,7 @@ func (x *CreateInvoiceRequest) String() string {
 func (*CreateInvoiceRequest) ProtoMessage() {}
 
 func (x *CreateInvoiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[18]
+	mi := &file_ava_v1_trading_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1492,7 +1591,7 @@ func (x *CreateInvoiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInvoiceRequest.ProtoReflect.Descriptor instead.
 func (*CreateInvoiceRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{18}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CreateInvoiceRequest) GetBusinessId() int64 {
@@ -1574,7 +1673,7 @@ type CreateInvoiceResponse struct {
 
 func (x *CreateInvoiceResponse) Reset() {
 	*x = CreateInvoiceResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[19]
+	mi := &file_ava_v1_trading_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1586,7 +1685,7 @@ func (x *CreateInvoiceResponse) String() string {
 func (*CreateInvoiceResponse) ProtoMessage() {}
 
 func (x *CreateInvoiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[19]
+	mi := &file_ava_v1_trading_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1599,7 +1698,7 @@ func (x *CreateInvoiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInvoiceResponse.ProtoReflect.Descriptor instead.
 func (*CreateInvoiceResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{19}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CreateInvoiceResponse) GetInvoice() *Invoice {
@@ -1619,7 +1718,7 @@ type UpdateInvoiceStatusRequest struct {
 
 func (x *UpdateInvoiceStatusRequest) Reset() {
 	*x = UpdateInvoiceStatusRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[20]
+	mi := &file_ava_v1_trading_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1631,7 +1730,7 @@ func (x *UpdateInvoiceStatusRequest) String() string {
 func (*UpdateInvoiceStatusRequest) ProtoMessage() {}
 
 func (x *UpdateInvoiceStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[20]
+	mi := &file_ava_v1_trading_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1644,7 +1743,7 @@ func (x *UpdateInvoiceStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInvoiceStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateInvoiceStatusRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{20}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UpdateInvoiceStatusRequest) GetId() int64 {
@@ -1670,7 +1769,7 @@ type UpdateInvoiceStatusResponse struct {
 
 func (x *UpdateInvoiceStatusResponse) Reset() {
 	*x = UpdateInvoiceStatusResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[21]
+	mi := &file_ava_v1_trading_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1682,7 +1781,7 @@ func (x *UpdateInvoiceStatusResponse) String() string {
 func (*UpdateInvoiceStatusResponse) ProtoMessage() {}
 
 func (x *UpdateInvoiceStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[21]
+	mi := &file_ava_v1_trading_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1695,10 +1794,112 @@ func (x *UpdateInvoiceStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInvoiceStatusResponse.ProtoReflect.Descriptor instead.
 func (*UpdateInvoiceStatusResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{21}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UpdateInvoiceStatusResponse) GetInvoice() *Invoice {
+	if x != nil {
+		return x.Invoice
+	}
+	return nil
+}
+
+// UpdateInvoiceLineItemsRequest replaces an invoice's entire line item set
+// (not a per-line patch) and recomputes subtotal/total_tax_amount/
+// total_amount/balance_due server-side, same as CreateInvoice. Rejected
+// once the invoice is posted to the ledger (ledger_transaction_id set) -
+// editing line items after posting would desync the GL entries from the
+// document, and there's no reversal/repost flow here.
+type UpdateInvoiceLineItemsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	LineItems     []*NewInvoiceLineItem  `protobuf:"bytes,2,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateInvoiceLineItemsRequest) Reset() {
+	*x = UpdateInvoiceLineItemsRequest{}
+	mi := &file_ava_v1_trading_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateInvoiceLineItemsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateInvoiceLineItemsRequest) ProtoMessage() {}
+
+func (x *UpdateInvoiceLineItemsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_trading_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateInvoiceLineItemsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateInvoiceLineItemsRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpdateInvoiceLineItemsRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateInvoiceLineItemsRequest) GetLineItems() []*NewInvoiceLineItem {
+	if x != nil {
+		return x.LineItems
+	}
+	return nil
+}
+
+type UpdateInvoiceLineItemsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Invoice       *Invoice               `protobuf:"bytes,1,opt,name=invoice,proto3" json:"invoice,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateInvoiceLineItemsResponse) Reset() {
+	*x = UpdateInvoiceLineItemsResponse{}
+	mi := &file_ava_v1_trading_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateInvoiceLineItemsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateInvoiceLineItemsResponse) ProtoMessage() {}
+
+func (x *UpdateInvoiceLineItemsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_trading_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateInvoiceLineItemsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateInvoiceLineItemsResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UpdateInvoiceLineItemsResponse) GetInvoice() *Invoice {
 	if x != nil {
 		return x.Invoice
 	}
@@ -1721,7 +1922,7 @@ type PaymentApplication struct {
 
 func (x *PaymentApplication) Reset() {
 	*x = PaymentApplication{}
-	mi := &file_ava_v1_trading_proto_msgTypes[22]
+	mi := &file_ava_v1_trading_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1733,7 +1934,7 @@ func (x *PaymentApplication) String() string {
 func (*PaymentApplication) ProtoMessage() {}
 
 func (x *PaymentApplication) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[22]
+	mi := &file_ava_v1_trading_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1746,7 +1947,7 @@ func (x *PaymentApplication) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PaymentApplication.ProtoReflect.Descriptor instead.
 func (*PaymentApplication) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{22}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PaymentApplication) GetId() int64 {
@@ -1796,7 +1997,7 @@ type PaymentApplicationInput struct {
 
 func (x *PaymentApplicationInput) Reset() {
 	*x = PaymentApplicationInput{}
-	mi := &file_ava_v1_trading_proto_msgTypes[23]
+	mi := &file_ava_v1_trading_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1808,7 +2009,7 @@ func (x *PaymentApplicationInput) String() string {
 func (*PaymentApplicationInput) ProtoMessage() {}
 
 func (x *PaymentApplicationInput) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[23]
+	mi := &file_ava_v1_trading_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1821,7 +2022,7 @@ func (x *PaymentApplicationInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PaymentApplicationInput.ProtoReflect.Descriptor instead.
 func (*PaymentApplicationInput) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{23}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *PaymentApplicationInput) GetInvoiceId() int64 {
@@ -1861,7 +2062,7 @@ type Payment struct {
 
 func (x *Payment) Reset() {
 	*x = Payment{}
-	mi := &file_ava_v1_trading_proto_msgTypes[24]
+	mi := &file_ava_v1_trading_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1873,7 +2074,7 @@ func (x *Payment) String() string {
 func (*Payment) ProtoMessage() {}
 
 func (x *Payment) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[24]
+	mi := &file_ava_v1_trading_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1886,7 +2087,7 @@ func (x *Payment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Payment.ProtoReflect.Descriptor instead.
 func (*Payment) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{24}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *Payment) GetId() int64 {
@@ -2003,7 +2204,7 @@ type GetPaymentRequest struct {
 
 func (x *GetPaymentRequest) Reset() {
 	*x = GetPaymentRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[25]
+	mi := &file_ava_v1_trading_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2015,7 +2216,7 @@ func (x *GetPaymentRequest) String() string {
 func (*GetPaymentRequest) ProtoMessage() {}
 
 func (x *GetPaymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[25]
+	mi := &file_ava_v1_trading_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2028,7 +2229,7 @@ func (x *GetPaymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPaymentRequest.ProtoReflect.Descriptor instead.
 func (*GetPaymentRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{25}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetPaymentRequest) GetId() int64 {
@@ -2047,7 +2248,7 @@ type GetPaymentResponse struct {
 
 func (x *GetPaymentResponse) Reset() {
 	*x = GetPaymentResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[26]
+	mi := &file_ava_v1_trading_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2059,7 +2260,7 @@ func (x *GetPaymentResponse) String() string {
 func (*GetPaymentResponse) ProtoMessage() {}
 
 func (x *GetPaymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[26]
+	mi := &file_ava_v1_trading_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2072,7 +2273,7 @@ func (x *GetPaymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPaymentResponse.ProtoReflect.Descriptor instead.
 func (*GetPaymentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{26}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetPaymentResponse) GetPayment() *Payment {
@@ -2091,7 +2292,7 @@ type ListPaymentsRequest struct {
 
 func (x *ListPaymentsRequest) Reset() {
 	*x = ListPaymentsRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[27]
+	mi := &file_ava_v1_trading_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2103,7 +2304,7 @@ func (x *ListPaymentsRequest) String() string {
 func (*ListPaymentsRequest) ProtoMessage() {}
 
 func (x *ListPaymentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[27]
+	mi := &file_ava_v1_trading_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2116,7 +2317,7 @@ func (x *ListPaymentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPaymentsRequest.ProtoReflect.Descriptor instead.
 func (*ListPaymentsRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{27}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListPaymentsRequest) GetBusinessId() int64 {
@@ -2135,7 +2336,7 @@ type ListPaymentsResponse struct {
 
 func (x *ListPaymentsResponse) Reset() {
 	*x = ListPaymentsResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[28]
+	mi := &file_ava_v1_trading_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2147,7 +2348,7 @@ func (x *ListPaymentsResponse) String() string {
 func (*ListPaymentsResponse) ProtoMessage() {}
 
 func (x *ListPaymentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[28]
+	mi := &file_ava_v1_trading_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2160,7 +2361,7 @@ func (x *ListPaymentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPaymentsResponse.ProtoReflect.Descriptor instead.
 func (*ListPaymentsResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{28}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListPaymentsResponse) GetPayments() []*Payment {
@@ -2192,7 +2393,7 @@ type CreatePaymentRequest struct {
 
 func (x *CreatePaymentRequest) Reset() {
 	*x = CreatePaymentRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[29]
+	mi := &file_ava_v1_trading_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2204,7 +2405,7 @@ func (x *CreatePaymentRequest) String() string {
 func (*CreatePaymentRequest) ProtoMessage() {}
 
 func (x *CreatePaymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[29]
+	mi := &file_ava_v1_trading_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2217,7 +2418,7 @@ func (x *CreatePaymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePaymentRequest.ProtoReflect.Descriptor instead.
 func (*CreatePaymentRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{29}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CreatePaymentRequest) GetBusinessId() int64 {
@@ -2306,7 +2507,7 @@ type CreatePaymentResponse struct {
 
 func (x *CreatePaymentResponse) Reset() {
 	*x = CreatePaymentResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[30]
+	mi := &file_ava_v1_trading_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2318,7 +2519,7 @@ func (x *CreatePaymentResponse) String() string {
 func (*CreatePaymentResponse) ProtoMessage() {}
 
 func (x *CreatePaymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[30]
+	mi := &file_ava_v1_trading_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2331,7 +2532,7 @@ func (x *CreatePaymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePaymentResponse.ProtoReflect.Descriptor instead.
 func (*CreatePaymentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{30}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CreatePaymentResponse) GetPayment() *Payment {
@@ -2350,7 +2551,7 @@ type GetInvoicePdfRequest struct {
 
 func (x *GetInvoicePdfRequest) Reset() {
 	*x = GetInvoicePdfRequest{}
-	mi := &file_ava_v1_trading_proto_msgTypes[31]
+	mi := &file_ava_v1_trading_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2362,7 +2563,7 @@ func (x *GetInvoicePdfRequest) String() string {
 func (*GetInvoicePdfRequest) ProtoMessage() {}
 
 func (x *GetInvoicePdfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[31]
+	mi := &file_ava_v1_trading_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2375,7 +2576,7 @@ func (x *GetInvoicePdfRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInvoicePdfRequest.ProtoReflect.Descriptor instead.
 func (*GetInvoicePdfRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{31}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetInvoicePdfRequest) GetId() int64 {
@@ -2394,7 +2595,7 @@ type GetInvoicePdfResponse struct {
 
 func (x *GetInvoicePdfResponse) Reset() {
 	*x = GetInvoicePdfResponse{}
-	mi := &file_ava_v1_trading_proto_msgTypes[32]
+	mi := &file_ava_v1_trading_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2406,7 +2607,7 @@ func (x *GetInvoicePdfResponse) String() string {
 func (*GetInvoicePdfResponse) ProtoMessage() {}
 
 func (x *GetInvoicePdfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_trading_proto_msgTypes[32]
+	mi := &file_ava_v1_trading_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2419,7 +2620,7 @@ func (x *GetInvoicePdfResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInvoicePdfResponse.ProtoReflect.Descriptor instead.
 func (*GetInvoicePdfResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_trading_proto_rawDescGZIP(), []int{32}
+	return file_ava_v1_trading_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetInvoicePdfResponse) GetContent() []byte {
@@ -2525,6 +2726,12 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"L\n" +
 	"\x1cUpdateEstimateStatusResponse\x12,\n" +
+	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"l\n" +
+	"\x1eUpdateEstimateLineItemsRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12:\n" +
+	"\n" +
+	"line_items\x18\x02 \x03(\v2\x1b.ava.v1.NewEstimateLineItemR\tlineItems\"O\n" +
+	"\x1fUpdateEstimateLineItemsResponse\x12,\n" +
 	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"\xc4\x04\n" +
 	"\x0fInvoiceLineItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
@@ -2638,6 +2845,12 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"H\n" +
 	"\x1bUpdateInvoiceStatusResponse\x12)\n" +
+	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"j\n" +
+	"\x1dUpdateInvoiceLineItemsRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x129\n" +
+	"\n" +
+	"line_items\x18\x02 \x03(\v2\x1a.ava.v1.NewInvoiceLineItemR\tlineItems\"K\n" +
+	"\x1eUpdateInvoiceLineItemsResponse\x12)\n" +
 	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"\xd5\x01\n" +
 	"\x12PaymentApplication\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
@@ -2711,18 +2924,20 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x14GetInvoicePdfRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"1\n" +
 	"\x15GetInvoicePdfResponse\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\fR\acontent2\xdb\x02\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent2\xc7\x03\n" +
 	"\x0fEstimateService\x12F\n" +
 	"\vGetEstimate\x12\x1a.ava.v1.GetEstimateRequest\x1a\x1b.ava.v1.GetEstimateResponse\x12L\n" +
 	"\rListEstimates\x12\x1c.ava.v1.ListEstimatesRequest\x1a\x1d.ava.v1.ListEstimatesResponse\x12O\n" +
 	"\x0eCreateEstimate\x12\x1d.ava.v1.CreateEstimateRequest\x1a\x1e.ava.v1.CreateEstimateResponse\x12a\n" +
-	"\x14UpdateEstimateStatus\x12#.ava.v1.UpdateEstimateStatusRequest\x1a$.ava.v1.UpdateEstimateStatusResponse2\x9c\x03\n" +
+	"\x14UpdateEstimateStatus\x12#.ava.v1.UpdateEstimateStatusRequest\x1a$.ava.v1.UpdateEstimateStatusResponse\x12j\n" +
+	"\x17UpdateEstimateLineItems\x12&.ava.v1.UpdateEstimateLineItemsRequest\x1a'.ava.v1.UpdateEstimateLineItemsResponse2\x85\x04\n" +
 	"\x0eInvoiceService\x12C\n" +
 	"\n" +
 	"GetInvoice\x12\x19.ava.v1.GetInvoiceRequest\x1a\x1a.ava.v1.GetInvoiceResponse\x12I\n" +
 	"\fListInvoices\x12\x1b.ava.v1.ListInvoicesRequest\x1a\x1c.ava.v1.ListInvoicesResponse\x12L\n" +
 	"\rCreateInvoice\x12\x1c.ava.v1.CreateInvoiceRequest\x1a\x1d.ava.v1.CreateInvoiceResponse\x12^\n" +
-	"\x13UpdateInvoiceStatus\x12\".ava.v1.UpdateInvoiceStatusRequest\x1a#.ava.v1.UpdateInvoiceStatusResponse\x12L\n" +
+	"\x13UpdateInvoiceStatus\x12\".ava.v1.UpdateInvoiceStatusRequest\x1a#.ava.v1.UpdateInvoiceStatusResponse\x12g\n" +
+	"\x16UpdateInvoiceLineItems\x12%.ava.v1.UpdateInvoiceLineItemsRequest\x1a&.ava.v1.UpdateInvoiceLineItemsResponse\x12L\n" +
 	"\rGetInvoicePdf\x12\x1c.ava.v1.GetInvoicePdfRequest\x1a\x1d.ava.v1.GetInvoicePdfResponse2\xee\x01\n" +
 	"\x0ePaymentService\x12C\n" +
 	"\n" +
@@ -2742,132 +2957,144 @@ func file_ava_v1_trading_proto_rawDescGZIP() []byte {
 	return file_ava_v1_trading_proto_rawDescData
 }
 
-var file_ava_v1_trading_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_ava_v1_trading_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_ava_v1_trading_proto_goTypes = []any{
-	(*EstimateLineItem)(nil),             // 0: ava.v1.EstimateLineItem
-	(*Estimate)(nil),                     // 1: ava.v1.Estimate
-	(*NewEstimateLineItem)(nil),          // 2: ava.v1.NewEstimateLineItem
-	(*GetEstimateRequest)(nil),           // 3: ava.v1.GetEstimateRequest
-	(*GetEstimateResponse)(nil),          // 4: ava.v1.GetEstimateResponse
-	(*ListEstimatesRequest)(nil),         // 5: ava.v1.ListEstimatesRequest
-	(*ListEstimatesResponse)(nil),        // 6: ava.v1.ListEstimatesResponse
-	(*CreateEstimateRequest)(nil),        // 7: ava.v1.CreateEstimateRequest
-	(*CreateEstimateResponse)(nil),       // 8: ava.v1.CreateEstimateResponse
-	(*UpdateEstimateStatusRequest)(nil),  // 9: ava.v1.UpdateEstimateStatusRequest
-	(*UpdateEstimateStatusResponse)(nil), // 10: ava.v1.UpdateEstimateStatusResponse
-	(*InvoiceLineItem)(nil),              // 11: ava.v1.InvoiceLineItem
-	(*Invoice)(nil),                      // 12: ava.v1.Invoice
-	(*NewInvoiceLineItem)(nil),           // 13: ava.v1.NewInvoiceLineItem
-	(*GetInvoiceRequest)(nil),            // 14: ava.v1.GetInvoiceRequest
-	(*GetInvoiceResponse)(nil),           // 15: ava.v1.GetInvoiceResponse
-	(*ListInvoicesRequest)(nil),          // 16: ava.v1.ListInvoicesRequest
-	(*ListInvoicesResponse)(nil),         // 17: ava.v1.ListInvoicesResponse
-	(*CreateInvoiceRequest)(nil),         // 18: ava.v1.CreateInvoiceRequest
-	(*CreateInvoiceResponse)(nil),        // 19: ava.v1.CreateInvoiceResponse
-	(*UpdateInvoiceStatusRequest)(nil),   // 20: ava.v1.UpdateInvoiceStatusRequest
-	(*UpdateInvoiceStatusResponse)(nil),  // 21: ava.v1.UpdateInvoiceStatusResponse
-	(*PaymentApplication)(nil),           // 22: ava.v1.PaymentApplication
-	(*PaymentApplicationInput)(nil),      // 23: ava.v1.PaymentApplicationInput
-	(*Payment)(nil),                      // 24: ava.v1.Payment
-	(*GetPaymentRequest)(nil),            // 25: ava.v1.GetPaymentRequest
-	(*GetPaymentResponse)(nil),           // 26: ava.v1.GetPaymentResponse
-	(*ListPaymentsRequest)(nil),          // 27: ava.v1.ListPaymentsRequest
-	(*ListPaymentsResponse)(nil),         // 28: ava.v1.ListPaymentsResponse
-	(*CreatePaymentRequest)(nil),         // 29: ava.v1.CreatePaymentRequest
-	(*CreatePaymentResponse)(nil),        // 30: ava.v1.CreatePaymentResponse
-	(*GetInvoicePdfRequest)(nil),         // 31: ava.v1.GetInvoicePdfRequest
-	(*GetInvoicePdfResponse)(nil),        // 32: ava.v1.GetInvoicePdfResponse
-	(*Decimal)(nil),                      // 33: ava.v1.Decimal
-	(*date.Date)(nil),                    // 34: google.type.Date
-	(*timestamppb.Timestamp)(nil),        // 35: google.protobuf.Timestamp
+	(*EstimateLineItem)(nil),                // 0: ava.v1.EstimateLineItem
+	(*Estimate)(nil),                        // 1: ava.v1.Estimate
+	(*NewEstimateLineItem)(nil),             // 2: ava.v1.NewEstimateLineItem
+	(*GetEstimateRequest)(nil),              // 3: ava.v1.GetEstimateRequest
+	(*GetEstimateResponse)(nil),             // 4: ava.v1.GetEstimateResponse
+	(*ListEstimatesRequest)(nil),            // 5: ava.v1.ListEstimatesRequest
+	(*ListEstimatesResponse)(nil),           // 6: ava.v1.ListEstimatesResponse
+	(*CreateEstimateRequest)(nil),           // 7: ava.v1.CreateEstimateRequest
+	(*CreateEstimateResponse)(nil),          // 8: ava.v1.CreateEstimateResponse
+	(*UpdateEstimateStatusRequest)(nil),     // 9: ava.v1.UpdateEstimateStatusRequest
+	(*UpdateEstimateStatusResponse)(nil),    // 10: ava.v1.UpdateEstimateStatusResponse
+	(*UpdateEstimateLineItemsRequest)(nil),  // 11: ava.v1.UpdateEstimateLineItemsRequest
+	(*UpdateEstimateLineItemsResponse)(nil), // 12: ava.v1.UpdateEstimateLineItemsResponse
+	(*InvoiceLineItem)(nil),                 // 13: ava.v1.InvoiceLineItem
+	(*Invoice)(nil),                         // 14: ava.v1.Invoice
+	(*NewInvoiceLineItem)(nil),              // 15: ava.v1.NewInvoiceLineItem
+	(*GetInvoiceRequest)(nil),               // 16: ava.v1.GetInvoiceRequest
+	(*GetInvoiceResponse)(nil),              // 17: ava.v1.GetInvoiceResponse
+	(*ListInvoicesRequest)(nil),             // 18: ava.v1.ListInvoicesRequest
+	(*ListInvoicesResponse)(nil),            // 19: ava.v1.ListInvoicesResponse
+	(*CreateInvoiceRequest)(nil),            // 20: ava.v1.CreateInvoiceRequest
+	(*CreateInvoiceResponse)(nil),           // 21: ava.v1.CreateInvoiceResponse
+	(*UpdateInvoiceStatusRequest)(nil),      // 22: ava.v1.UpdateInvoiceStatusRequest
+	(*UpdateInvoiceStatusResponse)(nil),     // 23: ava.v1.UpdateInvoiceStatusResponse
+	(*UpdateInvoiceLineItemsRequest)(nil),   // 24: ava.v1.UpdateInvoiceLineItemsRequest
+	(*UpdateInvoiceLineItemsResponse)(nil),  // 25: ava.v1.UpdateInvoiceLineItemsResponse
+	(*PaymentApplication)(nil),              // 26: ava.v1.PaymentApplication
+	(*PaymentApplicationInput)(nil),         // 27: ava.v1.PaymentApplicationInput
+	(*Payment)(nil),                         // 28: ava.v1.Payment
+	(*GetPaymentRequest)(nil),               // 29: ava.v1.GetPaymentRequest
+	(*GetPaymentResponse)(nil),              // 30: ava.v1.GetPaymentResponse
+	(*ListPaymentsRequest)(nil),             // 31: ava.v1.ListPaymentsRequest
+	(*ListPaymentsResponse)(nil),            // 32: ava.v1.ListPaymentsResponse
+	(*CreatePaymentRequest)(nil),            // 33: ava.v1.CreatePaymentRequest
+	(*CreatePaymentResponse)(nil),           // 34: ava.v1.CreatePaymentResponse
+	(*GetInvoicePdfRequest)(nil),            // 35: ava.v1.GetInvoicePdfRequest
+	(*GetInvoicePdfResponse)(nil),           // 36: ava.v1.GetInvoicePdfResponse
+	(*Decimal)(nil),                         // 37: ava.v1.Decimal
+	(*date.Date)(nil),                       // 38: google.type.Date
+	(*timestamppb.Timestamp)(nil),           // 39: google.protobuf.Timestamp
 }
 var file_ava_v1_trading_proto_depIdxs = []int32{
-	33, // 0: ava.v1.EstimateLineItem.quantity:type_name -> ava.v1.Decimal
-	33, // 1: ava.v1.EstimateLineItem.unit_price:type_name -> ava.v1.Decimal
-	33, // 2: ava.v1.EstimateLineItem.line_subtotal:type_name -> ava.v1.Decimal
-	33, // 3: ava.v1.EstimateLineItem.tax_amount:type_name -> ava.v1.Decimal
-	33, // 4: ava.v1.EstimateLineItem.line_total:type_name -> ava.v1.Decimal
-	34, // 5: ava.v1.Estimate.estimate_date:type_name -> google.type.Date
-	34, // 6: ava.v1.Estimate.expiration_date:type_name -> google.type.Date
-	33, // 7: ava.v1.Estimate.subtotal:type_name -> ava.v1.Decimal
-	33, // 8: ava.v1.Estimate.total_tax_amount:type_name -> ava.v1.Decimal
-	33, // 9: ava.v1.Estimate.total_amount:type_name -> ava.v1.Decimal
-	35, // 10: ava.v1.Estimate.created_at:type_name -> google.protobuf.Timestamp
+	37, // 0: ava.v1.EstimateLineItem.quantity:type_name -> ava.v1.Decimal
+	37, // 1: ava.v1.EstimateLineItem.unit_price:type_name -> ava.v1.Decimal
+	37, // 2: ava.v1.EstimateLineItem.line_subtotal:type_name -> ava.v1.Decimal
+	37, // 3: ava.v1.EstimateLineItem.tax_amount:type_name -> ava.v1.Decimal
+	37, // 4: ava.v1.EstimateLineItem.line_total:type_name -> ava.v1.Decimal
+	38, // 5: ava.v1.Estimate.estimate_date:type_name -> google.type.Date
+	38, // 6: ava.v1.Estimate.expiration_date:type_name -> google.type.Date
+	37, // 7: ava.v1.Estimate.subtotal:type_name -> ava.v1.Decimal
+	37, // 8: ava.v1.Estimate.total_tax_amount:type_name -> ava.v1.Decimal
+	37, // 9: ava.v1.Estimate.total_amount:type_name -> ava.v1.Decimal
+	39, // 10: ava.v1.Estimate.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 11: ava.v1.Estimate.line_items:type_name -> ava.v1.EstimateLineItem
-	33, // 12: ava.v1.NewEstimateLineItem.quantity:type_name -> ava.v1.Decimal
-	33, // 13: ava.v1.NewEstimateLineItem.unit_price:type_name -> ava.v1.Decimal
+	37, // 12: ava.v1.NewEstimateLineItem.quantity:type_name -> ava.v1.Decimal
+	37, // 13: ava.v1.NewEstimateLineItem.unit_price:type_name -> ava.v1.Decimal
 	1,  // 14: ava.v1.GetEstimateResponse.estimate:type_name -> ava.v1.Estimate
 	1,  // 15: ava.v1.ListEstimatesResponse.estimates:type_name -> ava.v1.Estimate
-	34, // 16: ava.v1.CreateEstimateRequest.estimate_date:type_name -> google.type.Date
-	34, // 17: ava.v1.CreateEstimateRequest.expiration_date:type_name -> google.type.Date
+	38, // 16: ava.v1.CreateEstimateRequest.estimate_date:type_name -> google.type.Date
+	38, // 17: ava.v1.CreateEstimateRequest.expiration_date:type_name -> google.type.Date
 	2,  // 18: ava.v1.CreateEstimateRequest.line_items:type_name -> ava.v1.NewEstimateLineItem
 	1,  // 19: ava.v1.CreateEstimateResponse.estimate:type_name -> ava.v1.Estimate
 	1,  // 20: ava.v1.UpdateEstimateStatusResponse.estimate:type_name -> ava.v1.Estimate
-	33, // 21: ava.v1.InvoiceLineItem.quantity:type_name -> ava.v1.Decimal
-	33, // 22: ava.v1.InvoiceLineItem.unit_price:type_name -> ava.v1.Decimal
-	33, // 23: ava.v1.InvoiceLineItem.line_subtotal:type_name -> ava.v1.Decimal
-	33, // 24: ava.v1.InvoiceLineItem.tax_amount:type_name -> ava.v1.Decimal
-	33, // 25: ava.v1.InvoiceLineItem.line_total:type_name -> ava.v1.Decimal
-	34, // 26: ava.v1.Invoice.invoice_date:type_name -> google.type.Date
-	34, // 27: ava.v1.Invoice.due_date:type_name -> google.type.Date
-	33, // 28: ava.v1.Invoice.subtotal:type_name -> ava.v1.Decimal
-	33, // 29: ava.v1.Invoice.total_tax_amount:type_name -> ava.v1.Decimal
-	33, // 30: ava.v1.Invoice.total_amount:type_name -> ava.v1.Decimal
-	33, // 31: ava.v1.Invoice.paid_amount:type_name -> ava.v1.Decimal
-	33, // 32: ava.v1.Invoice.balance_due:type_name -> ava.v1.Decimal
-	35, // 33: ava.v1.Invoice.created_at:type_name -> google.protobuf.Timestamp
-	11, // 34: ava.v1.Invoice.line_items:type_name -> ava.v1.InvoiceLineItem
-	33, // 35: ava.v1.NewInvoiceLineItem.quantity:type_name -> ava.v1.Decimal
-	33, // 36: ava.v1.NewInvoiceLineItem.unit_price:type_name -> ava.v1.Decimal
-	12, // 37: ava.v1.GetInvoiceResponse.invoice:type_name -> ava.v1.Invoice
-	12, // 38: ava.v1.ListInvoicesResponse.invoices:type_name -> ava.v1.Invoice
-	34, // 39: ava.v1.CreateInvoiceRequest.invoice_date:type_name -> google.type.Date
-	34, // 40: ava.v1.CreateInvoiceRequest.due_date:type_name -> google.type.Date
-	13, // 41: ava.v1.CreateInvoiceRequest.line_items:type_name -> ava.v1.NewInvoiceLineItem
-	12, // 42: ava.v1.CreateInvoiceResponse.invoice:type_name -> ava.v1.Invoice
-	12, // 43: ava.v1.UpdateInvoiceStatusResponse.invoice:type_name -> ava.v1.Invoice
-	33, // 44: ava.v1.PaymentApplication.applied_amount:type_name -> ava.v1.Decimal
-	35, // 45: ava.v1.PaymentApplication.created_at:type_name -> google.protobuf.Timestamp
-	33, // 46: ava.v1.PaymentApplicationInput.applied_amount:type_name -> ava.v1.Decimal
-	34, // 47: ava.v1.Payment.payment_date:type_name -> google.type.Date
-	33, // 48: ava.v1.Payment.amount:type_name -> ava.v1.Decimal
-	35, // 49: ava.v1.Payment.created_at:type_name -> google.protobuf.Timestamp
-	22, // 50: ava.v1.Payment.applications:type_name -> ava.v1.PaymentApplication
-	24, // 51: ava.v1.GetPaymentResponse.payment:type_name -> ava.v1.Payment
-	24, // 52: ava.v1.ListPaymentsResponse.payments:type_name -> ava.v1.Payment
-	34, // 53: ava.v1.CreatePaymentRequest.payment_date:type_name -> google.type.Date
-	33, // 54: ava.v1.CreatePaymentRequest.amount:type_name -> ava.v1.Decimal
-	23, // 55: ava.v1.CreatePaymentRequest.applications:type_name -> ava.v1.PaymentApplicationInput
-	24, // 56: ava.v1.CreatePaymentResponse.payment:type_name -> ava.v1.Payment
-	3,  // 57: ava.v1.EstimateService.GetEstimate:input_type -> ava.v1.GetEstimateRequest
-	5,  // 58: ava.v1.EstimateService.ListEstimates:input_type -> ava.v1.ListEstimatesRequest
-	7,  // 59: ava.v1.EstimateService.CreateEstimate:input_type -> ava.v1.CreateEstimateRequest
-	9,  // 60: ava.v1.EstimateService.UpdateEstimateStatus:input_type -> ava.v1.UpdateEstimateStatusRequest
-	14, // 61: ava.v1.InvoiceService.GetInvoice:input_type -> ava.v1.GetInvoiceRequest
-	16, // 62: ava.v1.InvoiceService.ListInvoices:input_type -> ava.v1.ListInvoicesRequest
-	18, // 63: ava.v1.InvoiceService.CreateInvoice:input_type -> ava.v1.CreateInvoiceRequest
-	20, // 64: ava.v1.InvoiceService.UpdateInvoiceStatus:input_type -> ava.v1.UpdateInvoiceStatusRequest
-	31, // 65: ava.v1.InvoiceService.GetInvoicePdf:input_type -> ava.v1.GetInvoicePdfRequest
-	25, // 66: ava.v1.PaymentService.GetPayment:input_type -> ava.v1.GetPaymentRequest
-	27, // 67: ava.v1.PaymentService.ListPayments:input_type -> ava.v1.ListPaymentsRequest
-	29, // 68: ava.v1.PaymentService.CreatePayment:input_type -> ava.v1.CreatePaymentRequest
-	4,  // 69: ava.v1.EstimateService.GetEstimate:output_type -> ava.v1.GetEstimateResponse
-	6,  // 70: ava.v1.EstimateService.ListEstimates:output_type -> ava.v1.ListEstimatesResponse
-	8,  // 71: ava.v1.EstimateService.CreateEstimate:output_type -> ava.v1.CreateEstimateResponse
-	10, // 72: ava.v1.EstimateService.UpdateEstimateStatus:output_type -> ava.v1.UpdateEstimateStatusResponse
-	15, // 73: ava.v1.InvoiceService.GetInvoice:output_type -> ava.v1.GetInvoiceResponse
-	17, // 74: ava.v1.InvoiceService.ListInvoices:output_type -> ava.v1.ListInvoicesResponse
-	19, // 75: ava.v1.InvoiceService.CreateInvoice:output_type -> ava.v1.CreateInvoiceResponse
-	21, // 76: ava.v1.InvoiceService.UpdateInvoiceStatus:output_type -> ava.v1.UpdateInvoiceStatusResponse
-	32, // 77: ava.v1.InvoiceService.GetInvoicePdf:output_type -> ava.v1.GetInvoicePdfResponse
-	26, // 78: ava.v1.PaymentService.GetPayment:output_type -> ava.v1.GetPaymentResponse
-	28, // 79: ava.v1.PaymentService.ListPayments:output_type -> ava.v1.ListPaymentsResponse
-	30, // 80: ava.v1.PaymentService.CreatePayment:output_type -> ava.v1.CreatePaymentResponse
-	69, // [69:81] is the sub-list for method output_type
-	57, // [57:69] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	2,  // 21: ava.v1.UpdateEstimateLineItemsRequest.line_items:type_name -> ava.v1.NewEstimateLineItem
+	1,  // 22: ava.v1.UpdateEstimateLineItemsResponse.estimate:type_name -> ava.v1.Estimate
+	37, // 23: ava.v1.InvoiceLineItem.quantity:type_name -> ava.v1.Decimal
+	37, // 24: ava.v1.InvoiceLineItem.unit_price:type_name -> ava.v1.Decimal
+	37, // 25: ava.v1.InvoiceLineItem.line_subtotal:type_name -> ava.v1.Decimal
+	37, // 26: ava.v1.InvoiceLineItem.tax_amount:type_name -> ava.v1.Decimal
+	37, // 27: ava.v1.InvoiceLineItem.line_total:type_name -> ava.v1.Decimal
+	38, // 28: ava.v1.Invoice.invoice_date:type_name -> google.type.Date
+	38, // 29: ava.v1.Invoice.due_date:type_name -> google.type.Date
+	37, // 30: ava.v1.Invoice.subtotal:type_name -> ava.v1.Decimal
+	37, // 31: ava.v1.Invoice.total_tax_amount:type_name -> ava.v1.Decimal
+	37, // 32: ava.v1.Invoice.total_amount:type_name -> ava.v1.Decimal
+	37, // 33: ava.v1.Invoice.paid_amount:type_name -> ava.v1.Decimal
+	37, // 34: ava.v1.Invoice.balance_due:type_name -> ava.v1.Decimal
+	39, // 35: ava.v1.Invoice.created_at:type_name -> google.protobuf.Timestamp
+	13, // 36: ava.v1.Invoice.line_items:type_name -> ava.v1.InvoiceLineItem
+	37, // 37: ava.v1.NewInvoiceLineItem.quantity:type_name -> ava.v1.Decimal
+	37, // 38: ava.v1.NewInvoiceLineItem.unit_price:type_name -> ava.v1.Decimal
+	14, // 39: ava.v1.GetInvoiceResponse.invoice:type_name -> ava.v1.Invoice
+	14, // 40: ava.v1.ListInvoicesResponse.invoices:type_name -> ava.v1.Invoice
+	38, // 41: ava.v1.CreateInvoiceRequest.invoice_date:type_name -> google.type.Date
+	38, // 42: ava.v1.CreateInvoiceRequest.due_date:type_name -> google.type.Date
+	15, // 43: ava.v1.CreateInvoiceRequest.line_items:type_name -> ava.v1.NewInvoiceLineItem
+	14, // 44: ava.v1.CreateInvoiceResponse.invoice:type_name -> ava.v1.Invoice
+	14, // 45: ava.v1.UpdateInvoiceStatusResponse.invoice:type_name -> ava.v1.Invoice
+	15, // 46: ava.v1.UpdateInvoiceLineItemsRequest.line_items:type_name -> ava.v1.NewInvoiceLineItem
+	14, // 47: ava.v1.UpdateInvoiceLineItemsResponse.invoice:type_name -> ava.v1.Invoice
+	37, // 48: ava.v1.PaymentApplication.applied_amount:type_name -> ava.v1.Decimal
+	39, // 49: ava.v1.PaymentApplication.created_at:type_name -> google.protobuf.Timestamp
+	37, // 50: ava.v1.PaymentApplicationInput.applied_amount:type_name -> ava.v1.Decimal
+	38, // 51: ava.v1.Payment.payment_date:type_name -> google.type.Date
+	37, // 52: ava.v1.Payment.amount:type_name -> ava.v1.Decimal
+	39, // 53: ava.v1.Payment.created_at:type_name -> google.protobuf.Timestamp
+	26, // 54: ava.v1.Payment.applications:type_name -> ava.v1.PaymentApplication
+	28, // 55: ava.v1.GetPaymentResponse.payment:type_name -> ava.v1.Payment
+	28, // 56: ava.v1.ListPaymentsResponse.payments:type_name -> ava.v1.Payment
+	38, // 57: ava.v1.CreatePaymentRequest.payment_date:type_name -> google.type.Date
+	37, // 58: ava.v1.CreatePaymentRequest.amount:type_name -> ava.v1.Decimal
+	27, // 59: ava.v1.CreatePaymentRequest.applications:type_name -> ava.v1.PaymentApplicationInput
+	28, // 60: ava.v1.CreatePaymentResponse.payment:type_name -> ava.v1.Payment
+	3,  // 61: ava.v1.EstimateService.GetEstimate:input_type -> ava.v1.GetEstimateRequest
+	5,  // 62: ava.v1.EstimateService.ListEstimates:input_type -> ava.v1.ListEstimatesRequest
+	7,  // 63: ava.v1.EstimateService.CreateEstimate:input_type -> ava.v1.CreateEstimateRequest
+	9,  // 64: ava.v1.EstimateService.UpdateEstimateStatus:input_type -> ava.v1.UpdateEstimateStatusRequest
+	11, // 65: ava.v1.EstimateService.UpdateEstimateLineItems:input_type -> ava.v1.UpdateEstimateLineItemsRequest
+	16, // 66: ava.v1.InvoiceService.GetInvoice:input_type -> ava.v1.GetInvoiceRequest
+	18, // 67: ava.v1.InvoiceService.ListInvoices:input_type -> ava.v1.ListInvoicesRequest
+	20, // 68: ava.v1.InvoiceService.CreateInvoice:input_type -> ava.v1.CreateInvoiceRequest
+	22, // 69: ava.v1.InvoiceService.UpdateInvoiceStatus:input_type -> ava.v1.UpdateInvoiceStatusRequest
+	24, // 70: ava.v1.InvoiceService.UpdateInvoiceLineItems:input_type -> ava.v1.UpdateInvoiceLineItemsRequest
+	35, // 71: ava.v1.InvoiceService.GetInvoicePdf:input_type -> ava.v1.GetInvoicePdfRequest
+	29, // 72: ava.v1.PaymentService.GetPayment:input_type -> ava.v1.GetPaymentRequest
+	31, // 73: ava.v1.PaymentService.ListPayments:input_type -> ava.v1.ListPaymentsRequest
+	33, // 74: ava.v1.PaymentService.CreatePayment:input_type -> ava.v1.CreatePaymentRequest
+	4,  // 75: ava.v1.EstimateService.GetEstimate:output_type -> ava.v1.GetEstimateResponse
+	6,  // 76: ava.v1.EstimateService.ListEstimates:output_type -> ava.v1.ListEstimatesResponse
+	8,  // 77: ava.v1.EstimateService.CreateEstimate:output_type -> ava.v1.CreateEstimateResponse
+	10, // 78: ava.v1.EstimateService.UpdateEstimateStatus:output_type -> ava.v1.UpdateEstimateStatusResponse
+	12, // 79: ava.v1.EstimateService.UpdateEstimateLineItems:output_type -> ava.v1.UpdateEstimateLineItemsResponse
+	17, // 80: ava.v1.InvoiceService.GetInvoice:output_type -> ava.v1.GetInvoiceResponse
+	19, // 81: ava.v1.InvoiceService.ListInvoices:output_type -> ava.v1.ListInvoicesResponse
+	21, // 82: ava.v1.InvoiceService.CreateInvoice:output_type -> ava.v1.CreateInvoiceResponse
+	23, // 83: ava.v1.InvoiceService.UpdateInvoiceStatus:output_type -> ava.v1.UpdateInvoiceStatusResponse
+	25, // 84: ava.v1.InvoiceService.UpdateInvoiceLineItems:output_type -> ava.v1.UpdateInvoiceLineItemsResponse
+	36, // 85: ava.v1.InvoiceService.GetInvoicePdf:output_type -> ava.v1.GetInvoicePdfResponse
+	30, // 86: ava.v1.PaymentService.GetPayment:output_type -> ava.v1.GetPaymentResponse
+	32, // 87: ava.v1.PaymentService.ListPayments:output_type -> ava.v1.ListPaymentsResponse
+	34, // 88: ava.v1.PaymentService.CreatePayment:output_type -> ava.v1.CreatePaymentResponse
+	75, // [75:89] is the sub-list for method output_type
+	61, // [61:75] is the sub-list for method input_type
+	61, // [61:61] is the sub-list for extension type_name
+	61, // [61:61] is the sub-list for extension extendee
+	0,  // [0:61] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_trading_proto_init() }
@@ -2880,19 +3107,19 @@ func file_ava_v1_trading_proto_init() {
 	file_ava_v1_trading_proto_msgTypes[1].OneofWrappers = []any{}
 	file_ava_v1_trading_proto_msgTypes[2].OneofWrappers = []any{}
 	file_ava_v1_trading_proto_msgTypes[7].OneofWrappers = []any{}
-	file_ava_v1_trading_proto_msgTypes[11].OneofWrappers = []any{}
-	file_ava_v1_trading_proto_msgTypes[12].OneofWrappers = []any{}
 	file_ava_v1_trading_proto_msgTypes[13].OneofWrappers = []any{}
-	file_ava_v1_trading_proto_msgTypes[18].OneofWrappers = []any{}
-	file_ava_v1_trading_proto_msgTypes[24].OneofWrappers = []any{}
-	file_ava_v1_trading_proto_msgTypes[29].OneofWrappers = []any{}
+	file_ava_v1_trading_proto_msgTypes[14].OneofWrappers = []any{}
+	file_ava_v1_trading_proto_msgTypes[15].OneofWrappers = []any{}
+	file_ava_v1_trading_proto_msgTypes[20].OneofWrappers = []any{}
+	file_ava_v1_trading_proto_msgTypes[28].OneofWrappers = []any{}
+	file_ava_v1_trading_proto_msgTypes[33].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_trading_proto_rawDesc), len(file_ava_v1_trading_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

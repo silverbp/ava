@@ -22,10 +22,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	EstimateService_GetEstimate_FullMethodName          = "/ava.v1.EstimateService/GetEstimate"
-	EstimateService_ListEstimates_FullMethodName        = "/ava.v1.EstimateService/ListEstimates"
-	EstimateService_CreateEstimate_FullMethodName       = "/ava.v1.EstimateService/CreateEstimate"
-	EstimateService_UpdateEstimateStatus_FullMethodName = "/ava.v1.EstimateService/UpdateEstimateStatus"
+	EstimateService_GetEstimate_FullMethodName             = "/ava.v1.EstimateService/GetEstimate"
+	EstimateService_ListEstimates_FullMethodName           = "/ava.v1.EstimateService/ListEstimates"
+	EstimateService_CreateEstimate_FullMethodName          = "/ava.v1.EstimateService/CreateEstimate"
+	EstimateService_UpdateEstimateStatus_FullMethodName    = "/ava.v1.EstimateService/UpdateEstimateStatus"
+	EstimateService_UpdateEstimateLineItems_FullMethodName = "/ava.v1.EstimateService/UpdateEstimateLineItems"
 )
 
 // EstimateServiceClient is the client API for EstimateService service.
@@ -40,6 +41,7 @@ type EstimateServiceClient interface {
 	ListEstimates(ctx context.Context, in *ListEstimatesRequest, opts ...grpc.CallOption) (*ListEstimatesResponse, error)
 	CreateEstimate(ctx context.Context, in *CreateEstimateRequest, opts ...grpc.CallOption) (*CreateEstimateResponse, error)
 	UpdateEstimateStatus(ctx context.Context, in *UpdateEstimateStatusRequest, opts ...grpc.CallOption) (*UpdateEstimateStatusResponse, error)
+	UpdateEstimateLineItems(ctx context.Context, in *UpdateEstimateLineItemsRequest, opts ...grpc.CallOption) (*UpdateEstimateLineItemsResponse, error)
 }
 
 type estimateServiceClient struct {
@@ -90,6 +92,16 @@ func (c *estimateServiceClient) UpdateEstimateStatus(ctx context.Context, in *Up
 	return out, nil
 }
 
+func (c *estimateServiceClient) UpdateEstimateLineItems(ctx context.Context, in *UpdateEstimateLineItemsRequest, opts ...grpc.CallOption) (*UpdateEstimateLineItemsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateEstimateLineItemsResponse)
+	err := c.cc.Invoke(ctx, EstimateService_UpdateEstimateLineItems_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EstimateServiceServer is the server API for EstimateService service.
 // All implementations must embed UnimplementedEstimateServiceServer
 // for forward compatibility.
@@ -102,6 +114,7 @@ type EstimateServiceServer interface {
 	ListEstimates(context.Context, *ListEstimatesRequest) (*ListEstimatesResponse, error)
 	CreateEstimate(context.Context, *CreateEstimateRequest) (*CreateEstimateResponse, error)
 	UpdateEstimateStatus(context.Context, *UpdateEstimateStatusRequest) (*UpdateEstimateStatusResponse, error)
+	UpdateEstimateLineItems(context.Context, *UpdateEstimateLineItemsRequest) (*UpdateEstimateLineItemsResponse, error)
 	mustEmbedUnimplementedEstimateServiceServer()
 }
 
@@ -123,6 +136,9 @@ func (UnimplementedEstimateServiceServer) CreateEstimate(context.Context, *Creat
 }
 func (UnimplementedEstimateServiceServer) UpdateEstimateStatus(context.Context, *UpdateEstimateStatusRequest) (*UpdateEstimateStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateEstimateStatus not implemented")
+}
+func (UnimplementedEstimateServiceServer) UpdateEstimateLineItems(context.Context, *UpdateEstimateLineItemsRequest) (*UpdateEstimateLineItemsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateEstimateLineItems not implemented")
 }
 func (UnimplementedEstimateServiceServer) mustEmbedUnimplementedEstimateServiceServer() {}
 func (UnimplementedEstimateServiceServer) testEmbeddedByValue()                         {}
@@ -217,6 +233,24 @@ func _EstimateService_UpdateEstimateStatus_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EstimateService_UpdateEstimateLineItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateEstimateLineItemsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EstimateServiceServer).UpdateEstimateLineItems(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EstimateService_UpdateEstimateLineItems_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EstimateServiceServer).UpdateEstimateLineItems(ctx, req.(*UpdateEstimateLineItemsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EstimateService_ServiceDesc is the grpc.ServiceDesc for EstimateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,17 +274,22 @@ var EstimateService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "UpdateEstimateStatus",
 			Handler:    _EstimateService_UpdateEstimateStatus_Handler,
 		},
+		{
+			MethodName: "UpdateEstimateLineItems",
+			Handler:    _EstimateService_UpdateEstimateLineItems_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "ava/v1/trading.proto",
 }
 
 const (
-	InvoiceService_GetInvoice_FullMethodName          = "/ava.v1.InvoiceService/GetInvoice"
-	InvoiceService_ListInvoices_FullMethodName        = "/ava.v1.InvoiceService/ListInvoices"
-	InvoiceService_CreateInvoice_FullMethodName       = "/ava.v1.InvoiceService/CreateInvoice"
-	InvoiceService_UpdateInvoiceStatus_FullMethodName = "/ava.v1.InvoiceService/UpdateInvoiceStatus"
-	InvoiceService_GetInvoicePdf_FullMethodName       = "/ava.v1.InvoiceService/GetInvoicePdf"
+	InvoiceService_GetInvoice_FullMethodName             = "/ava.v1.InvoiceService/GetInvoice"
+	InvoiceService_ListInvoices_FullMethodName           = "/ava.v1.InvoiceService/ListInvoices"
+	InvoiceService_CreateInvoice_FullMethodName          = "/ava.v1.InvoiceService/CreateInvoice"
+	InvoiceService_UpdateInvoiceStatus_FullMethodName    = "/ava.v1.InvoiceService/UpdateInvoiceStatus"
+	InvoiceService_UpdateInvoiceLineItems_FullMethodName = "/ava.v1.InvoiceService/UpdateInvoiceLineItems"
+	InvoiceService_GetInvoicePdf_FullMethodName          = "/ava.v1.InvoiceService/GetInvoicePdf"
 )
 
 // InvoiceServiceClient is the client API for InvoiceService service.
@@ -268,6 +307,7 @@ type InvoiceServiceClient interface {
 	ListInvoices(ctx context.Context, in *ListInvoicesRequest, opts ...grpc.CallOption) (*ListInvoicesResponse, error)
 	CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error)
 	UpdateInvoiceStatus(ctx context.Context, in *UpdateInvoiceStatusRequest, opts ...grpc.CallOption) (*UpdateInvoiceStatusResponse, error)
+	UpdateInvoiceLineItems(ctx context.Context, in *UpdateInvoiceLineItemsRequest, opts ...grpc.CallOption) (*UpdateInvoiceLineItemsResponse, error)
 	GetInvoicePdf(ctx context.Context, in *GetInvoicePdfRequest, opts ...grpc.CallOption) (*GetInvoicePdfResponse, error)
 }
 
@@ -319,6 +359,16 @@ func (c *invoiceServiceClient) UpdateInvoiceStatus(ctx context.Context, in *Upda
 	return out, nil
 }
 
+func (c *invoiceServiceClient) UpdateInvoiceLineItems(ctx context.Context, in *UpdateInvoiceLineItemsRequest, opts ...grpc.CallOption) (*UpdateInvoiceLineItemsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateInvoiceLineItemsResponse)
+	err := c.cc.Invoke(ctx, InvoiceService_UpdateInvoiceLineItems_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *invoiceServiceClient) GetInvoicePdf(ctx context.Context, in *GetInvoicePdfRequest, opts ...grpc.CallOption) (*GetInvoicePdfResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInvoicePdfResponse)
@@ -344,6 +394,7 @@ type InvoiceServiceServer interface {
 	ListInvoices(context.Context, *ListInvoicesRequest) (*ListInvoicesResponse, error)
 	CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error)
 	UpdateInvoiceStatus(context.Context, *UpdateInvoiceStatusRequest) (*UpdateInvoiceStatusResponse, error)
+	UpdateInvoiceLineItems(context.Context, *UpdateInvoiceLineItemsRequest) (*UpdateInvoiceLineItemsResponse, error)
 	GetInvoicePdf(context.Context, *GetInvoicePdfRequest) (*GetInvoicePdfResponse, error)
 	mustEmbedUnimplementedInvoiceServiceServer()
 }
@@ -366,6 +417,9 @@ func (UnimplementedInvoiceServiceServer) CreateInvoice(context.Context, *CreateI
 }
 func (UnimplementedInvoiceServiceServer) UpdateInvoiceStatus(context.Context, *UpdateInvoiceStatusRequest) (*UpdateInvoiceStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateInvoiceStatus not implemented")
+}
+func (UnimplementedInvoiceServiceServer) UpdateInvoiceLineItems(context.Context, *UpdateInvoiceLineItemsRequest) (*UpdateInvoiceLineItemsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateInvoiceLineItems not implemented")
 }
 func (UnimplementedInvoiceServiceServer) GetInvoicePdf(context.Context, *GetInvoicePdfRequest) (*GetInvoicePdfResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInvoicePdf not implemented")
@@ -463,6 +517,24 @@ func _InvoiceService_UpdateInvoiceStatus_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InvoiceService_UpdateInvoiceLineItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateInvoiceLineItemsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvoiceServiceServer).UpdateInvoiceLineItems(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InvoiceService_UpdateInvoiceLineItems_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvoiceServiceServer).UpdateInvoiceLineItems(ctx, req.(*UpdateInvoiceLineItemsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _InvoiceService_GetInvoicePdf_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetInvoicePdfRequest)
 	if err := dec(in); err != nil {
@@ -503,6 +575,10 @@ var InvoiceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateInvoiceStatus",
 			Handler:    _InvoiceService_UpdateInvoiceStatus_Handler,
+		},
+		{
+			MethodName: "UpdateInvoiceLineItems",
+			Handler:    _InvoiceService_UpdateInvoiceLineItems_Handler,
 		},
 		{
 			MethodName: "GetInvoicePdf",

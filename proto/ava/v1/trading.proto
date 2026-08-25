@@ -19,6 +19,7 @@ service EstimateService {
   rpc ListEstimates(ListEstimatesRequest) returns (ListEstimatesResponse);
   rpc CreateEstimate(CreateEstimateRequest) returns (CreateEstimateResponse);
   rpc UpdateEstimateStatus(UpdateEstimateStatusRequest) returns (UpdateEstimateStatusResponse);
+  rpc UpdateEstimateLineItems(UpdateEstimateLineItemsRequest) returns (UpdateEstimateLineItemsResponse);
 }
 
 // InvoiceService. CreateInvoice optionally posts to the ledger: if every
@@ -32,6 +33,7 @@ service InvoiceService {
   rpc ListInvoices(ListInvoicesRequest) returns (ListInvoicesResponse);
   rpc CreateInvoice(CreateInvoiceRequest) returns (CreateInvoiceResponse);
   rpc UpdateInvoiceStatus(UpdateInvoiceStatusRequest) returns (UpdateInvoiceStatusResponse);
+  rpc UpdateInvoiceLineItems(UpdateInvoiceLineItemsRequest) returns (UpdateInvoiceLineItemsResponse);
   rpc GetInvoicePdf(GetInvoicePdfRequest) returns (GetInvoicePdfResponse);
 }
 
@@ -133,6 +135,18 @@ message UpdateEstimateStatusResponse {
   Estimate estimate = 1;
 }
 
+// UpdateEstimateLineItemsRequest replaces an estimate's entire line item
+// set (not a per-line patch) and recomputes subtotal/total_tax_amount/
+// total_amount server-side, same as CreateEstimate.
+message UpdateEstimateLineItemsRequest {
+  int64 id = 1;
+  repeated NewEstimateLineItem line_items = 2;
+}
+
+message UpdateEstimateLineItemsResponse {
+  Estimate estimate = 1;
+}
+
 message InvoiceLineItem {
   int64 id = 1;
   int64 invoice_id = 2;
@@ -228,6 +242,21 @@ message UpdateInvoiceStatusRequest {
 }
 
 message UpdateInvoiceStatusResponse {
+  Invoice invoice = 1;
+}
+
+// UpdateInvoiceLineItemsRequest replaces an invoice's entire line item set
+// (not a per-line patch) and recomputes subtotal/total_tax_amount/
+// total_amount/balance_due server-side, same as CreateInvoice. Rejected
+// once the invoice is posted to the ledger (ledger_transaction_id set) -
+// editing line items after posting would desync the GL entries from the
+// document, and there's no reversal/repost flow here.
+message UpdateInvoiceLineItemsRequest {
+  int64 id = 1;
+  repeated NewInvoiceLineItem line_items = 2;
+}
+
+message UpdateInvoiceLineItemsResponse {
   Invoice invoice = 1;
 }
 

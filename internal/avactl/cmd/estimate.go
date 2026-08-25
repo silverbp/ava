@@ -41,6 +41,7 @@ func newEstimateCmd() *cobra.Command {
 
 	root.AddCommand(newGetCmd(estimateNoun, getEstimate))
 	root.AddCommand(newEstimateCreateCmd())
+	root.AddCommand(newEstimateUpdateLinesCmd())
 	root.AddCommand(newMutateCmd(estimateNoun, "send", "Mark an estimate SENT", sendEstimate))
 	root.AddCommand(newMutateCmd(estimateNoun, "accept", "Mark an estimate ACCEPTED", acceptEstimate))
 	root.AddCommand(newMutateCmd(estimateNoun, "decline", "Mark an estimate DECLINED", declineEstimate))
@@ -185,6 +186,70 @@ func newEstimateCreateCmd() *cobra.Command {
 		Summary:  "Create an estimate",
 		Detail:   "Repeat --line once per line item.",
 		Examples: []resource.Example{{Cmd: "avactl estimate create --customer 5 --date 2026-01-01 --expires 2026-02-01 " + `--line "desc=Consulting,qty=10,price=150.00,taxable,tax-rate=1"`}},
+	}.Apply(cmd)
+	return cmd
+}
+
+func newEstimateUpdateLinesCmd() *cobra.Command {
+	var rawLines []string
+
+	cmd := &cobra.Command{
+		Use:  "update-lines <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid estimate id %q: %w", args[0], err)
+			}
+			rawFields, err := parseLineFlags(rawLines)
+			if err != nil {
+				return err
+			}
+
+			var lineItems []*avav1.NewEstimateLineItem
+			for i, f := range rawFields {
+				serviceID, err := parseOptionalInt64(f, "service")
+				if err != nil {
+					return err
+				}
+				taxRateID, err := parseOptionalInt64(f, "tax-rate")
+				if err != nil {
+					return err
+				}
+				lineItems = append(lineItems, &avav1.NewEstimateLineItem{
+					ServiceId:   serviceID,
+					LineNumber:  int32(i + 1),
+					Description: f["desc"],
+					Quantity:    parseDecimalField(f, "qty"),
+					UnitPrice:   parseDecimalField(f, "price"),
+					IsTaxable:   f["taxable"] == "true",
+					TaxRateId:   taxRateID,
+				})
+			}
+
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			resp, err := avav1.NewEstimateServiceClient(conn).UpdateEstimateLineItems(cmd.Context(), &avav1.UpdateEstimateLineItemsRequest{
+				Id:        id,
+				LineItems: lineItems,
+			})
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetEstimate(), estimateNoun.Columns)
+		},
+	}
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...[,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	_ = cmd.MarkFlagRequired("line")
+	resource.Doc{
+		Summary: "Replace an estimate's line items",
+		Detail:  "Replaces the entire line item set - repeat --line once per line item, including ones you're keeping unchanged.",
+		Examples: []resource.Example{{Cmd: "avactl estimate update-lines 42 " +
+			`--line "desc=Consulting,qty=10,price=150.00,taxable,tax-rate=1"`}},
 	}.Apply(cmd)
 	return cmd
 }

@@ -36,6 +36,15 @@ UPDATE estimate SET status = $2, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
+-- name: DeleteEstimateLineItems :exec
+UPDATE estimate_line_item SET deleted_at = NOW()
+WHERE estimate_id = $1 AND deleted_at IS NULL;
+
+-- name: UpdateEstimateTotals :one
+UPDATE estimate SET subtotal = $2, total_tax_amount = $3, total_amount = $4, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
 -- name: CreateInvoice :one
 INSERT INTO invoice (
     business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date,
@@ -69,6 +78,16 @@ ORDER BY invoice_date DESC;
 
 -- name: UpdateInvoiceStatus :one
 UPDATE invoice SET status = $2, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
+-- name: DeleteInvoiceLineItems :exec
+UPDATE invoice_line_item SET deleted_at = NOW()
+WHERE invoice_id = $1 AND deleted_at IS NULL;
+
+-- name: UpdateInvoiceTotals :one
+UPDATE invoice SET
+    subtotal = $2, total_tax_amount = $3, total_amount = $4, balance_due = $5, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 

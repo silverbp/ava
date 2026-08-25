@@ -346,6 +346,93 @@ func (s *estimateService) UpdateEstimateStatus(ctx context.Context, req *avav1.U
 	return &avav1.UpdateEstimateStatusResponse{Estimate: pb}, nil
 }
 
+// UpdateEstimateLineItems replaces an estimate's entire line item set and
+// recomputes its totals — see the proto doc for why this is a full
+// replace rather than a per-line patch.
+func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav1.UpdateEstimateLineItemsRequest) (*avav1.UpdateEstimateLineItemsResponse, error) {
+	existing, err := s.store.Queries.GetEstimate(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "estimate %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+	if len(req.GetLineItems()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
+	}
+
+	var (
+		estimate  sqlcgen.Estimate
+		lineItems []sqlcgen.EstimateLineItem
+	)
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		inputs := make([]lineInput, len(req.GetLineItems()))
+		for i, li := range req.GetLineItems() {
+			inputs[i] = lineInput{Quantity: li.Quantity, UnitPrice: li.UnitPrice, IsTaxable: li.IsTaxable, TaxRateID: li.TaxRateId}
+		}
+		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
+		if err != nil {
+			return err
+		}
+
+		subtotalNum, e1 := ledgermath.DecimalToNumeric(subtotal)
+		totalTaxNum, e2 := ledgermath.DecimalToNumeric(totalTax)
+		totalNum, e3 := ledgermath.DecimalToNumeric(total)
+		if err := firstErr(e1, e2, e3); err != nil {
+			return err
+		}
+
+		if err := q.DeleteEstimateLineItems(ctx, req.GetId()); err != nil {
+			return err
+		}
+
+		estimate, err = q.UpdateEstimateTotals(ctx, sqlcgen.UpdateEstimateTotalsParams{
+			ID:             req.GetId(),
+			Subtotal:       subtotalNum,
+			TotalTaxAmount: totalTaxNum,
+			TotalAmount:    totalNum,
+		})
+		if err != nil {
+			return err
+		}
+
+		for i, cl := range computed {
+			src := req.GetLineItems()[i]
+			li, err := q.CreateEstimateLineItem(ctx, sqlcgen.CreateEstimateLineItemParams{
+				EstimateID:   estimate.ID,
+				ServiceID:    src.ServiceId,
+				LineNumber:   src.LineNumber,
+				Description:  src.Description,
+				Quantity:     cl.Quantity,
+				UnitPrice:    cl.UnitPrice,
+				LineSubtotal: cl.LineSubtotal,
+				IsTaxable:    src.IsTaxable,
+				TaxRateID:    src.TaxRateId,
+				TaxRate:      cl.TaxRate,
+				TaxAmount:    cl.TaxAmount,
+				LineTotal:    cl.LineTotal,
+			})
+			if err != nil {
+				return err
+			}
+			lineItems = append(lineItems, li)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, closeErrorStatus(err)
+	}
+
+	pb, err := estimateToProto(estimate, lineItems)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting estimate: %v", err)
+	}
+	return &avav1.UpdateEstimateLineItemsResponse{Estimate: pb}, nil
+}
+
 func estimateToProto(e sqlcgen.Estimate, lineItems []sqlcgen.EstimateLineItem) (*avav1.Estimate, error) {
 	subtotal, err := moneypb.ToProto(e.Subtotal)
 	if err != nil {
@@ -625,6 +712,124 @@ func (s *invoiceService) UpdateInvoiceStatus(ctx context.Context, req *avav1.Upd
 		return nil, status.Errorf(codes.Internal, "converting invoice: %v", err)
 	}
 	return &avav1.UpdateInvoiceStatusResponse{Invoice: pb}, nil
+}
+
+// UpdateInvoiceLineItems replaces an invoice's entire line item set and
+// recomputes its totals — see the proto doc for why this is a full
+// replace rather than a per-line patch, and why posted invoices are
+// rejected outright.
+func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.UpdateInvoiceLineItemsRequest) (*avav1.UpdateInvoiceLineItemsResponse, error) {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
+	}
+	existing, err := s.store.Queries.GetInvoice(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "invoice %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+	if len(req.GetLineItems()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
+	}
+	if existing.LedgerTransactionID != nil {
+		return nil, status.Error(codes.FailedPrecondition, "invoice is posted to the ledger; line items can no longer be edited")
+	}
+
+	paidAmount, err := ledgermath.NumericToDecimal(existing.PaidAmount)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "reading paid_amount: %v", err)
+	}
+
+	var (
+		invoice   sqlcgen.Invoice
+		lineItems []sqlcgen.InvoiceLineItem
+	)
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		inputs := make([]lineInput, len(req.GetLineItems()))
+		for i, li := range req.GetLineItems() {
+			inputs[i] = lineInput{Quantity: li.Quantity, UnitPrice: li.UnitPrice, IsTaxable: li.IsTaxable, TaxRateID: li.TaxRateId}
+		}
+		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
+		if err != nil {
+			return err
+		}
+		balanceDue := total.Sub(paidAmount)
+		if balanceDue.IsNegative() {
+			return fmt.Errorf("new total %s is less than the %s already paid on this invoice", total, paidAmount)
+		}
+
+		subtotalNum, e1 := ledgermath.DecimalToNumeric(subtotal)
+		totalTaxNum, e2 := ledgermath.DecimalToNumeric(totalTax)
+		totalNum, e3 := ledgermath.DecimalToNumeric(total)
+		balanceDueNum, e4 := ledgermath.DecimalToNumeric(balanceDue)
+		if err := firstErr(e1, e2, e3, e4); err != nil {
+			return err
+		}
+
+		if err := q.DeleteInvoiceLineItems(ctx, req.GetId()); err != nil {
+			return err
+		}
+
+		invoice, err = q.UpdateInvoiceTotals(ctx, sqlcgen.UpdateInvoiceTotalsParams{
+			ID:             req.GetId(),
+			Subtotal:       subtotalNum,
+			TotalTaxAmount: totalTaxNum,
+			TotalAmount:    totalNum,
+			BalanceDue:     balanceDueNum,
+		})
+		if err != nil {
+			return err
+		}
+
+		for i, cl := range computed {
+			src := req.GetLineItems()[i]
+			li, err := q.CreateInvoiceLineItem(ctx, sqlcgen.CreateInvoiceLineItemParams{
+				InvoiceID:       invoice.ID,
+				ServiceID:       src.ServiceId,
+				LedgerAccountID: src.LedgerAccountId,
+				LineNumber:      src.LineNumber,
+				Description:     src.Description,
+				Quantity:        cl.Quantity,
+				UnitPrice:       cl.UnitPrice,
+				LineSubtotal:    cl.LineSubtotal,
+				IsTaxable:       src.IsTaxable,
+				TaxRateID:       src.TaxRateId,
+				TaxRate:         cl.TaxRate,
+				TaxAmount:       cl.TaxAmount,
+				LineTotal:       cl.LineTotal,
+			})
+			if err != nil {
+				return err
+			}
+			lineItems = append(lineItems, li)
+		}
+
+		txnID, err := maybePostInvoice(ctx, q, existing.BusinessID, invoice, lineItems, &u.ID)
+		if err != nil {
+			return err
+		}
+		if txnID != nil {
+			invoice, err = q.SetInvoiceLedgerTransaction(ctx, sqlcgen.SetInvoiceLedgerTransactionParams{ID: invoice.ID, LedgerTransactionID: txnID})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, closeErrorStatus(err)
+	}
+
+	pb, err := invoiceToProto(invoice, lineItems)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting invoice: %v", err)
+	}
+	return &avav1.UpdateInvoiceLineItemsResponse{Invoice: pb}, nil
 }
 
 func (s *invoiceService) GetInvoicePdf(ctx context.Context, req *avav1.GetInvoicePdfRequest) (*avav1.GetInvoicePdfResponse, error) {
