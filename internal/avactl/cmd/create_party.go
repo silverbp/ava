@@ -73,8 +73,9 @@ func newCreateContactCmd() *cobra.Command {
 }
 
 func newCreateServiceCmd() *cobra.Command {
-	var code, name, description, unit, price, cost, defaultTaxRate string
+	var code, name, description, unit, price, cost string
 	var taxable bool
+	var defaultTaxRateID int64
 
 	cmd := &cobra.Command{
 		Use:   "service",
@@ -102,8 +103,8 @@ func newCreateServiceCmd() *cobra.Command {
 			if cost != "" {
 				req.CostPrice = &avav1.Decimal{Value: cost}
 			}
-			if defaultTaxRate != "" {
-				req.DefaultTaxRate = &avav1.Decimal{Value: defaultTaxRate}
+			if defaultTaxRateID != 0 {
+				req.DefaultTaxRateId = &defaultTaxRateID
 			}
 
 			resp, err := avav1.NewServiceCatalogServiceClient(conn).CreateService(cmd.Context(), req)
@@ -121,7 +122,7 @@ func newCreateServiceCmd() *cobra.Command {
 	cmd.Flags().StringVar(&price, "price", "", "retail price (required)")
 	cmd.Flags().StringVar(&cost, "cost", "", "cost price")
 	cmd.Flags().BoolVar(&taxable, "taxable", false, "taxable by default")
-	cmd.Flags().StringVar(&defaultTaxRate, "default-tax-rate", "", "default tax rate, e.g. 0.0825")
+	cmd.Flags().Int64Var(&defaultTaxRateID, "default-tax-rate-id", 0, "default tax_rate id")
 	_ = cmd.MarkFlagRequired("code")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("price")

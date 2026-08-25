@@ -166,9 +166,12 @@ func (q *Queries) CreateWebAuthnCredential(ctx context.Context, arg CreateWebAut
 }
 
 const getAppUser = `-- name: GetAppUser :one
+
 SELECT id, email, display_name, is_global_admin, is_active, created_at, updated_at, deleted_at FROM app_user WHERE id = $1 AND deleted_at IS NULL
 `
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) GetAppUser(ctx context.Context, id int64) (AppUser, error) {
 	row := q.db.QueryRow(ctx, getAppUser, id)
 	var i AppUser

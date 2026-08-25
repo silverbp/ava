@@ -12,6 +12,7 @@ import (
 )
 
 const createContact = `-- name: CreateContact :one
+
 INSERT INTO contact (
     business_id, ledger_account_id, contact_number, is_customer, is_vendor, name,
     email, phone, payment_terms_days, credit_limit, created_by_user_id
@@ -35,6 +36,8 @@ type CreateContactParams struct {
 	CreatedByUserID  *int64         `json:"created_by_user_id"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreateContact(ctx context.Context, arg CreateContactParams) (Contact, error) {
 	row := q.db.QueryRow(ctx, createContact,
 		arg.BusinessID,
@@ -86,24 +89,24 @@ func (q *Queries) CreateContact(ctx context.Context, arg CreateContactParams) (C
 const createService = `-- name: CreateService :one
 INSERT INTO service (
     business_id, service_code, name, description, unit_of_measure, cost_price,
-    retail_price, is_taxable, default_tax_rate, created_by_user_id
+    retail_price, is_taxable, default_tax_rate_id, created_by_user_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate, is_active, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, is_active, created_by_user_id, created_at, updated_at, deleted_at, default_tax_rate_id
 `
 
 type CreateServiceParams struct {
-	BusinessID      int64          `json:"business_id"`
-	ServiceCode     string         `json:"service_code"`
-	Name            string         `json:"name"`
-	Description     *string        `json:"description"`
-	UnitOfMeasure   *string        `json:"unit_of_measure"`
-	CostPrice       pgtype.Numeric `json:"cost_price"`
-	RetailPrice     pgtype.Numeric `json:"retail_price"`
-	IsTaxable       bool           `json:"is_taxable"`
-	DefaultTaxRate  pgtype.Numeric `json:"default_tax_rate"`
-	CreatedByUserID *int64         `json:"created_by_user_id"`
+	BusinessID       int64          `json:"business_id"`
+	ServiceCode      string         `json:"service_code"`
+	Name             string         `json:"name"`
+	Description      *string        `json:"description"`
+	UnitOfMeasure    *string        `json:"unit_of_measure"`
+	CostPrice        pgtype.Numeric `json:"cost_price"`
+	RetailPrice      pgtype.Numeric `json:"retail_price"`
+	IsTaxable        bool           `json:"is_taxable"`
+	DefaultTaxRateID *int64         `json:"default_tax_rate_id"`
+	CreatedByUserID  *int64         `json:"created_by_user_id"`
 }
 
 func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (Service, error) {
@@ -116,7 +119,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		arg.CostPrice,
 		arg.RetailPrice,
 		arg.IsTaxable,
-		arg.DefaultTaxRate,
+		arg.DefaultTaxRateID,
 		arg.CreatedByUserID,
 	)
 	var i Service
@@ -130,12 +133,12 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.CostPrice,
 		&i.RetailPrice,
 		&i.IsTaxable,
-		&i.DefaultTaxRate,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DefaultTaxRateID,
 	)
 	return i, err
 }
@@ -225,7 +228,7 @@ func (q *Queries) DeactivateContact(ctx context.Context, id int64) (Contact, err
 const deactivateService = `-- name: DeactivateService :one
 UPDATE service SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate, is_active, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, is_active, created_by_user_id, created_at, updated_at, deleted_at, default_tax_rate_id
 `
 
 func (q *Queries) DeactivateService(ctx context.Context, id int64) (Service, error) {
@@ -241,12 +244,12 @@ func (q *Queries) DeactivateService(ctx context.Context, id int64) (Service, err
 		&i.CostPrice,
 		&i.RetailPrice,
 		&i.IsTaxable,
-		&i.DefaultTaxRate,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DefaultTaxRateID,
 	)
 	return i, err
 }
@@ -315,7 +318,7 @@ func (q *Queries) GetContact(ctx context.Context, id int64) (Contact, error) {
 }
 
 const getService = `-- name: GetService :one
-SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM service WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, is_active, created_by_user_id, created_at, updated_at, deleted_at, default_tax_rate_id FROM service WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetService(ctx context.Context, id int64) (Service, error) {
@@ -331,12 +334,12 @@ func (q *Queries) GetService(ctx context.Context, id int64) (Service, error) {
 		&i.CostPrice,
 		&i.RetailPrice,
 		&i.IsTaxable,
-		&i.DefaultTaxRate,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DefaultTaxRateID,
 	)
 	return i, err
 }
@@ -416,7 +419,7 @@ func (q *Queries) ListContacts(ctx context.Context, businessID int64) ([]Contact
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM service WHERE business_id = $1 AND deleted_at IS NULL ORDER BY service_code
+SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, is_active, created_by_user_id, created_at, updated_at, deleted_at, default_tax_rate_id FROM service WHERE business_id = $1 AND deleted_at IS NULL ORDER BY service_code
 `
 
 func (q *Queries) ListServices(ctx context.Context, businessID int64) ([]Service, error) {
@@ -438,12 +441,12 @@ func (q *Queries) ListServices(ctx context.Context, businessID int64) ([]Service
 			&i.CostPrice,
 			&i.RetailPrice,
 			&i.IsTaxable,
-			&i.DefaultTaxRate,
 			&i.IsActive,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.DefaultTaxRateID,
 		); err != nil {
 			return nil, err
 		}
@@ -563,20 +566,20 @@ UPDATE service SET
     retail_price = COALESCE($3, retail_price),
     cost_price = COALESCE($4, cost_price),
     is_taxable = COALESCE($5, is_taxable),
-    default_tax_rate = COALESCE($6, default_tax_rate),
+    default_tax_rate_id = COALESCE($6, default_tax_rate_id),
     updated_at = NOW()
 WHERE id = $7 AND deleted_at IS NULL
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate, is_active, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, is_active, created_by_user_id, created_at, updated_at, deleted_at, default_tax_rate_id
 `
 
 type UpdateServiceParams struct {
-	Name           *string        `json:"name"`
-	Description    *string        `json:"description"`
-	RetailPrice    pgtype.Numeric `json:"retail_price"`
-	CostPrice      pgtype.Numeric `json:"cost_price"`
-	IsTaxable      *bool          `json:"is_taxable"`
-	DefaultTaxRate pgtype.Numeric `json:"default_tax_rate"`
-	ID             int64          `json:"id"`
+	Name             *string        `json:"name"`
+	Description      *string        `json:"description"`
+	RetailPrice      pgtype.Numeric `json:"retail_price"`
+	CostPrice        pgtype.Numeric `json:"cost_price"`
+	IsTaxable        *bool          `json:"is_taxable"`
+	DefaultTaxRateID *int64         `json:"default_tax_rate_id"`
+	ID               int64          `json:"id"`
 }
 
 func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error) {
@@ -586,7 +589,7 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		arg.RetailPrice,
 		arg.CostPrice,
 		arg.IsTaxable,
-		arg.DefaultTaxRate,
+		arg.DefaultTaxRateID,
 		arg.ID,
 	)
 	var i Service
@@ -600,12 +603,12 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		&i.CostPrice,
 		&i.RetailPrice,
 		&i.IsTaxable,
-		&i.DefaultTaxRate,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DefaultTaxRateID,
 	)
 	return i, err
 }

@@ -36,7 +36,7 @@ RETURNING *;
 -- name: CreateService :one
 INSERT INTO service (
     business_id, service_code, name, description, unit_of_measure, cost_price,
-    retail_price, is_taxable, default_tax_rate, created_by_user_id
+    retail_price, is_taxable, default_tax_rate_id, created_by_user_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
@@ -55,7 +55,7 @@ UPDATE service SET
     retail_price = COALESCE(sqlc.narg('retail_price'), retail_price),
     cost_price = COALESCE(sqlc.narg('cost_price'), cost_price),
     is_taxable = COALESCE(sqlc.narg('is_taxable'), is_taxable),
-    default_tax_rate = COALESCE(sqlc.narg('default_tax_rate'), default_tax_rate),
+    default_tax_rate_id = COALESCE(sqlc.narg('default_tax_rate_id'), default_tax_rate_id),
     updated_at = NOW()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
 RETURNING *;

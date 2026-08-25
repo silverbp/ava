@@ -12,6 +12,7 @@ import (
 )
 
 const createBankStatement = `-- name: CreateBankStatement :one
+
 INSERT INTO bank_statement (
     business_id, ledger_account_id, statement_name, statement_date,
     opening_balance, closing_balance, created_by_user_id
@@ -31,6 +32,8 @@ type CreateBankStatementParams struct {
 	CreatedByUserID *int64         `json:"created_by_user_id"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreateBankStatement(ctx context.Context, arg CreateBankStatementParams) (BankStatement, error) {
 	row := q.db.QueryRow(ctx, createBankStatement,
 		arg.BusinessID,

@@ -82,10 +82,10 @@ RETURNING *;
 
 -- name: CreatePayment :one
 INSERT INTO payment (
-    business_id, contact_id, invoice_id, payment_type, payment_number, payment_date,
+    business_id, contact_id, payment_type, payment_number, payment_date,
     amount, payment_method, ledger_account_id, reference_number, notes, created_by_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
 RETURNING *;
 
@@ -99,6 +99,14 @@ SELECT * FROM payment WHERE business_id = $1 AND deleted_at IS NULL ORDER BY pay
 UPDATE payment SET ledger_transaction_id = $2, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
+
+-- name: CreatePaymentApplication :one
+INSERT INTO payment_application (payment_id, invoice_id, applied_amount)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: ListPaymentApplicationsForPayment :many
+SELECT * FROM payment_application WHERE payment_id = $1 ORDER BY id;
 
 -- name: ListInvoicesForContact :many
 SELECT * FROM invoice

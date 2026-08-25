@@ -12,6 +12,7 @@ import (
 )
 
 const createLedgerAccount = `-- name: CreateLedgerAccount :one
+
 INSERT INTO ledger_account (
     business_id, account_type_id, parent_account_id, code, name, description,
     is_system, is_reconcilable, is_container, cash_flow_category_id,
@@ -38,6 +39,8 @@ type CreateLedgerAccountParams struct {
 	CreatedByUserID        *int64  `json:"created_by_user_id"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreateLedgerAccount(ctx context.Context, arg CreateLedgerAccountParams) (LedgerAccount, error) {
 	row := q.db.QueryRow(ctx, createLedgerAccount,
 		arg.BusinessID,

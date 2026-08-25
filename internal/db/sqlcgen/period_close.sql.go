@@ -12,6 +12,7 @@ import (
 )
 
 const createPeriodClose = `-- name: CreatePeriodClose :one
+
 INSERT INTO period_close (
     business_id, period_start, period_end, income_summary_account_id,
     retained_earnings_account_id, created_by_user_id
@@ -30,6 +31,8 @@ type CreatePeriodCloseParams struct {
 	CreatedByUserID           *int64      `json:"created_by_user_id"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreatePeriodClose(ctx context.Context, arg CreatePeriodCloseParams) (PeriodClose, error) {
 	row := q.db.QueryRow(ctx, createPeriodClose,
 		arg.BusinessID,

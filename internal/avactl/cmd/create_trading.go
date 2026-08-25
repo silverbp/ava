@@ -274,7 +274,7 @@ invoice to the ledger atomically:
 
 func newCreatePaymentCmd() *cobra.Command {
 	var contact int64
-	var invoice int64
+	var applyRaw []string
 	var paymentType, number, date, amount, method string
 	var ledgerAccount int32
 	var reference, notes string
@@ -282,14 +282,24 @@ func newCreatePaymentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payment",
 		Short: "Record a payment",
-		Long: `Record a payment. If --invoice is set, applies to that invoice's
-paid_amount/balance_due. Add --account (plus a contact with --ledger-account
-already set) to post the payment to the ledger atomically:
+		Long: `Record a payment. --apply invoice_id:amount (repeatable) applies part or
+all of the payment to one or more invoices' paid_amount/balance_due - a
+single payment can cover several invoices at once. Add --account (plus a
+contact with --ledger-account already set) to post the payment to the
+ledger atomically:
 
   avactl create payment --contact 5 --type RECEIVED --number PAY-1 \
-    --date 2026-01-15 --amount 500.00 --method CASH --invoice 12 --account 10`,
+    --date 2026-01-15 --amount 500.00 --method CASH --apply 12:500.00 --account 10
+
+  avactl create payment --contact 5 --type RECEIVED --number PAY-2 \
+    --date 2026-01-15 --amount 605.00 --method CASH \
+    --apply 517:110.00 --apply 518:220.00 --apply 519:275.00`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dateArg, err := parseDateFlag(date)
+			if err != nil {
+				return err
+			}
+			applications, err := parsePaymentApplyFlags(applyRaw)
 			if err != nil {
 				return err
 			}
@@ -307,9 +317,7 @@ already set) to post the payment to the ledger atomically:
 				PaymentDate:   dateArg,
 				Amount:        &avav1.Decimal{Value: amount},
 				PaymentMethod: method,
-			}
-			if invoice != 0 {
-				req.InvoiceId = &invoice
+				Applications:  applications,
 			}
 			if ledgerAccount != 0 {
 				req.LedgerAccountId = &ledgerAccount
@@ -330,7 +338,7 @@ already set) to post the payment to the ledger atomically:
 		},
 	}
 	cmd.Flags().Int64Var(&contact, "contact", 0, "customer or vendor contact id (required)")
-	cmd.Flags().Int64Var(&invoice, "invoice", 0, "invoice id this payment applies to")
+	cmd.Flags().StringArrayVar(&applyRaw, "apply", nil, "invoice_id:amount to apply this payment against (repeatable)")
 	cmd.Flags().StringVar(&paymentType, "type", "RECEIVED", "RECEIVED or MADE")
 	cmd.Flags().StringVar(&number, "number", "", "payment number (required)")
 	cmd.Flags().StringVar(&date, "date", "", "payment date, YYYY-MM-DD (required)")
@@ -345,4 +353,25 @@ already set) to post the payment to the ledger atomically:
 	_ = cmd.MarkFlagRequired("amount")
 	_ = cmd.MarkFlagRequired("method")
 	return cmd
+}
+
+// parsePaymentApplyFlags parses repeatable --apply "invoice_id:amount"
+// flags into PaymentApplicationInput values.
+func parsePaymentApplyFlags(raw []string) ([]*avav1.PaymentApplicationInput, error) {
+	applications := make([]*avav1.PaymentApplicationInput, 0, len(raw))
+	for _, r := range raw {
+		invoiceID, amount, ok := strings.Cut(r, ":")
+		if !ok {
+			return nil, fmt.Errorf("invalid --apply %q, want invoice_id:amount", r)
+		}
+		id, err := strconv.ParseInt(invoiceID, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid --apply %q: invoice_id: %w", r, err)
+		}
+		applications = append(applications, &avav1.PaymentApplicationInput{
+			InvoiceId:     id,
+			AppliedAmount: &avav1.Decimal{Value: amount},
+		})
+	}
+	return applications, nil
 }

@@ -108,6 +108,9 @@ message DeactivateContactResponse {
 }
 
 message Service {
+  reserved 10;
+  reserved "default_tax_rate";
+
   int64 id = 1;
   int64 business_id = 2;
   string service_code = 3;
@@ -117,7 +120,10 @@ message Service {
   Decimal cost_price = 7;
   Decimal retail_price = 8;
   bool is_taxable = 9;
-  Decimal default_tax_rate = 10;
+  // References tax_rate.id - unlike invoice_line_item/estimate_line_item,
+  // a service is catalog data, not a historical transaction, so there's no
+  // need to also snapshot a decimal rate alongside the reference.
+  optional int64 default_tax_rate_id = 15;
   bool is_active = 11;
   optional int64 created_by_user_id = 12;
   google.protobuf.Timestamp created_at = 13;
@@ -141,6 +147,9 @@ message ListServicesResponse {
 }
 
 message CreateServiceRequest {
+  reserved 9;
+  reserved "default_tax_rate";
+
   int64 business_id = 1;
   string service_code = 2;
   string name = 3;
@@ -149,7 +158,7 @@ message CreateServiceRequest {
   optional Decimal cost_price = 6;
   Decimal retail_price = 7;
   bool is_taxable = 8;
-  optional Decimal default_tax_rate = 9;
+  optional int64 default_tax_rate_id = 10;
 }
 
 message CreateServiceResponse {
@@ -157,13 +166,16 @@ message CreateServiceResponse {
 }
 
 message UpdateServiceRequest {
+  reserved 7;
+  reserved "default_tax_rate";
+
   int64 id = 1;
   optional string name = 2;
   optional string description = 3;
   optional Decimal retail_price = 4;
   optional Decimal cost_price = 5;
   optional bool is_taxable = 6;
-  optional Decimal default_tax_rate = 7;
+  optional int64 default_tax_rate_id = 8;
 }
 
 message UpdateServiceResponse {

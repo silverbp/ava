@@ -865,7 +865,11 @@ func (s *paymentService) GetPayment(ctx context.Context, req *avav1.GetPaymentRe
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, p.BusinessID, "VIEWER"); err != nil {
 		return nil, err
 	}
-	pb, err := paymentToProto(p)
+	applications, err := s.store.Queries.ListPaymentApplicationsForPayment(ctx, p.ID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	pb, err := paymentToProto(p, applications)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting payment: %v", err)
 	}
@@ -882,7 +886,11 @@ func (s *paymentService) ListPayments(ctx context.Context, req *avav1.ListPaymen
 	}
 	resp := &avav1.ListPaymentsResponse{}
 	for _, p := range rows {
-		pb, err := paymentToProto(p)
+		applications, err := s.store.Queries.ListPaymentApplicationsForPayment(ctx, p.ID)
+		if err != nil {
+			return nil, translatePgError(err)
+		}
+		pb, err := paymentToProto(p, applications)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "converting payment: %v", err)
 		}
@@ -915,13 +923,34 @@ func (s *paymentService) CreatePayment(ctx context.Context, req *avav1.CreatePay
 		return nil, status.Errorf(codes.InvalidArgument, "invalid amount: %v", err)
 	}
 
+	// Each application's own amount, validated up front so a bad one fails
+	// before anything's written - and their sum can't exceed what was
+	// actually received (a payment may be partially or fully unapplied,
+	// but never over-applied).
+	appliedAmounts := make([]decimal.Decimal, len(req.GetApplications()))
+	total := decimal.Zero
+	for i, app := range req.GetApplications() {
+		if app.GetInvoiceId() == 0 {
+			return nil, status.Error(codes.InvalidArgument, "applications[].invoice_id is required")
+		}
+		applied, err := decimal.NewFromString(app.GetAppliedAmount().GetValue())
+		if err != nil || !applied.IsPositive() {
+			return nil, status.Errorf(codes.InvalidArgument, "applications[%d].applied_amount must be a positive number", i)
+		}
+		appliedAmounts[i] = applied
+		total = total.Add(applied)
+	}
+	if total.GreaterThan(amount) {
+		return nil, status.Error(codes.InvalidArgument, "sum of applications[].applied_amount exceeds amount")
+	}
+
 	var payment sqlcgen.Payment
+	var applications []sqlcgen.PaymentApplication
 	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
 		var err error
 		payment, err = q.CreatePayment(ctx, sqlcgen.CreatePaymentParams{
 			BusinessID:      req.GetBusinessId(),
 			ContactID:       req.GetContactId(),
-			InvoiceID:       req.InvoiceId,
 			PaymentType:     req.GetPaymentType(),
 			PaymentNumber:   req.GetPaymentNumber(),
 			PaymentDate:     datepb.ToPgDate(req.GetPaymentDate()),
@@ -936,8 +965,21 @@ func (s *paymentService) CreatePayment(ctx context.Context, req *avav1.CreatePay
 			return err
 		}
 
-		if req.InvoiceId != nil {
-			if _, err := q.ApplyPaymentToInvoice(ctx, sqlcgen.ApplyPaymentToInvoiceParams{ID: *req.InvoiceId, Amount: amountNum}); err != nil {
+		for i, app := range req.GetApplications() {
+			appliedNum, err := ledgermath.DecimalToNumeric(appliedAmounts[i])
+			if err != nil {
+				return err
+			}
+			application, err := q.CreatePaymentApplication(ctx, sqlcgen.CreatePaymentApplicationParams{
+				PaymentID:     payment.ID,
+				InvoiceID:     app.GetInvoiceId(),
+				AppliedAmount: appliedNum,
+			})
+			if err != nil {
+				return err
+			}
+			applications = append(applications, application)
+			if _, err := q.ApplyPaymentToInvoice(ctx, sqlcgen.ApplyPaymentToInvoiceParams{ID: app.GetInvoiceId(), Amount: appliedNum}); err != nil {
 				return err
 			}
 		}
@@ -958,7 +1000,7 @@ func (s *paymentService) CreatePayment(ctx context.Context, req *avav1.CreatePay
 		return nil, closeErrorStatus(err)
 	}
 
-	pb, err := paymentToProto(payment)
+	pb, err := paymentToProto(payment, applications)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting payment: %v", err)
 	}
@@ -1020,16 +1062,23 @@ func maybePostPayment(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 	return &txn.ID, nil
 }
 
-func paymentToProto(p sqlcgen.Payment) (*avav1.Payment, error) {
+func paymentToProto(p sqlcgen.Payment, applications []sqlcgen.PaymentApplication) (*avav1.Payment, error) {
 	amount, err := moneypb.ToProto(p.Amount)
 	if err != nil {
 		return nil, err
+	}
+	pbApplications := make([]*avav1.PaymentApplication, len(applications))
+	for i, a := range applications {
+		pb, err := paymentApplicationToProto(a)
+		if err != nil {
+			return nil, err
+		}
+		pbApplications[i] = pb
 	}
 	return &avav1.Payment{
 		Id:                  p.ID,
 		BusinessId:          p.BusinessID,
 		ContactId:           p.ContactID,
-		InvoiceId:           p.InvoiceID,
 		PaymentType:         p.PaymentType,
 		PaymentNumber:       p.PaymentNumber,
 		PaymentDate:         datepb.ToProto(p.PaymentDate),
@@ -1041,5 +1090,20 @@ func paymentToProto(p sqlcgen.Payment) (*avav1.Payment, error) {
 		LedgerTransactionId: p.LedgerTransactionID,
 		CreatedByUserId:     p.CreatedByUserID,
 		CreatedAt:           timestampProto(p.CreatedAt),
+		Applications:        pbApplications,
+	}, nil
+}
+
+func paymentApplicationToProto(a sqlcgen.PaymentApplication) (*avav1.PaymentApplication, error) {
+	appliedAmount, err := moneypb.ToProto(a.AppliedAmount)
+	if err != nil {
+		return nil, err
+	}
+	return &avav1.PaymentApplication{
+		Id:            a.ID,
+		PaymentId:     a.PaymentID,
+		InvoiceId:     a.InvoiceID,
+		AppliedAmount: appliedAmount,
+		CreatedAt:     timestampProto(a.CreatedAt),
 	}, nil
 }

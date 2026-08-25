@@ -57,6 +57,7 @@ func (q *Queries) ApplyPaymentToInvoice(ctx context.Context, arg ApplyPaymentToI
 }
 
 const createEstimate = `-- name: CreateEstimate :one
+
 INSERT INTO estimate (
     business_id, customer_id, estimate_number, estimate_date, expiration_date,
     subtotal, total_tax_amount, total_amount, notes, terms, created_by_user_id
@@ -80,6 +81,8 @@ type CreateEstimateParams struct {
 	CreatedByUserID *int64         `json:"created_by_user_id"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreateEstimate(ctx context.Context, arg CreateEstimateParams) (Estimate, error) {
 	row := q.db.QueryRow(ctx, createEstimate,
 		arg.BusinessID,
@@ -319,18 +322,17 @@ func (q *Queries) CreateInvoiceLineItem(ctx context.Context, arg CreateInvoiceLi
 
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payment (
-    business_id, contact_id, invoice_id, payment_type, payment_number, payment_date,
+    business_id, contact_id, payment_type, payment_number, payment_date,
     amount, payment_method, ledger_account_id, reference_number, notes, created_by_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, business_id, contact_id, invoice_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, contact_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
 `
 
 type CreatePaymentParams struct {
 	BusinessID      int64          `json:"business_id"`
 	ContactID       int64          `json:"contact_id"`
-	InvoiceID       *int64         `json:"invoice_id"`
 	PaymentType     string         `json:"payment_type"`
 	PaymentNumber   string         `json:"payment_number"`
 	PaymentDate     pgtype.Date    `json:"payment_date"`
@@ -346,7 +348,6 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 	row := q.db.QueryRow(ctx, createPayment,
 		arg.BusinessID,
 		arg.ContactID,
-		arg.InvoiceID,
 		arg.PaymentType,
 		arg.PaymentNumber,
 		arg.PaymentDate,
@@ -362,7 +363,6 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.ID,
 		&i.BusinessID,
 		&i.ContactID,
-		&i.InvoiceID,
 		&i.PaymentType,
 		&i.PaymentNumber,
 		&i.PaymentDate,
@@ -376,6 +376,31 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const createPaymentApplication = `-- name: CreatePaymentApplication :one
+INSERT INTO payment_application (payment_id, invoice_id, applied_amount)
+VALUES ($1, $2, $3)
+RETURNING id, payment_id, invoice_id, applied_amount, created_at
+`
+
+type CreatePaymentApplicationParams struct {
+	PaymentID     int64          `json:"payment_id"`
+	InvoiceID     int64          `json:"invoice_id"`
+	AppliedAmount pgtype.Numeric `json:"applied_amount"`
+}
+
+func (q *Queries) CreatePaymentApplication(ctx context.Context, arg CreatePaymentApplicationParams) (PaymentApplication, error) {
+	row := q.db.QueryRow(ctx, createPaymentApplication, arg.PaymentID, arg.InvoiceID, arg.AppliedAmount)
+	var i PaymentApplication
+	err := row.Scan(
+		&i.ID,
+		&i.PaymentID,
+		&i.InvoiceID,
+		&i.AppliedAmount,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -444,7 +469,7 @@ func (q *Queries) GetInvoice(ctx context.Context, id int64) (Invoice, error) {
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, business_id, contact_id, invoice_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM payment WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, contact_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM payment WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetPayment(ctx context.Context, id int64) (Payment, error) {
@@ -454,7 +479,6 @@ func (q *Queries) GetPayment(ctx context.Context, id int64) (Payment, error) {
 		&i.ID,
 		&i.BusinessID,
 		&i.ContactID,
-		&i.InvoiceID,
 		&i.PaymentType,
 		&i.PaymentNumber,
 		&i.PaymentDate,
@@ -700,8 +724,38 @@ func (q *Queries) ListInvoicesForContact(ctx context.Context, arg ListInvoicesFo
 	return items, nil
 }
 
+const listPaymentApplicationsForPayment = `-- name: ListPaymentApplicationsForPayment :many
+SELECT id, payment_id, invoice_id, applied_amount, created_at FROM payment_application WHERE payment_id = $1 ORDER BY id
+`
+
+func (q *Queries) ListPaymentApplicationsForPayment(ctx context.Context, paymentID int64) ([]PaymentApplication, error) {
+	rows, err := q.db.Query(ctx, listPaymentApplicationsForPayment, paymentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PaymentApplication
+	for rows.Next() {
+		var i PaymentApplication
+		if err := rows.Scan(
+			&i.ID,
+			&i.PaymentID,
+			&i.InvoiceID,
+			&i.AppliedAmount,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPayments = `-- name: ListPayments :many
-SELECT id, business_id, contact_id, invoice_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM payment WHERE business_id = $1 AND deleted_at IS NULL ORDER BY payment_date DESC
+SELECT id, business_id, contact_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM payment WHERE business_id = $1 AND deleted_at IS NULL ORDER BY payment_date DESC
 `
 
 func (q *Queries) ListPayments(ctx context.Context, businessID int64) ([]Payment, error) {
@@ -717,7 +771,6 @@ func (q *Queries) ListPayments(ctx context.Context, businessID int64) ([]Payment
 			&i.ID,
 			&i.BusinessID,
 			&i.ContactID,
-			&i.InvoiceID,
 			&i.PaymentType,
 			&i.PaymentNumber,
 			&i.PaymentDate,
@@ -743,7 +796,7 @@ func (q *Queries) ListPayments(ctx context.Context, businessID int64) ([]Payment
 }
 
 const listPaymentsForContact = `-- name: ListPaymentsForContact :many
-SELECT id, business_id, contact_id, invoice_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM payment
+SELECT id, business_id, contact_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM payment
 WHERE contact_id = $1 AND deleted_at IS NULL
     AND payment_date BETWEEN $2 AND $3
 ORDER BY payment_date
@@ -768,7 +821,6 @@ func (q *Queries) ListPaymentsForContact(ctx context.Context, arg ListPaymentsFo
 			&i.ID,
 			&i.BusinessID,
 			&i.ContactID,
-			&i.InvoiceID,
 			&i.PaymentType,
 			&i.PaymentNumber,
 			&i.PaymentDate,
@@ -837,7 +889,7 @@ func (q *Queries) SetInvoiceLedgerTransaction(ctx context.Context, arg SetInvoic
 const setPaymentLedgerTransaction = `-- name: SetPaymentLedgerTransaction :one
 UPDATE payment SET ledger_transaction_id = $2, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, contact_id, invoice_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, contact_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
 `
 
 type SetPaymentLedgerTransactionParams struct {
@@ -852,7 +904,6 @@ func (q *Queries) SetPaymentLedgerTransaction(ctx context.Context, arg SetPaymen
 		&i.ID,
 		&i.BusinessID,
 		&i.ContactID,
-		&i.InvoiceID,
 		&i.PaymentType,
 		&i.PaymentNumber,
 		&i.PaymentDate,

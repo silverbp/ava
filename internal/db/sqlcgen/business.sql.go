@@ -50,6 +50,7 @@ func (q *Queries) ConsumeNextInvoiceNumber(ctx context.Context, id int64) (Consu
 }
 
 const createBusiness = `-- name: CreateBusiness :one
+
 INSERT INTO business (
     name, tax_id, address_line1, address_line2, city, state, postal_code,
     country, phone, email, created_by_user_id
@@ -73,6 +74,8 @@ type CreateBusinessParams struct {
 	CreatedByUserID *int64  `json:"created_by_user_id"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) (Business, error) {
 	row := q.db.QueryRow(ctx, createBusiness,
 		arg.Name,

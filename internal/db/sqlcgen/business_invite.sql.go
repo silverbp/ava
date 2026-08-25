@@ -42,6 +42,7 @@ func (q *Queries) AcceptBusinessInvite(ctx context.Context, arg AcceptBusinessIn
 }
 
 const createBusinessInvite = `-- name: CreateBusinessInvite :one
+
 INSERT INTO business_invite (business_id, email, role, token_hash, invited_by_user_id, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, business_id, email, role, token_hash, invited_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id, revoked_at
@@ -56,6 +57,8 @@ type CreateBusinessInviteParams struct {
 	ExpiresAt       pgtype.Timestamp `json:"expires_at"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreateBusinessInvite(ctx context.Context, arg CreateBusinessInviteParams) (BusinessInvite, error) {
 	row := q.db.QueryRow(ctx, createBusinessInvite,
 		arg.BusinessID,

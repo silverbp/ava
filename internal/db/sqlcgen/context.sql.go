@@ -64,6 +64,7 @@ func (q *Queries) CreateAttachment(ctx context.Context, arg CreateAttachmentPara
 }
 
 const createEntityContext = `-- name: CreateEntityContext :one
+
 INSERT INTO entity_context (
     business_id, entity_type, entity_id, context_type, content, metadata,
     source, confidence, created_by_user_id
@@ -85,6 +86,8 @@ type CreateEntityContextParams struct {
 	CreatedByUserID *int64         `json:"created_by_user_id"`
 }
 
+// Copyright (c) 2025 Casey Entzi
+// SPDX-License-Identifier: MIT
 func (q *Queries) CreateEntityContext(ctx context.Context, arg CreateEntityContextParams) (EntityContext, error) {
 	row := q.db.QueryRow(ctx, createEntityContext,
 		arg.BusinessID,

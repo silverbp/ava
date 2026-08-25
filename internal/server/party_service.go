@@ -256,22 +256,18 @@ func (s *serviceCatalogService) CreateService(ctx context.Context, req *avav1.Cr
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid retail_price: %v", err)
 	}
-	defaultTaxRate, err := moneypb.ToNumeric(req.DefaultTaxRate)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid default_tax_rate: %v", err)
-	}
 
 	created, err := s.store.Queries.CreateService(ctx, sqlcgen.CreateServiceParams{
-		BusinessID:      req.GetBusinessId(),
-		ServiceCode:     req.GetServiceCode(),
-		Name:            req.GetName(),
-		Description:     req.Description,
-		UnitOfMeasure:   req.UnitOfMeasure,
-		CostPrice:       costPrice,
-		RetailPrice:     retailPrice,
-		IsTaxable:       req.GetIsTaxable(),
-		DefaultTaxRate:  defaultTaxRate,
-		CreatedByUserID: &u.ID,
+		BusinessID:       req.GetBusinessId(),
+		ServiceCode:      req.GetServiceCode(),
+		Name:             req.GetName(),
+		Description:      req.Description,
+		UnitOfMeasure:    req.UnitOfMeasure,
+		CostPrice:        costPrice,
+		RetailPrice:      retailPrice,
+		IsTaxable:        req.GetIsTaxable(),
+		DefaultTaxRateID: req.DefaultTaxRateId,
+		CreatedByUserID:  &u.ID,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -303,19 +299,15 @@ func (s *serviceCatalogService) UpdateService(ctx context.Context, req *avav1.Up
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cost_price: %v", err)
 	}
-	defaultTaxRate, err := moneypb.ToNumeric(req.DefaultTaxRate)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid default_tax_rate: %v", err)
-	}
 
 	updated, err := s.store.Queries.UpdateService(ctx, sqlcgen.UpdateServiceParams{
-		ID:             req.GetId(),
-		Name:           req.Name,
-		Description:    req.Description,
-		RetailPrice:    retailPrice,
-		CostPrice:      costPrice,
-		IsTaxable:      req.IsTaxable,
-		DefaultTaxRate: defaultTaxRate,
+		ID:               req.GetId(),
+		Name:             req.Name,
+		Description:      req.Description,
+		RetailPrice:      retailPrice,
+		CostPrice:        costPrice,
+		IsTaxable:        req.IsTaxable,
+		DefaultTaxRateID: req.DefaultTaxRateId,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -358,25 +350,21 @@ func serviceToProto(svc sqlcgen.Service) (*avav1.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	defaultTaxRate, err := moneypb.ToProto(svc.DefaultTaxRate)
-	if err != nil {
-		return nil, err
-	}
 	return &avav1.Service{
-		Id:              svc.ID,
-		BusinessId:      svc.BusinessID,
-		ServiceCode:     svc.ServiceCode,
-		Name:            svc.Name,
-		Description:     svc.Description,
-		UnitOfMeasure:   derefOr(svc.UnitOfMeasure, "EACH"),
-		CostPrice:       costPrice,
-		RetailPrice:     retailPrice,
-		IsTaxable:       svc.IsTaxable,
-		DefaultTaxRate:  defaultTaxRate,
-		IsActive:        svc.IsActive,
-		CreatedByUserId: svc.CreatedByUserID,
-		CreatedAt:       timestampProto(svc.CreatedAt),
-		UpdatedAt:       timestampProto(svc.UpdatedAt),
+		Id:               svc.ID,
+		BusinessId:       svc.BusinessID,
+		ServiceCode:      svc.ServiceCode,
+		Name:             svc.Name,
+		Description:      svc.Description,
+		UnitOfMeasure:    derefOr(svc.UnitOfMeasure, "EACH"),
+		CostPrice:        costPrice,
+		RetailPrice:      retailPrice,
+		IsTaxable:        svc.IsTaxable,
+		DefaultTaxRateId: svc.DefaultTaxRateID,
+		IsActive:         svc.IsActive,
+		CreatedByUserId:  svc.CreatedByUserID,
+		CreatedAt:        timestampProto(svc.CreatedAt),
+		UpdatedAt:        timestampProto(svc.UpdatedAt),
 	}, nil
 }
 

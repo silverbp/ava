@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -105,6 +106,14 @@ func init() {
 			{Header: "AMOUNT", Value: func(v proto.Message) string { return v.(*avav1.Payment).GetAmount().GetValue() }},
 			{Header: "METHOD", Value: func(v proto.Message) string { return v.(*avav1.Payment).GetPaymentMethod() }},
 			{Header: "POSTED", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Payment).LedgerTransactionId != nil) }},
+			{Header: "INVOICES", Value: func(v proto.Message) string {
+				apps := v.(*avav1.Payment).GetApplications()
+				ids := make([]string, len(apps))
+				for i, a := range apps {
+					ids[i] = fmt.Sprintf("%d", a.GetInvoiceId())
+				}
+				return strings.Join(ids, ",")
+			}},
 		},
 		Get: func(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
 			n, err := strconv.ParseInt(id, 10, 64)

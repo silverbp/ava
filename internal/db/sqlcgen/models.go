@@ -314,7 +314,6 @@ type Payment struct {
 	ID                  int64            `json:"id"`
 	BusinessID          int64            `json:"business_id"`
 	ContactID           int64            `json:"contact_id"`
-	InvoiceID           *int64           `json:"invoice_id"`
 	PaymentType         string           `json:"payment_type"`
 	PaymentNumber       string           `json:"payment_number"`
 	PaymentDate         pgtype.Date      `json:"payment_date"`
@@ -328,6 +327,14 @@ type Payment struct {
 	CreatedAt           pgtype.Timestamp `json:"created_at"`
 	UpdatedAt           pgtype.Timestamp `json:"updated_at"`
 	DeletedAt           pgtype.Timestamp `json:"deleted_at"`
+}
+
+type PaymentApplication struct {
+	ID            int64            `json:"id"`
+	PaymentID     int64            `json:"payment_id"`
+	InvoiceID     int64            `json:"invoice_id"`
+	AppliedAmount pgtype.Numeric   `json:"applied_amount"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
 }
 
 type PeriodClose struct {
@@ -350,21 +357,21 @@ type PeriodCloseEntry struct {
 }
 
 type Service struct {
-	ID              int64            `json:"id"`
-	BusinessID      int64            `json:"business_id"`
-	ServiceCode     string           `json:"service_code"`
-	Name            string           `json:"name"`
-	Description     *string          `json:"description"`
-	UnitOfMeasure   *string          `json:"unit_of_measure"`
-	CostPrice       pgtype.Numeric   `json:"cost_price"`
-	RetailPrice     pgtype.Numeric   `json:"retail_price"`
-	IsTaxable       bool             `json:"is_taxable"`
-	DefaultTaxRate  pgtype.Numeric   `json:"default_tax_rate"`
-	IsActive        bool             `json:"is_active"`
-	CreatedByUserID *int64           `json:"created_by_user_id"`
-	CreatedAt       pgtype.Timestamp `json:"created_at"`
-	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
-	DeletedAt       pgtype.Timestamp `json:"deleted_at"`
+	ID               int64            `json:"id"`
+	BusinessID       int64            `json:"business_id"`
+	ServiceCode      string           `json:"service_code"`
+	Name             string           `json:"name"`
+	Description      *string          `json:"description"`
+	UnitOfMeasure    *string          `json:"unit_of_measure"`
+	CostPrice        pgtype.Numeric   `json:"cost_price"`
+	RetailPrice      pgtype.Numeric   `json:"retail_price"`
+	IsTaxable        bool             `json:"is_taxable"`
+	IsActive         bool             `json:"is_active"`
+	CreatedByUserID  *int64           `json:"created_by_user_id"`
+	CreatedAt        pgtype.Timestamp `json:"created_at"`
+	UpdatedAt        pgtype.Timestamp `json:"updated_at"`
+	DeletedAt        pgtype.Timestamp `json:"deleted_at"`
+	DefaultTaxRateID *int64           `json:"default_tax_rate_id"`
 }
 
 type TaxRate struct {

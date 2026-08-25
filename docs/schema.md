@@ -153,6 +153,7 @@ erDiagram
     business ||--o{ contact : "business_id"
     ledger_account |o--o{ contact : "ledger_account_id"
     business ||--o{ service : "business_id"
+    tax_rate |o--o{ service : "default_tax_rate_id"
     business ||--o{ estimate : "business_id"
     contact ||--o{ estimate : "customer_id"
     estimate ||--o{ estimate_line_item : "estimate_id"
@@ -168,9 +169,10 @@ erDiagram
     ledger_transaction |o--o{ invoice : "ledger_transaction_id"
     business ||--o{ payment : "business_id"
     contact ||--o{ payment : "contact_id"
-    invoice |o--o{ payment : "invoice_id"
     ledger_account |o--o{ payment : "ledger_account_id"
     ledger_transaction |o--o{ payment : "ledger_transaction_id"
+    payment ||--o{ payment_application : "payment_id"
+    invoice ||--o{ payment_application : "invoice_id"
     business ||--o{ tax_rate : "business_id"
     ledger_account ||--o{ tax_rate : "tax_liability_account_id"
     tax_rate |o--o{ ledger_account : "default_tax_rate_id"
@@ -193,6 +195,7 @@ erDiagram
     service {
         bigint id PK
         bigint business_id FK
+        bigint default_tax_rate_id FK
         varchar service_code UK
         decimal retail_price
         decimal cost_price
@@ -248,12 +251,17 @@ erDiagram
         bigint id PK
         bigint business_id FK
         bigint contact_id FK
-        bigint invoice_id FK
         varchar payment_type "RECEIVED or MADE"
         varchar payment_number UK
         decimal amount
         int ledger_account_id FK
         bigint ledger_transaction_id FK
+    }
+    payment_application {
+        bigint id PK
+        bigint payment_id FK
+        bigint invoice_id FK
+        decimal applied_amount
     }
 ```
 
@@ -277,15 +285,23 @@ erDiagram
   `service` or `business`, matching the existing `contact.ledger_account_id` pattern. An invoice
   posts atomically at creation once every line has this set and its `contact` has its own
   `ledger_account_id` (the AR/AP side); otherwise it stays an unposted document.
-- **`payment`** — generalized via `payment_type` (RECEIVED / MADE), tracked independently of
-  `invoice_id` — which stays nullable, since a deposit or on-account payment can exist before
-  it's applied to any specific invoice. `ledger_account_id` is the cash/bank account a posted
-  payment hit (the other side of the contact's AR/AP account); `ledger_transaction_id` links
-  back to that posting, same nullable-until-posted convention as `invoice`.
-- **`tax_rate`** — a named rate (e.g. "Standard 20%") tied to its own liability account. Both
-  `ledger_account.default_tax_rate_id` and each line item's `tax_rate_id` reference it; a line
-  item's own `tax_rate` / `tax_amount` columns still snapshot the rate actually applied, so a
-  later change here never rewrites history.
+- **`payment`** — generalized via `payment_type` (RECEIVED / MADE). Applying it to an invoice is
+  independent of the payment itself: zero, one, or several `payment_application` rows (each with
+  its own `applied_amount`) let one deposit cover several invoices at once, rather than the
+  one-payment-one-invoice limit a single nullable `invoice_id` would impose. `ledger_account_id`
+  is the cash/bank account a posted payment hit (the other side of the contact's AR/AP account);
+  `ledger_transaction_id` links back to that posting, same nullable-until-posted convention as
+  `invoice`.
+- **`payment_application`** — join table between `payment` and `invoice`; `applied_amount` is
+  how much of the payment went to that invoice specifically. The sum across one payment's
+  applications can't exceed its `amount` (a payment may be partially or fully unapplied, never
+  over-applied).
+- **`tax_rate`** — a named rate (e.g. "Standard 20%") tied to its own liability account.
+  `ledger_account.default_tax_rate_id`, `service.default_tax_rate_id`, and each line item's
+  `tax_rate_id` all reference it. A line item's own `tax_rate` / `tax_amount` columns still
+  snapshot the rate actually applied at the time, so a later change to `tax_rate` never rewrites
+  history — `service.default_tax_rate_id` doesn't need that same snapshot, since a service is
+  catalog data, not a historical transaction.
 
 ## 3. Users & Auth
 
@@ -368,8 +384,8 @@ erDiagram
   not just scoped to a business. Stays nullable everywhere — period-close
   postings and any future legacy import have no acting user. Child rows
   (line items, `ledger_entry`, `period_close_entry`,
-  `bank_statement_line`) don't get their own column; they inherit
-  attribution from their parent.
+  `bank_statement_line`, `payment_application`) don't get their own column;
+  they inherit attribution from their parent.
 
 ## 4. Banking, AI Context & Attachments
 
