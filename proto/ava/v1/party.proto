@@ -50,6 +50,12 @@ message Contact {
   optional int64 created_by_user_id = 13;
   google.protobuf.Timestamp created_at = 14;
   google.protobuf.Timestamp updated_at = 15;
+  optional string billing_address_line1 = 16;
+  optional string billing_address_line2 = 17;
+  optional string billing_city = 18;
+  optional string billing_state = 19;
+  optional string billing_postal_code = 20;
+  optional string billing_country = 21;
 }
 
 message GetContactRequest {
@@ -79,6 +85,12 @@ message CreateContactRequest {
   optional string phone = 8;
   optional int32 payment_terms_days = 9;
   optional Decimal credit_limit = 10;
+  optional string billing_address_line1 = 11;
+  optional string billing_address_line2 = 12;
+  optional string billing_city = 13;
+  optional string billing_state = 14;
+  optional string billing_postal_code = 15;
+  optional string billing_country = 16;
 }
 
 message CreateContactResponse {
@@ -93,6 +105,12 @@ message UpdateContactRequest {
   optional int32 ledger_account_id = 5;
   optional int32 payment_terms_days = 6;
   optional Decimal credit_limit = 7;
+  optional string billing_address_line1 = 8;
+  optional string billing_address_line2 = 9;
+  optional string billing_city = 10;
+  optional string billing_state = 11;
+  optional string billing_postal_code = 12;
+  optional string billing_country = 13;
 }
 
 message UpdateContactResponse {

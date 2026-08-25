@@ -366,12 +366,12 @@ type Service struct {
 	CostPrice        pgtype.Numeric   `json:"cost_price"`
 	RetailPrice      pgtype.Numeric   `json:"retail_price"`
 	IsTaxable        bool             `json:"is_taxable"`
+	DefaultTaxRateID *int64           `json:"default_tax_rate_id"`
 	IsActive         bool             `json:"is_active"`
 	CreatedByUserID  *int64           `json:"created_by_user_id"`
 	CreatedAt        pgtype.Timestamp `json:"created_at"`
 	UpdatedAt        pgtype.Timestamp `json:"updated_at"`
 	DeletedAt        pgtype.Timestamp `json:"deleted_at"`
-	DefaultTaxRateID *int64           `json:"default_tax_rate_id"`
 }
 
 type TaxRate struct {

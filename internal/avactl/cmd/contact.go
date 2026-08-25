@@ -82,6 +82,7 @@ func newContactCreateCmd() *cobra.Command {
 	var ledgerAccount, paymentTerms int32
 	var isCustomer, isVendor bool
 	var creditLimit string
+	var addr1, addr2, city, state, postal, country string
 
 	cmd := &cobra.Command{
 		Use:  "create",
@@ -115,6 +116,24 @@ func newContactCreateCmd() *cobra.Command {
 			if creditLimit != "" {
 				req.CreditLimit = &avav1.Decimal{Value: creditLimit}
 			}
+			if addr1 != "" {
+				req.BillingAddressLine1 = &addr1
+			}
+			if addr2 != "" {
+				req.BillingAddressLine2 = &addr2
+			}
+			if city != "" {
+				req.BillingCity = &city
+			}
+			if state != "" {
+				req.BillingState = &state
+			}
+			if postal != "" {
+				req.BillingPostalCode = &postal
+			}
+			if country != "" {
+				req.BillingCountry = &country
+			}
 
 			resp, err := avav1.NewContactServiceClient(conn).CreateContact(cmd.Context(), req)
 			if err != nil {
@@ -132,6 +151,12 @@ func newContactCreateCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&ledgerAccount, "ledger-account", 0, "this contact's AR/AP ledger account id, for posting invoices/payments")
 	cmd.Flags().Int32Var(&paymentTerms, "payment-terms", 0, "default payment terms, in days")
 	cmd.Flags().StringVar(&creditLimit, "credit-limit", "", "credit limit")
+	cmd.Flags().StringVar(&addr1, "address1", "", "billing address line 1")
+	cmd.Flags().StringVar(&addr2, "address2", "", "billing address line 2")
+	cmd.Flags().StringVar(&city, "city", "", "billing city")
+	cmd.Flags().StringVar(&state, "state", "", "billing state/province")
+	cmd.Flags().StringVar(&postal, "postal-code", "", "billing postal code")
+	cmd.Flags().StringVar(&country, "country", "", "billing country")
 	_ = cmd.MarkFlagRequired("contact-number")
 	_ = cmd.MarkFlagRequired("name")
 	resource.Doc{
@@ -145,6 +170,7 @@ func newContactUpdateCmd() *cobra.Command {
 	var name, email, phone string
 	var ledgerAccount, paymentTerms int32
 	var creditLimit string
+	var addr1, addr2, city, state, postal, country string
 
 	cmd := &cobra.Command{
 		Use:  "update <id>",
@@ -179,6 +205,24 @@ func newContactUpdateCmd() *cobra.Command {
 			if cmd.Flags().Changed("credit-limit") {
 				req.CreditLimit = &avav1.Decimal{Value: creditLimit}
 			}
+			if cmd.Flags().Changed("address1") {
+				req.BillingAddressLine1 = &addr1
+			}
+			if cmd.Flags().Changed("address2") {
+				req.BillingAddressLine2 = &addr2
+			}
+			if cmd.Flags().Changed("city") {
+				req.BillingCity = &city
+			}
+			if cmd.Flags().Changed("state") {
+				req.BillingState = &state
+			}
+			if cmd.Flags().Changed("postal-code") {
+				req.BillingPostalCode = &postal
+			}
+			if cmd.Flags().Changed("country") {
+				req.BillingCountry = &country
+			}
 
 			resp, err := avav1.NewContactServiceClient(conn).UpdateContact(cmd.Context(), req)
 			if err != nil {
@@ -193,6 +237,12 @@ func newContactUpdateCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&ledgerAccount, "ledger-account", 0, "new AR/AP ledger account id")
 	cmd.Flags().Int32Var(&paymentTerms, "payment-terms", 0, "new default payment terms, in days")
 	cmd.Flags().StringVar(&creditLimit, "credit-limit", "", "new credit limit")
+	cmd.Flags().StringVar(&addr1, "address1", "", "new billing address line 1")
+	cmd.Flags().StringVar(&addr2, "address2", "", "new billing address line 2")
+	cmd.Flags().StringVar(&city, "city", "", "new billing city")
+	cmd.Flags().StringVar(&state, "state", "", "new billing state/province")
+	cmd.Flags().StringVar(&postal, "postal-code", "", "new billing postal code")
+	cmd.Flags().StringVar(&country, "country", "", "new billing country")
 	resource.Doc{
 		Summary:  "Update a contact",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

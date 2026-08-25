@@ -84,17 +84,23 @@ func (s *contactService) CreateContact(ctx context.Context, req *avav1.CreateCon
 	}
 
 	created, err := s.store.Queries.CreateContact(ctx, sqlcgen.CreateContactParams{
-		BusinessID:       req.GetBusinessId(),
-		LedgerAccountID:  req.LedgerAccountId,
-		ContactNumber:    req.GetContactNumber(),
-		IsCustomer:       req.GetIsCustomer(),
-		IsVendor:         req.GetIsVendor(),
-		Name:             req.GetName(),
-		Email:            req.Email,
-		Phone:            req.Phone,
-		PaymentTermsDays: req.PaymentTermsDays,
-		CreditLimit:      creditLimit,
-		CreatedByUserID:  &u.ID,
+		BusinessID:          req.GetBusinessId(),
+		LedgerAccountID:     req.LedgerAccountId,
+		ContactNumber:       req.GetContactNumber(),
+		IsCustomer:          req.GetIsCustomer(),
+		IsVendor:            req.GetIsVendor(),
+		Name:                req.GetName(),
+		Email:               req.Email,
+		Phone:               req.Phone,
+		PaymentTermsDays:    req.PaymentTermsDays,
+		CreditLimit:         creditLimit,
+		CreatedByUserID:     &u.ID,
+		BillingAddressLine1: req.BillingAddressLine1,
+		BillingAddressLine2: req.BillingAddressLine2,
+		BillingCity:         req.BillingCity,
+		BillingState:        req.BillingState,
+		BillingPostalCode:   req.BillingPostalCode,
+		BillingCountry:      req.BillingCountry,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -124,13 +130,19 @@ func (s *contactService) UpdateContact(ctx context.Context, req *avav1.UpdateCon
 	}
 
 	updated, err := s.store.Queries.UpdateContact(ctx, sqlcgen.UpdateContactParams{
-		ID:               req.GetId(),
-		Name:             req.Name,
-		Email:            req.Email,
-		Phone:            req.Phone,
-		LedgerAccountID:  req.LedgerAccountId,
-		PaymentTermsDays: req.PaymentTermsDays,
-		CreditLimit:      creditLimit,
+		ID:                  req.GetId(),
+		Name:                req.Name,
+		Email:               req.Email,
+		Phone:               req.Phone,
+		LedgerAccountID:     req.LedgerAccountId,
+		PaymentTermsDays:    req.PaymentTermsDays,
+		CreditLimit:         creditLimit,
+		BillingAddressLine1: req.BillingAddressLine1,
+		BillingAddressLine2: req.BillingAddressLine2,
+		BillingCity:         req.BillingCity,
+		BillingState:        req.BillingState,
+		BillingPostalCode:   req.BillingPostalCode,
+		BillingCountry:      req.BillingCountry,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -170,21 +182,27 @@ func contactToProto(c sqlcgen.Contact) (*avav1.Contact, error) {
 		return nil, err
 	}
 	return &avav1.Contact{
-		Id:               c.ID,
-		BusinessId:       c.BusinessID,
-		LedgerAccountId:  c.LedgerAccountID,
-		ContactNumber:    c.ContactNumber,
-		IsCustomer:       c.IsCustomer,
-		IsVendor:         c.IsVendor,
-		Name:             c.Name,
-		Email:            c.Email,
-		Phone:            c.Phone,
-		PaymentTermsDays: c.PaymentTermsDays,
-		CreditLimit:      creditLimit,
-		IsActive:         c.IsActive,
-		CreatedByUserId:  c.CreatedByUserID,
-		CreatedAt:        timestampProto(c.CreatedAt),
-		UpdatedAt:        timestampProto(c.UpdatedAt),
+		Id:                  c.ID,
+		BusinessId:          c.BusinessID,
+		LedgerAccountId:     c.LedgerAccountID,
+		ContactNumber:       c.ContactNumber,
+		IsCustomer:          c.IsCustomer,
+		IsVendor:            c.IsVendor,
+		Name:                c.Name,
+		Email:               c.Email,
+		Phone:               c.Phone,
+		PaymentTermsDays:    c.PaymentTermsDays,
+		CreditLimit:         creditLimit,
+		IsActive:            c.IsActive,
+		CreatedByUserId:     c.CreatedByUserID,
+		CreatedAt:           timestampProto(c.CreatedAt),
+		UpdatedAt:           timestampProto(c.UpdatedAt),
+		BillingAddressLine1: c.BillingAddressLine1,
+		BillingAddressLine2: c.BillingAddressLine2,
+		BillingCity:         c.BillingCity,
+		BillingState:        c.BillingState,
+		BillingPostalCode:   c.BillingPostalCode,
+		BillingCountry:      c.BillingCountry,
 	}, nil
 }
 

@@ -4,9 +4,11 @@
 -- name: CreateContact :one
 INSERT INTO contact (
     business_id, ledger_account_id, contact_number, is_customer, is_vendor, name,
-    email, phone, payment_terms_days, credit_limit, created_by_user_id
+    email, phone, payment_terms_days, credit_limit, created_by_user_id,
+    billing_address_line1, billing_address_line2, billing_city, billing_state,
+    billing_postal_code, billing_country
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 )
 RETURNING *;
 
@@ -24,6 +26,12 @@ UPDATE contact SET
     ledger_account_id = COALESCE(sqlc.narg('ledger_account_id'), ledger_account_id),
     payment_terms_days = COALESCE(sqlc.narg('payment_terms_days'), payment_terms_days),
     credit_limit = COALESCE(sqlc.narg('credit_limit'), credit_limit),
+    billing_address_line1 = COALESCE(sqlc.narg('billing_address_line1'), billing_address_line1),
+    billing_address_line2 = COALESCE(sqlc.narg('billing_address_line2'), billing_address_line2),
+    billing_city = COALESCE(sqlc.narg('billing_city'), billing_city),
+    billing_state = COALESCE(sqlc.narg('billing_state'), billing_state),
+    billing_postal_code = COALESCE(sqlc.narg('billing_postal_code'), billing_postal_code),
+    billing_country = COALESCE(sqlc.narg('billing_country'), billing_country),
     updated_at = NOW()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
 RETURNING *;

@@ -26,24 +26,30 @@ const (
 )
 
 type Contact struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	BusinessId       int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	LedgerAccountId  *int32                 `protobuf:"varint,3,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
-	ContactNumber    string                 `protobuf:"bytes,4,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
-	IsCustomer       bool                   `protobuf:"varint,5,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
-	IsVendor         bool                   `protobuf:"varint,6,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
-	Name             string                 `protobuf:"bytes,7,opt,name=name,proto3" json:"name,omitempty"`
-	Email            *string                `protobuf:"bytes,8,opt,name=email,proto3,oneof" json:"email,omitempty"`
-	Phone            *string                `protobuf:"bytes,9,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
-	PaymentTermsDays *int32                 `protobuf:"varint,10,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
-	CreditLimit      *Decimal               `protobuf:"bytes,11,opt,name=credit_limit,json=creditLimit,proto3" json:"credit_limit,omitempty"`
-	IsActive         bool                   `protobuf:"varint,12,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	CreatedByUserId  *int64                 `protobuf:"varint,13,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BusinessId          int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	LedgerAccountId     *int32                 `protobuf:"varint,3,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
+	ContactNumber       string                 `protobuf:"bytes,4,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
+	IsCustomer          bool                   `protobuf:"varint,5,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
+	IsVendor            bool                   `protobuf:"varint,6,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
+	Name                string                 `protobuf:"bytes,7,opt,name=name,proto3" json:"name,omitempty"`
+	Email               *string                `protobuf:"bytes,8,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	Phone               *string                `protobuf:"bytes,9,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
+	PaymentTermsDays    *int32                 `protobuf:"varint,10,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
+	CreditLimit         *Decimal               `protobuf:"bytes,11,opt,name=credit_limit,json=creditLimit,proto3" json:"credit_limit,omitempty"`
+	IsActive            bool                   `protobuf:"varint,12,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	CreatedByUserId     *int64                 `protobuf:"varint,13,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
+	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	BillingAddressLine1 *string                `protobuf:"bytes,16,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
+	BillingAddressLine2 *string                `protobuf:"bytes,17,opt,name=billing_address_line2,json=billingAddressLine2,proto3,oneof" json:"billing_address_line2,omitempty"`
+	BillingCity         *string                `protobuf:"bytes,18,opt,name=billing_city,json=billingCity,proto3,oneof" json:"billing_city,omitempty"`
+	BillingState        *string                `protobuf:"bytes,19,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
+	BillingPostalCode   *string                `protobuf:"bytes,20,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
+	BillingCountry      *string                `protobuf:"bytes,21,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Contact) Reset() {
@@ -179,6 +185,48 @@ func (x *Contact) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Contact) GetBillingAddressLine1() string {
+	if x != nil && x.BillingAddressLine1 != nil {
+		return *x.BillingAddressLine1
+	}
+	return ""
+}
+
+func (x *Contact) GetBillingAddressLine2() string {
+	if x != nil && x.BillingAddressLine2 != nil {
+		return *x.BillingAddressLine2
+	}
+	return ""
+}
+
+func (x *Contact) GetBillingCity() string {
+	if x != nil && x.BillingCity != nil {
+		return *x.BillingCity
+	}
+	return ""
+}
+
+func (x *Contact) GetBillingState() string {
+	if x != nil && x.BillingState != nil {
+		return *x.BillingState
+	}
+	return ""
+}
+
+func (x *Contact) GetBillingPostalCode() string {
+	if x != nil && x.BillingPostalCode != nil {
+		return *x.BillingPostalCode
+	}
+	return ""
+}
+
+func (x *Contact) GetBillingCountry() string {
+	if x != nil && x.BillingCountry != nil {
+		return *x.BillingCountry
+	}
+	return ""
 }
 
 type GetContactRequest struct {
@@ -358,19 +406,25 @@ func (x *ListContactsResponse) GetContacts() []*Contact {
 }
 
 type CreateContactRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId       int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	LedgerAccountId  *int32                 `protobuf:"varint,2,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
-	ContactNumber    string                 `protobuf:"bytes,3,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
-	IsCustomer       bool                   `protobuf:"varint,4,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
-	IsVendor         bool                   `protobuf:"varint,5,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
-	Name             string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
-	Email            *string                `protobuf:"bytes,7,opt,name=email,proto3,oneof" json:"email,omitempty"`
-	Phone            *string                `protobuf:"bytes,8,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
-	PaymentTermsDays *int32                 `protobuf:"varint,9,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
-	CreditLimit      *Decimal               `protobuf:"bytes,10,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId          int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	LedgerAccountId     *int32                 `protobuf:"varint,2,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
+	ContactNumber       string                 `protobuf:"bytes,3,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
+	IsCustomer          bool                   `protobuf:"varint,4,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
+	IsVendor            bool                   `protobuf:"varint,5,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
+	Name                string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Email               *string                `protobuf:"bytes,7,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	Phone               *string                `protobuf:"bytes,8,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
+	PaymentTermsDays    *int32                 `protobuf:"varint,9,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
+	CreditLimit         *Decimal               `protobuf:"bytes,10,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
+	BillingAddressLine1 *string                `protobuf:"bytes,11,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
+	BillingAddressLine2 *string                `protobuf:"bytes,12,opt,name=billing_address_line2,json=billingAddressLine2,proto3,oneof" json:"billing_address_line2,omitempty"`
+	BillingCity         *string                `protobuf:"bytes,13,opt,name=billing_city,json=billingCity,proto3,oneof" json:"billing_city,omitempty"`
+	BillingState        *string                `protobuf:"bytes,14,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
+	BillingPostalCode   *string                `protobuf:"bytes,15,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
+	BillingCountry      *string                `protobuf:"bytes,16,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateContactRequest) Reset() {
@@ -473,6 +527,48 @@ func (x *CreateContactRequest) GetCreditLimit() *Decimal {
 	return nil
 }
 
+func (x *CreateContactRequest) GetBillingAddressLine1() string {
+	if x != nil && x.BillingAddressLine1 != nil {
+		return *x.BillingAddressLine1
+	}
+	return ""
+}
+
+func (x *CreateContactRequest) GetBillingAddressLine2() string {
+	if x != nil && x.BillingAddressLine2 != nil {
+		return *x.BillingAddressLine2
+	}
+	return ""
+}
+
+func (x *CreateContactRequest) GetBillingCity() string {
+	if x != nil && x.BillingCity != nil {
+		return *x.BillingCity
+	}
+	return ""
+}
+
+func (x *CreateContactRequest) GetBillingState() string {
+	if x != nil && x.BillingState != nil {
+		return *x.BillingState
+	}
+	return ""
+}
+
+func (x *CreateContactRequest) GetBillingPostalCode() string {
+	if x != nil && x.BillingPostalCode != nil {
+		return *x.BillingPostalCode
+	}
+	return ""
+}
+
+func (x *CreateContactRequest) GetBillingCountry() string {
+	if x != nil && x.BillingCountry != nil {
+		return *x.BillingCountry
+	}
+	return ""
+}
+
 type CreateContactResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Contact       *Contact               `protobuf:"bytes,1,opt,name=contact,proto3" json:"contact,omitempty"`
@@ -518,16 +614,22 @@ func (x *CreateContactResponse) GetContact() *Contact {
 }
 
 type UpdateContactRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name             *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Email            *string                `protobuf:"bytes,3,opt,name=email,proto3,oneof" json:"email,omitempty"`
-	Phone            *string                `protobuf:"bytes,4,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
-	LedgerAccountId  *int32                 `protobuf:"varint,5,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
-	PaymentTermsDays *int32                 `protobuf:"varint,6,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
-	CreditLimit      *Decimal               `protobuf:"bytes,7,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Email               *string                `protobuf:"bytes,3,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	Phone               *string                `protobuf:"bytes,4,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
+	LedgerAccountId     *int32                 `protobuf:"varint,5,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
+	PaymentTermsDays    *int32                 `protobuf:"varint,6,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
+	CreditLimit         *Decimal               `protobuf:"bytes,7,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
+	BillingAddressLine1 *string                `protobuf:"bytes,8,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
+	BillingAddressLine2 *string                `protobuf:"bytes,9,opt,name=billing_address_line2,json=billingAddressLine2,proto3,oneof" json:"billing_address_line2,omitempty"`
+	BillingCity         *string                `protobuf:"bytes,10,opt,name=billing_city,json=billingCity,proto3,oneof" json:"billing_city,omitempty"`
+	BillingState        *string                `protobuf:"bytes,11,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
+	BillingPostalCode   *string                `protobuf:"bytes,12,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
+	BillingCountry      *string                `protobuf:"bytes,13,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdateContactRequest) Reset() {
@@ -607,6 +709,48 @@ func (x *UpdateContactRequest) GetCreditLimit() *Decimal {
 		return x.CreditLimit
 	}
 	return nil
+}
+
+func (x *UpdateContactRequest) GetBillingAddressLine1() string {
+	if x != nil && x.BillingAddressLine1 != nil {
+		return *x.BillingAddressLine1
+	}
+	return ""
+}
+
+func (x *UpdateContactRequest) GetBillingAddressLine2() string {
+	if x != nil && x.BillingAddressLine2 != nil {
+		return *x.BillingAddressLine2
+	}
+	return ""
+}
+
+func (x *UpdateContactRequest) GetBillingCity() string {
+	if x != nil && x.BillingCity != nil {
+		return *x.BillingCity
+	}
+	return ""
+}
+
+func (x *UpdateContactRequest) GetBillingState() string {
+	if x != nil && x.BillingState != nil {
+		return *x.BillingState
+	}
+	return ""
+}
+
+func (x *UpdateContactRequest) GetBillingPostalCode() string {
+	if x != nil && x.BillingPostalCode != nil {
+		return *x.BillingPostalCode
+	}
+	return ""
+}
+
+func (x *UpdateContactRequest) GetBillingCountry() string {
+	if x != nil && x.BillingCountry != nil {
+		return *x.BillingCountry
+	}
+	return ""
 }
 
 type UpdateContactResponse struct {
@@ -2036,7 +2180,7 @@ var File_ava_v1_party_proto protoreflect.FileDescriptor
 
 const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
-	"\x12ava/v1/party.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x05\n" +
+	"\x12ava/v1/party.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\b\n" +
 	"\aContact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2057,12 +2201,25 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x14\n" +
+	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x127\n" +
+	"\x15billing_address_line1\x18\x10 \x01(\tH\x05R\x13billingAddressLine1\x88\x01\x01\x127\n" +
+	"\x15billing_address_line2\x18\x11 \x01(\tH\x06R\x13billingAddressLine2\x88\x01\x01\x12&\n" +
+	"\fbilling_city\x18\x12 \x01(\tH\aR\vbillingCity\x88\x01\x01\x12(\n" +
+	"\rbilling_state\x18\x13 \x01(\tH\bR\fbillingState\x88\x01\x01\x123\n" +
+	"\x13billing_postal_code\x18\x14 \x01(\tH\tR\x11billingPostalCode\x88\x01\x01\x12,\n" +
+	"\x0fbilling_country\x18\x15 \x01(\tH\n" +
+	"R\x0ebillingCountry\x88\x01\x01B\x14\n" +
 	"\x12_ledger_account_idB\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x15\n" +
 	"\x13_payment_terms_daysB\x15\n" +
-	"\x13_created_by_user_id\"#\n" +
+	"\x13_created_by_user_idB\x18\n" +
+	"\x16_billing_address_line1B\x18\n" +
+	"\x16_billing_address_line2B\x0f\n" +
+	"\r_billing_cityB\x10\n" +
+	"\x0e_billing_stateB\x16\n" +
+	"\x14_billing_postal_codeB\x12\n" +
+	"\x10_billing_country\"#\n" +
 	"\x11GetContactRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
 	"\x12GetContactResponse\x12)\n" +
@@ -2071,7 +2228,7 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\"C\n" +
 	"\x14ListContactsResponse\x12+\n" +
-	"\bcontacts\x18\x01 \x03(\v2\x0f.ava.v1.ContactR\bcontacts\"\xd5\x03\n" +
+	"\bcontacts\x18\x01 \x03(\v2\x0f.ava.v1.ContactR\bcontacts\"\xff\x06\n" +
 	"\x14CreateContactRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12/\n" +
@@ -2085,14 +2242,27 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x05phone\x18\b \x01(\tH\x02R\x05phone\x88\x01\x01\x121\n" +
 	"\x12payment_terms_days\x18\t \x01(\x05H\x03R\x10paymentTermsDays\x88\x01\x01\x127\n" +
 	"\fcredit_limit\x18\n" +
-	" \x01(\v2\x0f.ava.v1.DecimalH\x04R\vcreditLimit\x88\x01\x01B\x14\n" +
+	" \x01(\v2\x0f.ava.v1.DecimalH\x04R\vcreditLimit\x88\x01\x01\x127\n" +
+	"\x15billing_address_line1\x18\v \x01(\tH\x05R\x13billingAddressLine1\x88\x01\x01\x127\n" +
+	"\x15billing_address_line2\x18\f \x01(\tH\x06R\x13billingAddressLine2\x88\x01\x01\x12&\n" +
+	"\fbilling_city\x18\r \x01(\tH\aR\vbillingCity\x88\x01\x01\x12(\n" +
+	"\rbilling_state\x18\x0e \x01(\tH\bR\fbillingState\x88\x01\x01\x123\n" +
+	"\x13billing_postal_code\x18\x0f \x01(\tH\tR\x11billingPostalCode\x88\x01\x01\x12,\n" +
+	"\x0fbilling_country\x18\x10 \x01(\tH\n" +
+	"R\x0ebillingCountry\x88\x01\x01B\x14\n" +
 	"\x12_ledger_account_idB\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x15\n" +
 	"\x13_payment_terms_daysB\x0f\n" +
-	"\r_credit_limit\"B\n" +
+	"\r_credit_limitB\x18\n" +
+	"\x16_billing_address_line1B\x18\n" +
+	"\x16_billing_address_line2B\x0f\n" +
+	"\r_billing_cityB\x10\n" +
+	"\x0e_billing_stateB\x16\n" +
+	"\x14_billing_postal_codeB\x12\n" +
+	"\x10_billing_country\"B\n" +
 	"\x15CreateContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\xed\x02\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\x97\x06\n" +
 	"\x14UpdateContactRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x19\n" +
@@ -2100,13 +2270,27 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x05phone\x18\x04 \x01(\tH\x02R\x05phone\x88\x01\x01\x12/\n" +
 	"\x11ledger_account_id\x18\x05 \x01(\x05H\x03R\x0fledgerAccountId\x88\x01\x01\x121\n" +
 	"\x12payment_terms_days\x18\x06 \x01(\x05H\x04R\x10paymentTermsDays\x88\x01\x01\x127\n" +
-	"\fcredit_limit\x18\a \x01(\v2\x0f.ava.v1.DecimalH\x05R\vcreditLimit\x88\x01\x01B\a\n" +
+	"\fcredit_limit\x18\a \x01(\v2\x0f.ava.v1.DecimalH\x05R\vcreditLimit\x88\x01\x01\x127\n" +
+	"\x15billing_address_line1\x18\b \x01(\tH\x06R\x13billingAddressLine1\x88\x01\x01\x127\n" +
+	"\x15billing_address_line2\x18\t \x01(\tH\aR\x13billingAddressLine2\x88\x01\x01\x12&\n" +
+	"\fbilling_city\x18\n" +
+	" \x01(\tH\bR\vbillingCity\x88\x01\x01\x12(\n" +
+	"\rbilling_state\x18\v \x01(\tH\tR\fbillingState\x88\x01\x01\x123\n" +
+	"\x13billing_postal_code\x18\f \x01(\tH\n" +
+	"R\x11billingPostalCode\x88\x01\x01\x12,\n" +
+	"\x0fbilling_country\x18\r \x01(\tH\vR\x0ebillingCountry\x88\x01\x01B\a\n" +
 	"\x05_nameB\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x14\n" +
 	"\x12_ledger_account_idB\x15\n" +
 	"\x13_payment_terms_daysB\x0f\n" +
-	"\r_credit_limit\"B\n" +
+	"\r_credit_limitB\x18\n" +
+	"\x16_billing_address_line1B\x18\n" +
+	"\x16_billing_address_line2B\x0f\n" +
+	"\r_billing_cityB\x10\n" +
+	"\x0e_billing_stateB\x16\n" +
+	"\x14_billing_postal_codeB\x12\n" +
+	"\x10_billing_country\"B\n" +
 	"\x15UpdateContactResponse\x12)\n" +
 	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"*\n" +
 	"\x18DeactivateContactRequest\x12\x0e\n" +
