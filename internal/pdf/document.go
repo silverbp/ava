@@ -65,6 +65,57 @@ func (d *Document) Title(text string) {
 	d.pdf.Ln(2)
 }
 
+// CenteredTitle prints a centered, italicized document title — for
+// documents that head with an AddressBlock instead of Header's plain
+// business name, e.g. "Sales Invoice" above an invoice's Bill To/business
+// address columns.
+func (d *Document) CenteredTitle(text string) {
+	d.pdf.SetFont("Helvetica", "BI", 16)
+	d.pdf.CellFormat(contentW, 9, d.tr(text), "", 1, "C", false, 0, "")
+	d.pdf.Ln(2)
+}
+
+// Party is a name plus arbitrary detail lines (address, phone, email) for
+// AddressBlock.
+type Party struct {
+	Name  string
+	Lines []string
+}
+
+// AddressBlock prints two Party blocks side by side, e.g. the customer
+// being billed on the left and the business issuing the document on the
+// right — each as a bold name line followed by plain detail lines.
+func (d *Document) AddressBlock(left, right Party) {
+	colW := contentW / 2
+	startY := d.pdf.GetY()
+
+	leftEndY := d.partyColumn(marginLeft, startY, colW, left)
+	rightEndY := d.partyColumn(marginLeft+colW, startY, colW, right)
+
+	endY := leftEndY
+	if rightEndY > endY {
+		endY = rightEndY
+	}
+	d.pdf.SetXY(marginLeft, endY)
+	d.pdf.Ln(4)
+}
+
+// partyColumn prints one Party's name and detail lines at (x, y), each
+// line's own row so the two columns of an AddressBlock don't have to have
+// the same number of lines, and returns the y position just past its last
+// line.
+func (d *Document) partyColumn(x, y, w float64, p Party) float64 {
+	d.pdf.SetXY(x, y)
+	d.pdf.SetFont("Helvetica", "B", 10)
+	d.pdf.CellFormat(w, 5.5, d.tr(p.Name), "", 0, "L", false, 0, "")
+	d.pdf.SetFont("Helvetica", "", 9)
+	for i, l := range p.Lines {
+		d.pdf.SetXY(x, y+5.5+float64(i)*5)
+		d.pdf.CellFormat(w, 5, d.tr(l), "", 0, "L", false, 0, "")
+	}
+	return y + 5.5 + float64(len(p.Lines))*5
+}
+
 // Subtitle prints a smaller line under the title, e.g. a date range or
 // as-of date.
 func (d *Document) Subtitle(text string) {

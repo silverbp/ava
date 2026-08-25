@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -649,12 +650,127 @@ func (s *invoiceService) GetInvoicePdf(ctx context.Context, req *avav1.GetInvoic
 	if err != nil {
 		return nil, translatePgError(err)
 	}
+	breakdown, err := s.invoiceTaxBreakdown(ctx, lineItems)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "computing tax breakdown: %v", err)
+	}
 
-	content, err := pdf.RenderInvoice(business.Name, contact.Name, pb)
+	content, err := pdf.RenderInvoice(businessParty(business), billToParty(contact), pb, breakdown)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "rendering pdf: %v", err)
 	}
 	return &avav1.GetInvoicePdfResponse{Content: content}, nil
+}
+
+// invoiceTaxBreakdown groups an invoice's line items by tax rate, in the
+// order each rate first appears, and sums their net/tax/total amounts —
+// the PDF renders one row per group instead of a per-line tax column.
+func (s *invoiceService) invoiceTaxBreakdown(ctx context.Context, lineItems []sqlcgen.InvoiceLineItem) ([]pdf.TaxBreakdownRow, error) {
+	type group struct {
+		label           string
+		net, tax, total decimal.Decimal
+	}
+	const noTaxKey = int64(0) // tax_rate.id is a BIGSERIAL, so 0 never occurs — safe sentinel for "no tax rate".
+
+	groups := map[int64]*group{}
+	var order []int64
+	rateNames := map[int64]string{}
+
+	for _, li := range lineItems {
+		key := noTaxKey
+		if li.TaxRateID != nil {
+			key = *li.TaxRateID
+		}
+		g, ok := groups[key]
+		if !ok {
+			label := "No Tax"
+			if key != noTaxKey {
+				name, ok := rateNames[key]
+				if !ok {
+					tr, err := s.store.Queries.GetTaxRate(ctx, key)
+					if err != nil {
+						return nil, err
+					}
+					name = tr.Name
+					rateNames[key] = name
+				}
+				label = name
+			}
+			g = &group{label: label}
+			groups[key] = g
+			order = append(order, key)
+		}
+
+		net, err := ledgermath.NumericToDecimal(li.LineSubtotal)
+		if err != nil {
+			return nil, err
+		}
+		tax, err := ledgermath.NumericToDecimal(li.TaxAmount)
+		if err != nil {
+			return nil, err
+		}
+		total, err := ledgermath.NumericToDecimal(li.LineTotal)
+		if err != nil {
+			return nil, err
+		}
+		g.net = g.net.Add(net)
+		g.tax = g.tax.Add(tax)
+		g.total = g.total.Add(total)
+	}
+
+	rows := make([]pdf.TaxBreakdownRow, len(order))
+	for i, key := range order {
+		g := groups[key]
+		rows[i] = pdf.TaxBreakdownRow{Label: g.label, Net: g.net, Tax: g.tax, Total: g.total}
+	}
+	return rows, nil
+}
+
+// businessParty builds the PDF address block for the business issuing an
+// invoice: name, mailing address, phone, and email.
+func businessParty(b sqlcgen.Business) pdf.Party {
+	lines := formatAddressLines(b.AddressLine1, b.AddressLine2, b.City, b.State, b.PostalCode)
+	if v := derefOr(b.Phone, ""); v != "" {
+		lines = append(lines, v)
+	}
+	if v := derefOr(b.Email, ""); v != "" {
+		lines = append(lines, v)
+	}
+	return pdf.Party{Name: b.Name, Lines: lines}
+}
+
+// billToParty builds the PDF address block for the contact being billed:
+// name and billing address.
+func billToParty(c sqlcgen.Contact) pdf.Party {
+	lines := formatAddressLines(c.BillingAddressLine1, c.BillingAddressLine2, c.BillingCity, c.BillingState, c.BillingPostalCode)
+	return pdf.Party{Name: c.Name, Lines: lines}
+}
+
+// formatAddressLines renders a street address as "line1", "line2" (if
+// present), and "City, State PostalCode" — omitting any piece that's unset
+// rather than leaving stray commas or blank lines.
+func formatAddressLines(line1, line2, city, state, postal *string) []string {
+	var lines []string
+	if v := derefOr(line1, ""); v != "" {
+		lines = append(lines, v)
+	}
+	if v := derefOr(line2, ""); v != "" {
+		lines = append(lines, v)
+	}
+	c, stateZip := derefOr(city, ""), strings.TrimSpace(derefOr(state, "")+" "+derefOr(postal, ""))
+	var cityLine string
+	switch {
+	case c != "" && stateZip != "":
+		cityLine = c + ", " + stateZip
+	case c != "":
+		cityLine = c
+	default:
+		cityLine = stateZip
+	}
+	if cityLine != "" {
+		lines = append(lines, cityLine)
+	}
+	return lines
 }
 
 // maybePostInvoice posts invoice to the ledger iff every line item has
