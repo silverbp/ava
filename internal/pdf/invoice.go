@@ -77,11 +77,13 @@ func RenderInvoice(business, billTo Party, inv *avav1.Invoice, breakdown []TaxBr
 	}
 
 	d.Spacer(2)
-	d.MoneyRow("Subtotal", formatMoneyString(inv.GetSubtotal().GetValue()))
-	d.MoneyRow("Tax", formatMoneyString(inv.GetTotalTaxAmount().GetValue()))
-	d.MoneyRow("Total", formatMoneyString(inv.GetTotalAmount().GetValue()))
-	d.MoneyRow("Paid", formatMoneyString(inv.GetPaidAmount().GetValue()))
-	d.MoneyRow("Balance Due", formatMoneyString(inv.GetBalanceDue().GetValue()))
+	d.SummaryBlock([]SummaryRow{
+		{Label: "Subtotal", Value: formatMoneyString(inv.GetSubtotal().GetValue())},
+		{Label: "Tax", Value: formatMoneyString(inv.GetTotalTaxAmount().GetValue())},
+		{Label: "Total", Value: formatMoneyString(inv.GetTotalAmount().GetValue()), Bold: true, Divider: true},
+		{Label: "Paid", Value: formatMoneyString(inv.GetPaidAmount().GetValue())},
+		{Label: "Balance Due", Value: formatMoneyString(inv.GetBalanceDue().GetValue()), Bold: true, Divider: true},
+	})
 
 	return d.Bytes()
 }

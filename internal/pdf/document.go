@@ -171,14 +171,43 @@ func (d *Document) KeyValueRow(label, value string) {
 	d.pdf.CellFormat(contentW-35, 5.5, d.tr(value), "", 1, "L", false, 0, "")
 }
 
-// MoneyRow prints a bold label and a right-aligned amount in a fixed-width
-// column — unlike KeyValueRow's ragged-left value, amounts of different
-// lengths still line up on their decimal point.
-func (d *Document) MoneyRow(label, value string) {
-	d.pdf.SetFont("Helvetica", "B", 9)
-	d.pdf.CellFormat(35, 5.5, d.tr(label), "", 0, "L", false, 0, "")
-	d.pdf.SetFont("Helvetica", "", 9)
-	d.pdf.CellFormat(40, 5.5, d.tr(value), "", 1, "R", false, 0, "")
+// SummaryRow is one row of a Document.SummaryBlock: a label/value pair,
+// optionally emphasized (bold, larger) and/or preceded by a divider rule —
+// e.g. an invoice's Total or Balance Due standing out from its plain
+// Subtotal/Tax/Paid rows above.
+type SummaryRow struct {
+	Label   string
+	Value   string
+	Bold    bool
+	Divider bool
+}
+
+// SummaryBlock prints a label/value block anchored to the content area's
+// right edge — lining it up under the right-hand columns of the table
+// above it — instead of KeyValueRow/MoneyRow's left margin.
+func (d *Document) SummaryBlock(rows []SummaryRow) {
+	const blockW = 75.0
+	labelW := blockW * 0.5
+	valueW := blockW - labelW
+	x := marginLeft + contentW - blockW
+
+	for _, r := range rows {
+		style, size, h := "", 9.0, 5.5
+		if r.Bold {
+			style, size, h = "B", 11, 7
+		}
+		if r.Divider {
+			y := d.pdf.GetY()
+			d.pdf.SetDrawColor(180, 180, 180)
+			d.pdf.Line(x, y, x+blockW, y)
+			d.pdf.Ln(1.5)
+			d.pdf.SetDrawColor(0, 0, 0)
+		}
+		d.pdf.SetX(x)
+		d.pdf.SetFont("Helvetica", style, size)
+		d.pdf.CellFormat(labelW, h, d.tr(r.Label), "", 0, "L", false, 0, "")
+		d.pdf.CellFormat(valueW, h, d.tr(r.Value), "", 1, "R", false, 0, "")
+	}
 }
 
 func (d *Document) Spacer(h float64) {
