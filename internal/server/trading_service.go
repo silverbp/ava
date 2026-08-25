@@ -433,6 +433,57 @@ func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav
 	return &avav1.UpdateEstimateLineItemsResponse{Estimate: pb}, nil
 }
 
+func (s *estimateService) GetEstimatePdf(ctx context.Context, req *avav1.GetEstimatePdfRequest) (*avav1.GetEstimatePdfResponse, error) {
+	e, err := s.store.Queries.GetEstimate(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "estimate %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, e.BusinessID, "VIEWER"); err != nil {
+		return nil, err
+	}
+
+	lineItems, err := s.store.Queries.ListEstimateLineItems(ctx, e.ID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	pb, err := estimateToProto(e, lineItems)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting estimate: %v", err)
+	}
+
+	business, err := s.store.Queries.GetBusiness(ctx, e.BusinessID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	customer, err := s.store.Queries.GetContact(ctx, e.CustomerID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	breakdown, err := s.estimateTaxBreakdown(ctx, lineItems)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "computing tax breakdown: %v", err)
+	}
+
+	content, err := pdf.RenderEstimate(businessParty(business), billToParty(customer), pb, breakdown)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "rendering pdf: %v", err)
+	}
+	return &avav1.GetEstimatePdfResponse{Content: content}, nil
+}
+
+// estimateTaxBreakdown maps an estimate's line items into taxBreakdown's
+// shared shape — see taxBreakdown.
+func (s *estimateService) estimateTaxBreakdown(ctx context.Context, lineItems []sqlcgen.EstimateLineItem) ([]pdf.TaxBreakdownRow, error) {
+	lines := make([]taxBreakdownLine, len(lineItems))
+	for i, li := range lineItems {
+		lines[i] = taxBreakdownLine{TaxRateID: li.TaxRateID, LineSubtotal: li.LineSubtotal, TaxAmount: li.TaxAmount, LineTotal: li.LineTotal}
+	}
+	return taxBreakdown(ctx, s.store.Queries, lines)
+}
+
 func estimateToProto(e sqlcgen.Estimate, lineItems []sqlcgen.EstimateLineItem) (*avav1.Estimate, error) {
 	subtotal, err := moneypb.ToProto(e.Subtotal)
 	if err != nil {
@@ -873,10 +924,21 @@ func (s *invoiceService) GetInvoicePdf(ctx context.Context, req *avav1.GetInvoic
 	return &avav1.GetInvoicePdfResponse{Content: content}, nil
 }
 
-// invoiceTaxBreakdown groups an invoice's line items by tax rate, in the
-// order each rate first appears, and sums their net/tax/total amounts —
-// the PDF renders one row per group instead of a per-line tax column.
-func (s *invoiceService) invoiceTaxBreakdown(ctx context.Context, lineItems []sqlcgen.InvoiceLineItem) ([]pdf.TaxBreakdownRow, error) {
+// taxBreakdownLine is the subset of an EstimateLineItem/InvoiceLineItem
+// taxBreakdown needs — the two proto messages are distinct Go types, so
+// callers map into this first, same convention as lineInput/computeLines.
+type taxBreakdownLine struct {
+	TaxRateID    *int64
+	LineSubtotal pgtype.Numeric
+	TaxAmount    pgtype.Numeric
+	LineTotal    pgtype.Numeric
+}
+
+// taxBreakdown groups line items by tax rate, in the order each rate first
+// appears, and sums their net/tax/total amounts — a PDF renders one row per
+// group instead of a per-line tax column. Shared by estimateService and
+// invoiceService.
+func taxBreakdown(ctx context.Context, q *sqlcgen.Queries, lines []taxBreakdownLine) ([]pdf.TaxBreakdownRow, error) {
 	type group struct {
 		label           string
 		net, tax, total decimal.Decimal
@@ -887,7 +949,7 @@ func (s *invoiceService) invoiceTaxBreakdown(ctx context.Context, lineItems []sq
 	var order []int64
 	rateNames := map[int64]string{}
 
-	for _, li := range lineItems {
+	for _, li := range lines {
 		key := noTaxKey
 		if li.TaxRateID != nil {
 			key = *li.TaxRateID
@@ -898,7 +960,7 @@ func (s *invoiceService) invoiceTaxBreakdown(ctx context.Context, lineItems []sq
 			if key != noTaxKey {
 				name, ok := rateNames[key]
 				if !ok {
-					tr, err := s.store.Queries.GetTaxRate(ctx, key)
+					tr, err := q.GetTaxRate(ctx, key)
 					if err != nil {
 						return nil, err
 					}
@@ -935,6 +997,16 @@ func (s *invoiceService) invoiceTaxBreakdown(ctx context.Context, lineItems []sq
 		rows[i] = pdf.TaxBreakdownRow{Label: g.label, Net: g.net, Tax: g.tax, Total: g.total}
 	}
 	return rows, nil
+}
+
+// invoiceTaxBreakdown maps an invoice's line items into taxBreakdown's
+// shared shape — see taxBreakdown.
+func (s *invoiceService) invoiceTaxBreakdown(ctx context.Context, lineItems []sqlcgen.InvoiceLineItem) ([]pdf.TaxBreakdownRow, error) {
+	lines := make([]taxBreakdownLine, len(lineItems))
+	for i, li := range lineItems {
+		lines[i] = taxBreakdownLine{TaxRateID: li.TaxRateID, LineSubtotal: li.LineSubtotal, TaxAmount: li.TaxAmount, LineTotal: li.LineTotal}
+	}
+	return taxBreakdown(ctx, s.store.Queries, lines)
 }
 
 // businessParty builds the PDF address block for the business issuing an

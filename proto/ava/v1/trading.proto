@@ -20,6 +20,7 @@ service EstimateService {
   rpc CreateEstimate(CreateEstimateRequest) returns (CreateEstimateResponse);
   rpc UpdateEstimateStatus(UpdateEstimateStatusRequest) returns (UpdateEstimateStatusResponse);
   rpc UpdateEstimateLineItems(UpdateEstimateLineItemsRequest) returns (UpdateEstimateLineItemsResponse);
+  rpc GetEstimatePdf(GetEstimatePdfRequest) returns (GetEstimatePdfResponse);
 }
 
 // InvoiceService. CreateInvoice optionally posts to the ledger: if every
@@ -145,6 +146,14 @@ message UpdateEstimateLineItemsRequest {
 
 message UpdateEstimateLineItemsResponse {
   Estimate estimate = 1;
+}
+
+message GetEstimatePdfRequest {
+  int64 id = 1;
+}
+
+message GetEstimatePdfResponse {
+  bytes content = 1;
 }
 
 message InvoiceLineItem {

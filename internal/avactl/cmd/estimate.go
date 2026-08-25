@@ -46,6 +46,7 @@ func newEstimateCmd() *cobra.Command {
 	root.AddCommand(newMutateCmd(estimateNoun, "accept", "Mark an estimate ACCEPTED", acceptEstimate))
 	root.AddCommand(newMutateCmd(estimateNoun, "decline", "Mark an estimate DECLINED", declineEstimate))
 	root.AddCommand(newMutateCmd(estimateNoun, "expire", "Mark an estimate EXPIRED", expireEstimate))
+	root.AddCommand(newPdfCmd(estimateNoun, getEstimatePdf))
 	return root
 }
 
@@ -59,6 +60,18 @@ func getEstimate(ctx context.Context, conn *grpc.ClientConn, id string) (proto.M
 		return nil, err
 	}
 	return resp.GetEstimate(), nil
+}
+
+func getEstimatePdf(ctx context.Context, conn *grpc.ClientConn, id string) ([]byte, error) {
+	n, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid estimate id %q: %w", id, err)
+	}
+	resp, err := avav1.NewEstimateServiceClient(conn).GetEstimatePdf(ctx, &avav1.GetEstimatePdfRequest{Id: n})
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetContent(), nil
 }
 
 func listEstimates(ctx context.Context, conn *grpc.ClientConn, businessID int64, includeAll bool) ([]proto.Message, error) {
