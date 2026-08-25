@@ -12,10 +12,16 @@ import (
 	"syscall"
 
 	"github.com/silverbp/ava/internal/config"
+	"github.com/silverbp/ava/internal/migrate"
 	"github.com/silverbp/ava/internal/server"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		runMigrate()
+		return
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -44,4 +50,20 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+// runMigrate applies pending migrations and exits, without starting either
+// server listener - meant to run as a k8s init container ahead of the
+// actual ava container. Only needs AVA_POSTGRES_DSN, so it deliberately
+// doesn't go through config.Load (which requires AVA_JWT_SECRET too).
+func runMigrate() {
+	dsn := os.Getenv("AVA_POSTGRES_DSN")
+	if dsn == "" {
+		dsn = "postgres://ava:ava@localhost:5432/ava?sslmode=disable"
+	}
+	if err := migrate.Up(dsn); err != nil {
+		slog.Error("migration failed", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("migrations applied")
 }

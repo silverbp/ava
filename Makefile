@@ -19,7 +19,7 @@ db-down:
 
 migrate-up: db-up
 	@until docker compose exec -T db pg_isready -U ava >/dev/null 2>&1; do sleep 1; done
-	docker compose exec -T db psql -U ava -d ava -v ON_ERROR_STOP=1 < migrations/00001_initial.up.sql
+	AVA_POSTGRES_DSN=postgres://ava:ava@localhost:5432/ava?sslmode=disable go run ./cmd/ava migrate
 
 build:
 	go build ./...
