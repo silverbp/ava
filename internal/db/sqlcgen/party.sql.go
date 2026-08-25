@@ -380,11 +380,19 @@ func (q *Queries) GetTaxRate(ctx context.Context, id int64) (TaxRate, error) {
 }
 
 const listContacts = `-- name: ListContacts :many
-SELECT id, business_id, ledger_account_id, contact_number, is_customer, is_vendor, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM contact WHERE business_id = $1 AND deleted_at IS NULL ORDER BY name
+SELECT id, business_id, ledger_account_id, contact_number, is_customer, is_vendor, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM contact
+WHERE business_id = $1 AND deleted_at IS NULL
+    AND (is_active OR $2::bool)
+ORDER BY name
 `
 
-func (q *Queries) ListContacts(ctx context.Context, businessID int64) ([]Contact, error) {
-	rows, err := q.db.Query(ctx, listContacts, businessID)
+type ListContactsParams struct {
+	BusinessID      int64 `json:"business_id"`
+	IncludeInactive bool  `json:"include_inactive"`
+}
+
+func (q *Queries) ListContacts(ctx context.Context, arg ListContactsParams) ([]Contact, error) {
+	rows, err := q.db.Query(ctx, listContacts, arg.BusinessID, arg.IncludeInactive)
 	if err != nil {
 		return nil, err
 	}
@@ -433,11 +441,19 @@ func (q *Queries) ListContacts(ctx context.Context, businessID int64) ([]Contact
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM service WHERE business_id = $1 AND deleted_at IS NULL ORDER BY service_code
+SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM service
+WHERE business_id = $1 AND deleted_at IS NULL
+    AND (is_active OR $2::bool)
+ORDER BY service_code
 `
 
-func (q *Queries) ListServices(ctx context.Context, businessID int64) ([]Service, error) {
-	rows, err := q.db.Query(ctx, listServices, businessID)
+type ListServicesParams struct {
+	BusinessID      int64 `json:"business_id"`
+	IncludeInactive bool  `json:"include_inactive"`
+}
+
+func (q *Queries) ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error) {
+	rows, err := q.db.Query(ctx, listServices, arg.BusinessID, arg.IncludeInactive)
 	if err != nil {
 		return nil, err
 	}

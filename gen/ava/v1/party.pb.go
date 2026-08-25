@@ -318,10 +318,13 @@ func (x *GetContactResponse) GetContact() *Contact {
 }
 
 type ListContactsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	// By default only active contacts are returned; set to also include
+	// inactive (deactivated) ones.
+	IncludeInactive bool `protobuf:"varint,2,opt,name=include_inactive,json=includeInactive,proto3" json:"include_inactive,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListContactsRequest) Reset() {
@@ -359,6 +362,13 @@ func (x *ListContactsRequest) GetBusinessId() int64 {
 		return x.BusinessId
 	}
 	return 0
+}
+
+func (x *ListContactsRequest) GetIncludeInactive() bool {
+	if x != nil {
+		return x.IncludeInactive
+	}
+	return false
 }
 
 type ListContactsResponse struct {
@@ -1125,10 +1135,13 @@ func (x *GetServiceResponse) GetService() *Service {
 }
 
 type ListServicesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	// By default only active services are returned; set to also include
+	// inactive (deactivated) ones.
+	IncludeInactive bool `protobuf:"varint,2,opt,name=include_inactive,json=includeInactive,proto3" json:"include_inactive,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListServicesRequest) Reset() {
@@ -1166,6 +1179,13 @@ func (x *ListServicesRequest) GetBusinessId() int64 {
 		return x.BusinessId
 	}
 	return 0
+}
+
+func (x *ListServicesRequest) GetIncludeInactive() bool {
+	if x != nil {
+		return x.IncludeInactive
+	}
+	return false
 }
 
 type ListServicesResponse struct {
@@ -2223,10 +2243,11 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x11GetContactRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
 	"\x12GetContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"6\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"a\n" +
 	"\x13ListContactsRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
-	"businessId\"C\n" +
+	"businessId\x12)\n" +
+	"\x10include_inactive\x18\x02 \x01(\bR\x0fincludeInactive\"C\n" +
 	"\x14ListContactsResponse\x12+\n" +
 	"\bcontacts\x18\x01 \x03(\v2\x0f.ava.v1.ContactR\bcontacts\"\xff\x06\n" +
 	"\x14CreateContactRequest\x12\x1f\n" +
@@ -2324,10 +2345,11 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x11GetServiceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
 	"\x12GetServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"6\n" +
+	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"a\n" +
 	"\x13ListServicesRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
-	"businessId\"C\n" +
+	"businessId\x12)\n" +
+	"\x10include_inactive\x18\x02 \x01(\bR\x0fincludeInactive\"C\n" +
 	"\x14ListServicesResponse\x12+\n" +
 	"\bservices\x18\x01 \x03(\v2\x0f.ava.v1.ServiceR\bservices\"\xe1\x03\n" +
 	"\x14CreateServiceRequest\x12\x1f\n" +

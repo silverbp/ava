@@ -68,6 +68,9 @@ message GetContactResponse {
 
 message ListContactsRequest {
   int64 business_id = 1;
+  // By default only active contacts are returned; set to also include
+  // inactive (deactivated) ones.
+  bool include_inactive = 2;
 }
 
 message ListContactsResponse {
@@ -158,6 +161,9 @@ message GetServiceResponse {
 
 message ListServicesRequest {
   int64 business_id = 1;
+  // By default only active services are returned; set to also include
+  // inactive (deactivated) ones.
+  bool include_inactive = 2;
 }
 
 message ListServicesResponse {

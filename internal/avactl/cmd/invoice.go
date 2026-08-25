@@ -34,7 +34,14 @@ var invoiceNoun = resource.Noun{
 
 func newInvoiceCmd() *cobra.Command {
 	root := newGroupCmd(invoiceNoun, "Manage invoices")
-	root.AddCommand(newListCmd(invoiceNoun, listInvoices))
+
+	var includeAll bool
+	listCmd := newListCmd(invoiceNoun, func(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
+		return listInvoices(ctx, conn, businessID, includeAll)
+	})
+	listCmd.Flags().BoolVar(&includeAll, "all", false, "also include paid and cancelled invoices")
+	root.AddCommand(listCmd)
+
 	root.AddCommand(newGetCmd(invoiceNoun, getInvoice))
 	root.AddCommand(newInvoiceCreateCmd())
 	root.AddCommand(newMutateCmd(invoiceNoun, "send", "Mark an invoice SENT", sendInvoice))
@@ -56,8 +63,8 @@ func getInvoice(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Me
 	return resp.GetInvoice(), nil
 }
 
-func listInvoices(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
-	resp, err := avav1.NewInvoiceServiceClient(conn).ListInvoices(ctx, &avav1.ListInvoicesRequest{BusinessId: businessID})
+func listInvoices(ctx context.Context, conn *grpc.ClientConn, businessID int64, includeAll bool) ([]proto.Message, error) {
+	resp, err := avav1.NewInvoiceServiceClient(conn).ListInvoices(ctx, &avav1.ListInvoicesRequest{BusinessId: businessID, IncludeAll: includeAll})
 	if err != nil {
 		return nil, err
 	}

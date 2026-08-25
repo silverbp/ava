@@ -1339,8 +1339,11 @@ func (x *GetInvoiceResponse) GetInvoice() *Invoice {
 }
 
 type ListInvoicesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	// By default only open invoices are returned (not PAID or CANCELLED);
+	// set to also include those.
+	IncludeAll    bool `protobuf:"varint,2,opt,name=include_all,json=includeAll,proto3" json:"include_all,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1380,6 +1383,13 @@ func (x *ListInvoicesRequest) GetBusinessId() int64 {
 		return x.BusinessId
 	}
 	return 0
+}
+
+func (x *ListInvoicesRequest) GetIncludeAll() bool {
+	if x != nil {
+		return x.IncludeAll
+	}
+	return false
 }
 
 type ListInvoicesResponse struct {
@@ -2582,10 +2592,12 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x11GetInvoiceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
 	"\x12GetInvoiceResponse\x12)\n" +
-	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"6\n" +
+	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"W\n" +
 	"\x13ListInvoicesRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
-	"businessId\"C\n" +
+	"businessId\x12\x1f\n" +
+	"\vinclude_all\x18\x02 \x01(\bR\n" +
+	"includeAll\"C\n" +
 	"\x14ListInvoicesResponse\x12+\n" +
 	"\binvoices\x18\x01 \x03(\v2\x0f.ava.v1.InvoiceR\binvoices\"\xd7\x03\n" +
 	"\x14CreateInvoiceRequest\x12\x1f\n" +

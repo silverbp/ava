@@ -33,7 +33,14 @@ var contactNoun = resource.Noun{
 
 func newContactCmd() *cobra.Command {
 	root := newGroupCmd(contactNoun, "Manage customer/vendor contacts")
-	root.AddCommand(newListCmd(contactNoun, listContacts))
+
+	var includeInactive bool
+	listCmd := newListCmd(contactNoun, func(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
+		return listContacts(ctx, conn, businessID, includeInactive)
+	})
+	listCmd.Flags().BoolVar(&includeInactive, "inactive", false, "also include inactive contacts")
+	root.AddCommand(listCmd)
+
 	root.AddCommand(newGetCmd(contactNoun, getContact))
 	root.AddCommand(newContactCreateCmd())
 	root.AddCommand(newContactUpdateCmd())
@@ -53,8 +60,8 @@ func getContact(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Me
 	return resp.GetContact(), nil
 }
 
-func listContacts(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
-	resp, err := avav1.NewContactServiceClient(conn).ListContacts(ctx, &avav1.ListContactsRequest{BusinessId: businessID})
+func listContacts(ctx context.Context, conn *grpc.ClientConn, businessID int64, includeInactive bool) ([]proto.Message, error) {
+	resp, err := avav1.NewContactServiceClient(conn).ListContacts(ctx, &avav1.ListContactsRequest{BusinessId: businessID, IncludeInactive: includeInactive})
 	if err != nil {
 		return nil, err
 	}

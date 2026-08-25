@@ -32,7 +32,14 @@ var serviceNoun = resource.Noun{
 
 func newServiceCmd() *cobra.Command {
 	root := newGroupCmd(serviceNoun, "Manage catalog services/products")
-	root.AddCommand(newListCmd(serviceNoun, listServices))
+
+	var includeInactive bool
+	listCmd := newListCmd(serviceNoun, func(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
+		return listServices(ctx, conn, businessID, includeInactive)
+	})
+	listCmd.Flags().BoolVar(&includeInactive, "inactive", false, "also include inactive services")
+	root.AddCommand(listCmd)
+
 	root.AddCommand(newGetCmd(serviceNoun, getService))
 	root.AddCommand(newServiceCreateCmd())
 	root.AddCommand(newServiceUpdateCmd())
@@ -52,8 +59,8 @@ func getService(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Me
 	return resp.GetService(), nil
 }
 
-func listServices(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
-	resp, err := avav1.NewServiceCatalogServiceClient(conn).ListServices(ctx, &avav1.ListServicesRequest{BusinessId: businessID})
+func listServices(ctx context.Context, conn *grpc.ClientConn, businessID int64, includeInactive bool) ([]proto.Message, error) {
+	resp, err := avav1.NewServiceCatalogServiceClient(conn).ListServices(ctx, &avav1.ListServicesRequest{BusinessId: businessID, IncludeInactive: includeInactive})
 	if err != nil {
 		return nil, err
 	}

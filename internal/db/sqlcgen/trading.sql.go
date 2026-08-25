@@ -622,11 +622,19 @@ func (q *Queries) ListInvoiceLineItems(ctx context.Context, invoiceID int64) ([]
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM invoice WHERE business_id = $1 AND deleted_at IS NULL ORDER BY invoice_date DESC
+SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM invoice
+WHERE business_id = $1 AND deleted_at IS NULL
+    AND ($2::bool OR status NOT IN ('PAID', 'CANCELLED'))
+ORDER BY invoice_date DESC
 `
 
-func (q *Queries) ListInvoices(ctx context.Context, businessID int64) ([]Invoice, error) {
-	rows, err := q.db.Query(ctx, listInvoices, businessID)
+type ListInvoicesParams struct {
+	BusinessID int64 `json:"business_id"`
+	IncludeAll bool  `json:"include_all"`
+}
+
+func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]Invoice, error) {
+	rows, err := q.db.Query(ctx, listInvoices, arg.BusinessID, arg.IncludeAll)
 	if err != nil {
 		return nil, err
 	}

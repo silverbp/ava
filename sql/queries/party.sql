@@ -16,7 +16,10 @@ RETURNING *;
 SELECT * FROM contact WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListContacts :many
-SELECT * FROM contact WHERE business_id = $1 AND deleted_at IS NULL ORDER BY name;
+SELECT * FROM contact
+WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL
+    AND (is_active OR sqlc.arg('include_inactive')::bool)
+ORDER BY name;
 
 -- name: UpdateContact :one
 UPDATE contact SET
@@ -54,7 +57,10 @@ RETURNING *;
 SELECT * FROM service WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListServices :many
-SELECT * FROM service WHERE business_id = $1 AND deleted_at IS NULL ORDER BY service_code;
+SELECT * FROM service
+WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL
+    AND (is_active OR sqlc.arg('include_inactive')::bool)
+ORDER BY service_code;
 
 -- name: UpdateService :one
 UPDATE service SET

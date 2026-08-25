@@ -190,6 +190,9 @@ message GetInvoiceResponse {
 
 message ListInvoicesRequest {
   int64 business_id = 1;
+  // By default only open invoices are returned (not PAID or CANCELLED);
+  // set to also include those.
+  bool include_all = 2;
 }
 
 message ListInvoicesResponse {

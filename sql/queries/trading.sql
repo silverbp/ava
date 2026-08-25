@@ -59,7 +59,10 @@ SELECT * FROM invoice WHERE id = $1 AND deleted_at IS NULL;
 SELECT * FROM invoice_line_item WHERE invoice_id = $1 AND deleted_at IS NULL ORDER BY line_number;
 
 -- name: ListInvoices :many
-SELECT * FROM invoice WHERE business_id = $1 AND deleted_at IS NULL ORDER BY invoice_date DESC;
+SELECT * FROM invoice
+WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL
+    AND (sqlc.arg('include_all')::bool OR status NOT IN ('PAID', 'CANCELLED'))
+ORDER BY invoice_date DESC;
 
 -- name: UpdateInvoiceStatus :one
 UPDATE invoice SET status = $2, updated_at = NOW()

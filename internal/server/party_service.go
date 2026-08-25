@@ -51,7 +51,10 @@ func (s *contactService) ListContacts(ctx context.Context, req *avav1.ListContac
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "VIEWER"); err != nil {
 		return nil, err
 	}
-	rows, err := s.store.Queries.ListContacts(ctx, req.GetBusinessId())
+	rows, err := s.store.Queries.ListContacts(ctx, sqlcgen.ListContactsParams{
+		BusinessID:      req.GetBusinessId(),
+		IncludeInactive: req.GetIncludeInactive(),
+	})
 	if err != nil {
 		return nil, translatePgError(err)
 	}
@@ -239,7 +242,10 @@ func (s *serviceCatalogService) ListServices(ctx context.Context, req *avav1.Lis
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "VIEWER"); err != nil {
 		return nil, err
 	}
-	rows, err := s.store.Queries.ListServices(ctx, req.GetBusinessId())
+	rows, err := s.store.Queries.ListServices(ctx, sqlcgen.ListServicesParams{
+		BusinessID:      req.GetBusinessId(),
+		IncludeInactive: req.GetIncludeInactive(),
+	})
 	if err != nil {
 		return nil, translatePgError(err)
 	}
