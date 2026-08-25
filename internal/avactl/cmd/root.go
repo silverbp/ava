@@ -22,6 +22,7 @@ import (
 	"github.com/silverbp/ava/internal/avactl/apiclient"
 	"github.com/silverbp/ava/internal/avactl/config"
 	"github.com/silverbp/ava/internal/avactl/output"
+	"github.com/silverbp/ava/internal/avactl/version"
 )
 
 var (
@@ -31,10 +32,20 @@ var (
 	flagOutput   string
 )
 
+// Command groups, used to organize `avactl --help`'s "Available Commands"
+// section (see cobra's Command.GroupID / AddGroup) instead of dumping all
+// ~15 top-level commands into one undifferentiated list.
+const (
+	groupAccounting = "accounting"
+	groupAccount    = "account"
+	groupCLI        = "cli"
+)
+
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "avactl",
 		Short:         "avactl controls the Ava accounting API",
+		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: false,
 	}
@@ -44,26 +55,38 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().Int64Var(&flagBusiness, "business", 0, "override the current context's business id")
 	root.PersistentFlags().StringVarP(&flagOutput, "output", "o", output.FormatTable, "output format: table|json|yaml")
 
-	root.AddCommand(newInvoiceCmd())
-	root.AddCommand(newEstimateCmd())
-	root.AddCommand(newPaymentCmd())
-	root.AddCommand(newLedgerAccountCmd())
-	root.AddCommand(newLedgerTransactionCmd())
-	root.AddCommand(newContactCmd())
-	root.AddCommand(newServiceCmd())
-	root.AddCommand(newTaxRateCmd())
-	root.AddCommand(newBankStatementCmd())
-	root.AddCommand(newBusinessCmd())
-	root.AddCommand(newContextCmd())
-	root.AddCommand(newConfigCmd())
-	root.AddCommand(newLoginCmd())
-	root.AddCommand(newReportCmd())
-	root.AddCommand(newCloseCmd())
-	root.AddCommand(newAcceptInviteCmd())
-	root.AddCommand(newWhoamiCmd())
-	root.AddCommand(newAdminCmd())
-	root.AddCommand(newCommandsCmd())
+	root.AddGroup(
+		&cobra.Group{ID: groupAccounting, Title: "Accounting Commands:"},
+		&cobra.Group{ID: groupAccount, Title: "Account Commands:"},
+		&cobra.Group{ID: groupCLI, Title: "CLI Commands:"},
+	)
+	root.SetHelpCommandGroupID(groupCLI)
+	root.SetCompletionCommandGroupID(groupCLI)
+
+	addGrouped(root, groupAccounting,
+		newInvoiceCmd(), newEstimateCmd(), newPaymentCmd(),
+		newLedgerAccountCmd(), newLedgerTransactionCmd(),
+		newContactCmd(), newServiceCmd(), newTaxRateCmd(),
+		newBankStatementCmd(), newBusinessCmd(), newContextCmd(),
+		newReportCmd(), newCloseCmd(),
+	)
+	addGrouped(root, groupAccount,
+		newLoginCmd(), newWhoamiCmd(), newAcceptInviteCmd(),
+		newConfigCmd(), newAdminCmd(),
+	)
+	addGrouped(root, groupCLI,
+		newCommandsCmd(), newVersionCmd(),
+	)
 	return root
+}
+
+// addGrouped adds each of cmds to root under groupID, so `avactl --help`
+// lists them together instead of in one flat, undifferentiated list.
+func addGrouped(root *cobra.Command, groupID string, cmds ...*cobra.Command) {
+	for _, c := range cmds {
+		c.GroupID = groupID
+		root.AddCommand(c)
+	}
 }
 
 // resolveTarget resolves the server address, whether to dial it without

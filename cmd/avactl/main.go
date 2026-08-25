@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Casey Entzi
 // SPDX-License-Identifier: MIT
 
-// Command avactl is the kubectl-styled CLI for the Ava accounting API.
+// Command avactl is the CLI for the Ava accounting API.
 package main
 
 import (
