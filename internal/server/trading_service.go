@@ -1023,9 +1023,15 @@ func businessParty(b sqlcgen.Business) pdf.Party {
 }
 
 // billToParty builds the PDF address block for the contact being billed:
-// name and billing address.
+// name, billing address, phone, and email.
 func billToParty(c sqlcgen.Contact) pdf.Party {
 	lines := formatAddressLines(c.BillingAddressLine1, c.BillingAddressLine2, c.BillingCity, c.BillingState, c.BillingPostalCode)
+	if v := derefOr(c.Phone, ""); v != "" {
+		lines = append(lines, v)
+	}
+	if v := derefOr(c.Email, ""); v != "" {
+		lines = append(lines, v)
+	}
 	return pdf.Party{Name: c.Name, Lines: lines}
 }
 
