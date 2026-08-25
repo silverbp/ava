@@ -26,8 +26,9 @@ func newConfigCmd() *cobra.Command {
 
 func newConfigViewCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "view",
-		Short: "Print the resolved ~/.avactl/config",
+		Use:     "view",
+		Short:   "Print the resolved ~/.avactl/config",
+		Example: "  avactl config view",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -49,9 +50,10 @@ func newConfigSetContextCmd() *cobra.Command {
 	var business int64
 
 	cmd := &cobra.Command{
-		Use:   "set-context <name>",
-		Short: "Create or update a context (server + business)",
-		Args:  cobra.ExactArgs(1),
+		Use:     "set-context <name>",
+		Short:   "Create or update a context (server + business)",
+		Args:    cobra.ExactArgs(1),
+		Example: "  avactl config set-context dev --server localhost:9090 --insecure --business 1",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -75,9 +77,10 @@ func newConfigSetContextCmd() *cobra.Command {
 
 func newConfigUseContextCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "use-context <name>",
-		Short: "Set the current context",
-		Args:  cobra.ExactArgs(1),
+		Use:     "use-context <name>",
+		Short:   "Set the current context",
+		Args:    cobra.ExactArgs(1),
+		Example: "  avactl config use-context dev",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -97,8 +100,9 @@ func newConfigUseContextCmd() *cobra.Command {
 
 func newConfigGetContextsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-contexts",
-		Short: "List available contexts",
+		Use:     "get-contexts",
+		Short:   "List available contexts",
+		Example: "  avactl config get-contexts",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {

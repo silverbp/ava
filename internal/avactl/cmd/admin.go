@@ -13,8 +13,9 @@ import (
 
 func newWhoamiCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "whoami",
-		Short: "Show the signed-in user",
+		Use:     "whoami",
+		Short:   "Show the signed-in user",
+		Example: "  avactl whoami",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			conn, _, _, err := dial()
 			if err != nil {
@@ -38,8 +39,8 @@ func newWhoamiCmd() *cobra.Command {
 	}
 }
 
-// newAdminCmd groups global-admin-only operations that don't fit the
-// business-scoped get/create/delete registry (there is only ever one
+// newAdminCmd groups global-admin-only operations, which aren't scoped to
+// a business the way every other noun's verbs are (there is only ever one
 // global admin at a time — see auth.GrantGlobalAdmin).
 func newAdminCmd() *cobra.Command {
 	root := &cobra.Command{
@@ -54,9 +55,10 @@ func newAdminCmd() *cobra.Command {
 func newAdminGrantCmd() *cobra.Command {
 	var userID int64
 	cmd := &cobra.Command{
-		Use:   "grant",
-		Short: "Transfer global-admin status to another user",
-		Long:  `Grants --user global-admin status, revoking it from whoever currently holds it — there is only ever one.`,
+		Use:     "grant",
+		Short:   "Transfer global-admin status to another user",
+		Example: "  avactl admin grant --user 7",
+		Long:    `Grants --user global-admin status, revoking it from whoever currently holds it — there is only ever one.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			conn, _, _, err := dial()
 			if err != nil {
@@ -79,9 +81,10 @@ func newAdminGrantCmd() *cobra.Command {
 func newAdminRevokeCmd() *cobra.Command {
 	var userID int64
 	cmd := &cobra.Command{
-		Use:   "revoke",
-		Short: "Revoke a user's global-admin status",
-		Long:  `Leaves zero global admins until someone is granted it again.`,
+		Use:     "revoke",
+		Short:   "Revoke a user's global-admin status",
+		Example: "  avactl admin revoke --user 7",
+		Long:    `Leaves zero global admins until someone is granted it again.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			conn, _, _, err := dial()
 			if err != nil {

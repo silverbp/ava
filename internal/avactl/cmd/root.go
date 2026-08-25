@@ -1,10 +1,12 @@
 // Copyright (c) 2025 Casey Entzi
 // SPDX-License-Identifier: MIT
 
-// Package cmd is avactl's cobra command tree, modeled on kubectl:
-// verb-first resource commands (get/create/delete/config/login), -o
+// Package cmd is avactl's cobra command tree: noun-first command groups
+// (invoice, contact, ledger-account, ...), each with the verbs that
+// actually apply to it rather than generic get/create/delete, -o
 // json|yaml|table, and a kubeconfig-shaped ~/.avactl/config for server +
-// business context.
+// business context. `avactl commands --json` dumps the whole tree as
+// structured data.
 package cmd
 
 import (
@@ -42,18 +44,25 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().Int64Var(&flagBusiness, "business", 0, "override the current context's business id")
 	root.PersistentFlags().StringVarP(&flagOutput, "output", "o", output.FormatTable, "output format: table|json|yaml")
 
-	root.AddCommand(newGetCmd())
-	root.AddCommand(newDeleteCmd())
-	root.AddCommand(newCreateCmd())
+	root.AddCommand(newInvoiceCmd())
+	root.AddCommand(newEstimateCmd())
+	root.AddCommand(newPaymentCmd())
+	root.AddCommand(newLedgerAccountCmd())
+	root.AddCommand(newLedgerTransactionCmd())
+	root.AddCommand(newContactCmd())
+	root.AddCommand(newServiceCmd())
+	root.AddCommand(newTaxRateCmd())
+	root.AddCommand(newBankStatementCmd())
+	root.AddCommand(newBusinessCmd())
+	root.AddCommand(newContextCmd())
 	root.AddCommand(newConfigCmd())
 	root.AddCommand(newLoginCmd())
 	root.AddCommand(newReportCmd())
 	root.AddCommand(newCloseCmd())
-	root.AddCommand(newReconcileCmd())
-	root.AddCommand(newContextCmd())
 	root.AddCommand(newAcceptInviteCmd())
 	root.AddCommand(newWhoamiCmd())
 	root.AddCommand(newAdminCmd())
+	root.AddCommand(newCommandsCmd())
 	return root
 }
 

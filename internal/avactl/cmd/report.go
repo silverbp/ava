@@ -14,8 +14,8 @@ import (
 )
 
 // newReportCmd is the `report` parent — read-only financial statements,
-// not a CRUD resource, so (like `create`) it stays outside the generic
-// get/delete registry.
+// not a CRUD noun, so it's hand-written rather than built from the
+// generic get/list/mutate command builders in actions.go.
 func newReportCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "report",
@@ -32,8 +32,9 @@ func newReportCmd() *cobra.Command {
 func newReportTrialBalanceCmd() *cobra.Command {
 	var asOf string
 	cmd := &cobra.Command{
-		Use:   "trial-balance",
-		Short: "Trial balance as of a date",
+		Use:     "trial-balance",
+		Short:   "Trial balance as of a date",
+		Example: "  avactl report trial-balance --as-of 2026-01-31",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, err := parseDateFlag(asOf)
 			if err != nil {
@@ -85,8 +86,9 @@ func printTrialBalance(cmd *cobra.Command, tb *avav1.TrialBalance) error {
 func newReportBalanceSheetCmd() *cobra.Command {
 	var asOf string
 	cmd := &cobra.Command{
-		Use:   "balance-sheet",
-		Short: "Balance sheet as of a date",
+		Use:     "balance-sheet",
+		Short:   "Balance sheet as of a date",
+		Example: "  avactl report balance-sheet --as-of 2026-01-31",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, err := parseDateFlag(asOf)
 			if err != nil {
@@ -151,8 +153,9 @@ func printBalanceSheet(cmd *cobra.Command, bs *avav1.BalanceSheet) error {
 func newReportIncomeStatementCmd() *cobra.Command {
 	var start, end string
 	cmd := &cobra.Command{
-		Use:   "income-statement",
-		Short: "Income statement (P&L) over a date range",
+		Use:     "income-statement",
+		Short:   "Income statement (P&L) over a date range",
+		Example: "  avactl report income-statement --start 2026-01-01 --end 2026-01-31",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := parseDateFlag(start)
 			if err != nil {
@@ -225,8 +228,9 @@ func newReportGeneralLedgerCmd() *cobra.Command {
 	var account int32
 	var start, end string
 	cmd := &cobra.Command{
-		Use:   "general-ledger",
-		Short: "General-ledger detail for one account over a date range",
+		Use:     "general-ledger",
+		Short:   "General-ledger detail for one account over a date range",
+		Example: "  avactl report general-ledger --account 10 --start 2026-01-01 --end 2026-01-31",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := parseDateFlag(start)
 			if err != nil {
@@ -292,8 +296,9 @@ func newReportCustomerStatementCmd() *cobra.Command {
 	var contact int64
 	var start, end string
 	cmd := &cobra.Command{
-		Use:   "customer-statement",
-		Short: "Invoice/payment activity, running balance, and aging for one contact",
+		Use:     "customer-statement",
+		Short:   "Invoice/payment activity, running balance, and aging for one contact",
+		Example: "  avactl report customer-statement --contact 5 --start 2026-01-01 --end 2026-01-31",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := parseDateFlag(start)
 			if err != nil {

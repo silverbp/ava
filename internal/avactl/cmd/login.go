@@ -32,7 +32,8 @@ func newLoginCmd() *cobra.Command {
 your browser to complete the ceremony, then stores the resulting session in
 ~/.avactl/config. Requires a context to already exist — run
 "avactl config set-context" first.`,
-		RunE: runLogin,
+		Example: "  avactl login",
+		RunE:    runLogin,
 	}
 }
 
@@ -115,6 +116,31 @@ func runLogin(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Login successful.")
 	return nil
+}
+
+func newAcceptInviteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "accept-invite <token>",
+		Short: "Accept a business invite",
+		Long: `Redeems a business-invite token — you must already be signed in
+("avactl login") as the email the invite was sent to.`,
+		Example: "  avactl accept-invite abc123token",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			resp, err := avav1.NewBusinessServiceClient(conn).AcceptBusinessInvite(cmd.Context(), &avav1.AcceptBusinessInviteRequest{Token: args[0]})
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Joined %q (id %d) as %s\n", resp.GetBusiness().GetName(), resp.GetBusiness().GetId(), resp.GetRole())
+			return nil
+		},
+	}
 }
 
 func indexOfContext(cfg *config.Config, name string) int {

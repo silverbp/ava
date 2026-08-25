@@ -22,8 +22,8 @@ func formatDateArg(d *typepb.Date) string {
 }
 
 // newCloseCmd is the `close` parent — trigger/reverse/list are period-close
-// verbs, not CRUD, so (like `create`/`report`) it stays outside the
-// generic get/delete registry.
+// verbs, not CRUD, so it's hand-written rather than built from the
+// generic get/list/mutate command builders in actions.go.
 func newCloseCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "close",
@@ -38,8 +38,9 @@ func newCloseCmd() *cobra.Command {
 func newCloseTriggerCmd() *cobra.Command {
 	var periodEnd string
 	cmd := &cobra.Command{
-		Use:   "trigger",
-		Short: "Close the books through a date",
+		Use:     "trigger",
+		Short:   "Close the books through a date",
+		Example: "  avactl close trigger --through 2026-01-31",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, err := parseDateFlag(periodEnd)
 			if err != nil {
@@ -68,9 +69,10 @@ func newCloseTriggerCmd() *cobra.Command {
 
 func newCloseReverseCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reverse <period-close-id>",
-		Short: "Reverse a period close",
-		Args:  cobra.ExactArgs(1),
+		Use:     "reverse <period-close-id>",
+		Short:   "Reverse a period close",
+		Args:    cobra.ExactArgs(1),
+		Example: "  avactl close reverse 5",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var id int64
 			if _, err := fmt.Sscanf(args[0], "%d", &id); err != nil {
@@ -94,8 +96,9 @@ func newCloseReverseCmd() *cobra.Command {
 
 func newCloseListCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List a business's close history",
+		Use:     "list",
+		Short:   "List a business's close history",
+		Example: "  avactl close list",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			conn, _, businessID, err := dial()
 			if err != nil {
