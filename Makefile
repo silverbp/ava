@@ -1,16 +1,17 @@
 GOBIN := $(shell go env GOPATH)/bin
 export PATH := $(GOBIN):$(PATH)
 
-# avactl's version is MAJOR.MINOR (from the VERSION file) plus a PATCH
+# ava's version is MAJOR.MINOR (from the VERSION file) plus a PATCH
 # that's just the repo's total commit count, so it advances on its own as
-# commits land instead of needing to be hand-bumped.
-VERSION_PKG := github.com/silverbp/ava/internal/avactl/version
+# commits land instead of needing to be hand-bumped. Shared by both
+# binaries (ava, avactl).
+VERSION_PKG := github.com/silverbp/ava/internal/version
 VERSION     := $(shell cat VERSION).$(shell git rev-list --count HEAD 2>/dev/null || echo 0)
 GIT_COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE  := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS     := -X '$(VERSION_PKG).Version=$(VERSION)' -X '$(VERSION_PKG).GitCommit=$(GIT_COMMIT)' -X '$(VERSION_PKG).BuildDate=$(BUILD_DATE)'
 
-.PHONY: generate proto sqlc migrate-up db-up db-down run build avactl install test
+.PHONY: generate proto sqlc migrate-up db-up db-down run build ava avactl install test
 
 generate: proto sqlc
 
@@ -33,6 +34,9 @@ migrate-up: db-up
 build:
 	go build ./...
 
+ava:
+	go build -ldflags "$(LDFLAGS)" -o bin/ava ./cmd/ava
+
 avactl:
 	go build -ldflags "$(LDFLAGS)" -o bin/avactl ./cmd/avactl
 
@@ -44,7 +48,7 @@ install:
 	go install -ldflags "$(LDFLAGS)" ./cmd/avactl
 
 run:
-	go run ./cmd/ava
+	go run -ldflags "$(LDFLAGS)" ./cmd/ava
 
 test:
 	go test ./...

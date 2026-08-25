@@ -22,7 +22,7 @@ import (
 	"github.com/silverbp/ava/internal/avactl/apiclient"
 	"github.com/silverbp/ava/internal/avactl/config"
 	"github.com/silverbp/ava/internal/avactl/output"
-	"github.com/silverbp/ava/internal/avactl/version"
+	"github.com/silverbp/ava/internal/version"
 )
 
 var (

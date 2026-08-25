@@ -1,10 +1,10 @@
 // Copyright (c) 2025 Casey Entzi
 // SPDX-License-Identifier: MIT
 
-// Package version holds avactl's build-time version information. All
-// three vars are injected via -ldflags by `make avactl` (see the
-// Makefile) — the defaults below are only what a plain `go build`/`go
-// run`, without those flags, produces.
+// Package version holds ava's build-time version information, shared by
+// both binaries (ava, avactl). All three vars are injected via -ldflags
+// by the Makefile's build targets — the defaults below are only what a
+// plain `go build`/`go run`, without those flags, produces.
 package version
 
 import "fmt"
@@ -19,7 +19,8 @@ var (
 	BuildDate = "unknown"
 )
 
-// String renders the one-line form used by `avactl --version`.
+// String renders the one-line form used by `avactl --version` and logged
+// by `ava` at startup.
 func String() string {
 	return fmt.Sprintf("%s (%s, built %s)", Version, GitCommit, BuildDate)
 }

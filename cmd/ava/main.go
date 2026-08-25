@@ -14,6 +14,7 @@ import (
 	"github.com/silverbp/ava/internal/config"
 	"github.com/silverbp/ava/internal/migrate"
 	"github.com/silverbp/ava/internal/server"
+	"github.com/silverbp/ava/internal/version"
 )
 
 func main() {
@@ -21,6 +22,8 @@ func main() {
 		runMigrate()
 		return
 	}
+
+	slog.Info("starting ava", "version", version.Version, "git_commit", version.GitCommit, "build_date", version.BuildDate)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

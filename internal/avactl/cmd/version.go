@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/silverbp/ava/internal/avactl/resource"
-	"github.com/silverbp/ava/internal/avactl/version"
+	"github.com/silverbp/ava/internal/version"
 )
 
 func newVersionCmd() *cobra.Command {
