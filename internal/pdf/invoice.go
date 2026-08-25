@@ -29,6 +29,7 @@ type TaxBreakdownRow struct {
 func RenderInvoice(business, billTo Party, inv *avav1.Invoice, breakdown []TaxBreakdownRow) ([]byte, error) {
 	d := New()
 	d.AddressBlock(billTo, business)
+	d.SetFooter(business)
 
 	title := "Sales Invoice"
 	if inv.GetInvoiceType() == "PURCHASE" {
@@ -53,8 +54,8 @@ func RenderInvoice(business, billTo Party, inv *avav1.Invoice, breakdown []TaxBr
 		rows = append(rows, []string{
 			li.GetDescription(),
 			li.GetQuantity().GetValue(),
-			li.GetUnitPrice().GetValue(),
-			li.GetLineTotal().GetValue(),
+			formatMoneyString(li.GetUnitPrice().GetValue()),
+			formatMoneyString(li.GetLineTotal().GetValue()),
 		})
 	}
 	d.Table(cols, rows, nil)
@@ -76,13 +77,25 @@ func RenderInvoice(business, billTo Party, inv *avav1.Invoice, breakdown []TaxBr
 	}
 
 	d.Spacer(2)
-	d.KeyValueRow("Subtotal", inv.GetSubtotal().GetValue())
-	d.KeyValueRow("Tax", inv.GetTotalTaxAmount().GetValue())
-	d.KeyValueRow("Total", inv.GetTotalAmount().GetValue())
-	d.KeyValueRow("Paid", inv.GetPaidAmount().GetValue())
-	d.KeyValueRow("Balance Due", inv.GetBalanceDue().GetValue())
+	d.MoneyRow("Subtotal", formatMoneyString(inv.GetSubtotal().GetValue()))
+	d.MoneyRow("Tax", formatMoneyString(inv.GetTotalTaxAmount().GetValue()))
+	d.MoneyRow("Total", formatMoneyString(inv.GetTotalAmount().GetValue()))
+	d.MoneyRow("Paid", formatMoneyString(inv.GetPaidAmount().GetValue()))
+	d.MoneyRow("Balance Due", formatMoneyString(inv.GetBalanceDue().GetValue()))
 
 	return d.Bytes()
+}
+
+// formatMoneyString reformats a Decimal proto's raw value as a two-decimal
+// money amount. The raw value carries whatever scale the stored NUMERIC
+// happened to have — an exact-zero total comes through as "0" rather than
+// "0.00" — which reads as inconsistent next to amounts that do carry cents.
+func formatMoneyString(v string) string {
+	dec, err := decimal.NewFromString(v)
+	if err != nil {
+		return v
+	}
+	return formatMoney(dec)
 }
 
 // showsTaxBreakdown reports whether the breakdown table is worth printing:

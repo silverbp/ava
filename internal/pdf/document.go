@@ -21,7 +21,11 @@ const (
 	pageWidth   = 210.0 // A4, mm
 	marginLeft  = 15.0
 	marginRight = 15.0
-	contentW    = pageWidth - marginLeft - marginRight
+	// marginBottom is generous enough to fit Document.SetFooter's rule plus
+	// several lines of text (a business name, a two-line address, phone,
+	// email) without colliding with the page's normal content.
+	marginBottom = 30.0
+	contentW     = pageWidth - marginLeft - marginRight
 )
 
 // Document wraps fpdf with the layout conventions shared by every report
@@ -35,15 +39,49 @@ type Document struct {
 	// pasted from a word processor, an em dash) renders as mojibake: fpdf's
 	// core fonts don't auto-transcode UTF-8 input.
 	tr func(string) string
+	// footer, if set via SetFooter, is printed at the bottom of every page.
+	footer *Party
 }
 
 // New starts a new A4 document with margins set and the first page added.
 func New() *Document {
 	p := fpdf.New("P", "mm", "A4", "")
 	p.SetMargins(marginLeft, 15, marginRight)
-	p.SetAutoPageBreak(true, 15)
+	p.SetAutoPageBreak(true, marginBottom)
+	d := &Document{pdf: p, tr: p.UnicodeTranslatorFromDescriptor("")}
+	p.SetFooterFunc(func() { d.renderFooter() })
 	p.AddPage()
-	return &Document{pdf: p, tr: p.UnicodeTranslatorFromDescriptor("")}
+	return d
+}
+
+// SetFooter prints p's name and detail lines, one per centered row, below
+// a horizontal rule at the bottom of every page — e.g. the business's
+// identity and address, so a multi-page document still identifies itself
+// on later pages. Each line gets its own row rather than being joined onto
+// one, so a full mailing address wraps naturally instead of being squeezed
+// into a single long line.
+func (d *Document) SetFooter(p Party) {
+	d.footer = &p
+}
+
+func (d *Document) renderFooter() {
+	if d.footer == nil {
+		return
+	}
+	lines := append([]string{d.footer.Name}, d.footer.Lines...)
+	const lineH = 3.5
+	height := 3.0 + float64(len(lines))*lineH + 2.0
+	d.pdf.SetY(-height)
+	d.pdf.SetDrawColor(180, 180, 180)
+	d.pdf.Line(marginLeft, d.pdf.GetY(), pageWidth-marginRight, d.pdf.GetY())
+	d.pdf.Ln(1.5)
+	d.pdf.SetX(marginLeft)
+	d.pdf.SetFont("Helvetica", "", 7.5)
+	d.pdf.SetTextColor(120, 120, 120)
+	for _, l := range lines {
+		d.pdf.CellFormat(contentW, lineH, d.tr(l), "", 1, "C", false, 0, "")
+	}
+	d.pdf.SetTextColor(0, 0, 0)
 }
 
 // Header prints the business name (bold) and any additional lines
@@ -133,6 +171,16 @@ func (d *Document) KeyValueRow(label, value string) {
 	d.pdf.CellFormat(contentW-35, 5.5, d.tr(value), "", 1, "L", false, 0, "")
 }
 
+// MoneyRow prints a bold label and a right-aligned amount in a fixed-width
+// column — unlike KeyValueRow's ragged-left value, amounts of different
+// lengths still line up on their decimal point.
+func (d *Document) MoneyRow(label, value string) {
+	d.pdf.SetFont("Helvetica", "B", 9)
+	d.pdf.CellFormat(35, 5.5, d.tr(label), "", 0, "L", false, 0, "")
+	d.pdf.SetFont("Helvetica", "", 9)
+	d.pdf.CellFormat(40, 5.5, d.tr(value), "", 1, "R", false, 0, "")
+}
+
 func (d *Document) Spacer(h float64) {
 	d.pdf.Ln(h)
 }
@@ -181,7 +229,11 @@ func (d *Document) Table(cols []TableColumn, rows [][]string, totalRow []string)
 	d.pdf.SetFont("Helvetica", "", 9)
 	for _, row := range rows {
 		for i, cell := range row {
-			d.pdf.CellFormat(widths[i], 6, d.tr(cell), "1", 0, alignOf(cols[i].Right), false, 0, "")
+			text := cell
+			if !cols[i].Right {
+				text = d.truncate(text, widths[i]-2)
+			}
+			d.pdf.CellFormat(widths[i], 6, d.tr(text), "1", 0, alignOf(cols[i].Right), false, 0, "")
 		}
 		d.pdf.Ln(-1)
 	}
@@ -189,10 +241,35 @@ func (d *Document) Table(cols []TableColumn, rows [][]string, totalRow []string)
 	if totalRow != nil {
 		d.pdf.SetFont("Helvetica", "B", 9)
 		for i, cell := range totalRow {
-			d.pdf.CellFormat(widths[i], 7, d.tr(cell), "1", 0, alignOf(cols[i].Right), false, 0, "")
+			text := cell
+			if !cols[i].Right {
+				text = d.truncate(text, widths[i]-2)
+			}
+			d.pdf.CellFormat(widths[i], 7, d.tr(text), "1", 0, alignOf(cols[i].Right), false, 0, "")
 		}
 		d.pdf.Ln(-1)
 	}
+}
+
+// truncate shortens text with a trailing "..." if it's wider than maxWidth
+// under the document's current font — fpdf's CellFormat neither wraps nor
+// clips text that's too wide for its cell, so an over-long value (a long
+// line-item description, say) would otherwise spill visibly into the next
+// column instead of being confined to its own.
+func (d *Document) truncate(text string, maxWidth float64) string {
+	if d.pdf.GetStringWidth(text) <= maxWidth {
+		return text
+	}
+	const ellipsis = "..."
+	runes := []rune(text)
+	for len(runes) > 0 {
+		runes = runes[:len(runes)-1]
+		candidate := string(runes) + ellipsis
+		if d.pdf.GetStringWidth(candidate) <= maxWidth {
+			return candidate
+		}
+	}
+	return ellipsis
 }
 
 func alignOf(right bool) string {
