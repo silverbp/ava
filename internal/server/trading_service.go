@@ -1031,16 +1031,18 @@ func billToParty(c sqlcgen.Contact) pdf.Party {
 
 // formatAddressLines renders a street address as "line1", "line2" (if
 // present), and "City, State PostalCode" — omitting any piece that's unset
-// rather than leaving stray commas or blank lines. line1/line2 are split on
-// embedded newlines: the EasyBooks migration (scripts/local/migrate_easybooks.py)
-// copied its free-text INVOICE-TO/INV-ADDRESS block straight into
-// billing_address_line1 as one string with its original line breaks intact
-// ("Dawson Schefter\n1315 9th St S\nFargo ND 58103"), which a single PDF
-// cell renders as one run-on line unless split back out here.
+// rather than leaving stray commas or blank lines. line1/line2 are used
+// verbatim, one PDF line each — bad data (e.g. a migrated contact whose
+// billing_address_line1 crams in more than a street address) needs
+// cleaning up at the contact record itself, not parsed back apart here.
 func formatAddressLines(line1, line2, city, state, postal *string) []string {
 	var lines []string
-	lines = append(lines, splitAddressLines(derefOr(line1, ""))...)
-	lines = append(lines, splitAddressLines(derefOr(line2, ""))...)
+	if v := strings.TrimSpace(derefOr(line1, "")); v != "" {
+		lines = append(lines, v)
+	}
+	if v := strings.TrimSpace(derefOr(line2, "")); v != "" {
+		lines = append(lines, v)
+	}
 	c, stateZip := derefOr(city, ""), strings.TrimSpace(derefOr(state, "")+" "+derefOr(postal, ""))
 	var cityLine string
 	switch {
@@ -1055,20 +1057,6 @@ func formatAddressLines(line1, line2, city, state, postal *string) []string {
 		lines = append(lines, cityLine)
 	}
 	return lines
-}
-
-// splitAddressLines splits a stored address field on newlines, trimming
-// each resulting line and dropping empty ones — a no-op for the common
-// case of a plain single-line field.
-func splitAddressLines(s string) []string {
-	var out []string
-	for _, l := range strings.Split(s, "\n") {
-		l = strings.TrimSpace(l)
-		if l != "" {
-			out = append(out, l)
-		}
-	}
-	return out
 }
 
 // maybePostInvoice posts invoice to the ledger iff every line item has
