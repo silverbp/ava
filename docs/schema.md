@@ -22,7 +22,7 @@ erDiagram
     ledger_account_type ||--o{ ledger_account : "account_type_id"
     cash_flow_category |o--o{ ledger_account : "cash_flow_category_id"
     balance_sheet_category |o--o{ ledger_account : "balance_sheet_category_id"
-    ledger_account |o--o{ ledger_account : "parent_account_id"
+    income_statement_category |o--o{ ledger_account : "income_statement_category_id"
     business ||--o{ ledger_transaction : "business_id"
     ledger_transaction ||--o{ ledger_entry : "ledger_transaction_id"
     ledger_account ||--o{ ledger_entry : "account_id"
@@ -51,20 +51,21 @@ erDiagram
         int id PK
         varchar name "Long-term Assets, Current Assets & Liabilities, Long-term Liabilities, Capital & Reserves, Opening Balances"
     }
+    income_statement_category {
+        int id PK
+        varchar name "Revenue, Cost of Goods Sold, Operating Expenses"
+    }
     ledger_account {
         int id PK
         bigint business_id FK
         int account_type_id FK
-        int parent_account_id FK
         varchar code UK
         varchar name
         boolean is_system
-        boolean is_container
         boolean is_reconcilable
-        boolean is_cost_of_goods_sold
         int cash_flow_category_id FK
         int balance_sheet_category_id FK
-        bigint default_tax_rate_id FK
+        int income_statement_category_id FK
     }
     ledger_transaction {
         bigint id PK
@@ -96,22 +97,15 @@ erDiagram
     }
 ```
 
-`default_tax_rate_id` points forward to `tax_rate` (diagram 2) — omitted here to keep this
-diagram self-contained.
-
 - **`ledger_account_type`** — a fixed six-row enum (ASSETS, LIABILITIES, EQUITY, REVENUE,
   EXPENSES, TAX_LIABILITY), seeded once. `normal_balance` drives which side (debit or credit) is
   the "natural" positive direction for display.
-- **`ledger_account`** — the chart of accounts. `parent_account_id` self-references for a tree;
-  `is_system` protects default accounts from deletion or rename; `is_container` marks
-  non-postable "folder" nodes used only for grouping; `is_reconcilable` flags which accounts
-  (bank, cash) are eligible for statement import; `is_cost_of_goods_sold` splits an
-  EXPENSES-type account into Cost of Goods Sold vs. Operating Expenses on the income statement
-  (meaningless for any other account type), so Gross Profit (Revenue − COGS) can be computed —
-  the standard first subtotal on a US multi-step income statement. `id` is a real identity column
-  (unlike `ledger_account_type`/`cash_flow_category`/`balance_sheet_category`, plain
-  `INTEGER PRIMARY KEY` since they're fixed, migration-seeded enums the app never inserts into)
-  so the API can create accounts — e.g. period-close's Income Summary/Retained Earnings
+- **`ledger_account`** — the chart of accounts. `is_system` protects default accounts from
+  deletion or rename; `is_reconcilable` flags which accounts (bank, cash) are eligible for
+  statement import. `id` is a real identity column (unlike
+  `ledger_account_type`/`cash_flow_category`/`balance_sheet_category`/`income_statement_category`,
+  plain `INTEGER PRIMARY KEY` since they're fixed, migration-seeded enums the app never inserts
+  into) so the API can create accounts — e.g. period-close's Income Summary/Retained Earnings
   provisioning — without hand-rolling ID allocation.
 - **`ledger_transaction` + `ledger_entry`** — the double-entry split: `ledger_transaction` is the
   shared event (date, description, reference); `ledger_entry` is each individual debit or credit
@@ -132,6 +126,14 @@ diagram self-contained.
   judgment call this table captures instead. Which column a line prints in (Asset vs. Liability)
   still comes from `normal_balance`, not this table — a category like "Current Assets &
   Liabilities" deliberately mixes both.
+- **`income_statement_category`** — presentation-only grouping for the income statement report
+  (Revenue, Cost of Goods Sold, Operating Expenses), only meaningful for REVENUE/EXPENSES-type
+  accounts. Splitting EXPENSES into Cost of Goods Sold vs. Operating Expenses is what makes Gross
+  Profit (Revenue − COGS) — the standard first subtotal on a US multi-step income statement —
+  computable. Identified by row (id/name), the same as `balance_sheet_category`, rather than a
+  boolean flag on `ledger_account`; `balance_sheet_category_id` and `income_statement_category_id`
+  are meant to be mutually exclusive per account (a discriminated pair — `account_type_id`
+  decides which one applies), computed by `internal/reporting.IncomeStatement`.
 - **`period_close` + `period_close_entry`** — end-of-period consolidation. Closing sweeps every
   REVENUE/EXPENSE account into a per-business Income Summary `ledger_account`, then Income
   Summary into Retained Earnings — two ordinary `is_system` EQUITY accounts, so the closing
@@ -175,7 +177,6 @@ erDiagram
     invoice ||--o{ payment_application : "invoice_id"
     business ||--o{ tax_rate : "business_id"
     ledger_account ||--o{ tax_rate : "tax_liability_account_id"
-    tax_rate |o--o{ ledger_account : "default_tax_rate_id"
 
     ledger_account {
         int id PK
@@ -300,8 +301,9 @@ erDiagram
   applications can't exceed its `amount` (a payment may be partially or fully unapplied, never
   over-applied).
 - **`tax_rate`** — a named rate (e.g. "Standard 20%") tied to its own liability account.
-  `ledger_account.default_tax_rate_id`, `service.default_tax_rate_id`, and each line item's
-  `tax_rate_id` all reference it. A line item's own `tax_rate` / `tax_amount` columns still
+  `service.default_tax_rate_id` and each line item's `tax_rate_id` reference it (`ledger_account`
+  has no default-tax-rate column — dropped as redundant with `service.default_tax_rate_id`, the
+  more common day-to-day entry path). A line item's own `tax_rate` / `tax_amount` columns still
   snapshot the rate actually applied at the time, so a later change to `tax_rate` never rewrites
   history — `service.default_tax_rate_id` doesn't need that same snapshot, since a service is
   catalog data, not a historical transaction.
@@ -485,8 +487,8 @@ relationships — see note below.
 
 - No `purchase_order` — the AP-side equivalent of `estimate`.
 - `tax_rate` rows aren't auto-*assigned* — a line item still has to explicitly pick a
-  `tax_rate_id` (and, to post, a `ledger_account_id`); nothing infers either from `service` or
-  `ledger_account.default_tax_rate_id` yet.
+  `tax_rate_id` (and, to post, a `ledger_account_id`); nothing infers either from
+  `service.default_tax_rate_id` yet.
 - Semantic search over `entity_context` (pgvector) — deferred until a real retrieval need exists.
 - Multi-currency — built once (`currency`, `exchange_rate`, per-entry FX), then removed while
   everything stays USD-only.

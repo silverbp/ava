@@ -24,3 +24,11 @@ const (
 	capitalAndReservesCategoryID  = 4
 	openingBalancesCategoryID     = 5
 )
+
+// income_statement_category_id values seeded by migrations/00001_initial.up.sql - the income
+// statement report's section grouping (see IncomeStatement in income_statement.go).
+const (
+	revenueCategoryID           = 1
+	costOfGoodsSoldCategoryID   = 2
+	operatingExpensesCategoryID = 3
+)

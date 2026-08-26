@@ -770,8 +770,8 @@ func (x *IncomeStatementLine) GetAmount() *Decimal {
 
 // Standard US multi-step income statement shape: Revenue - Cost of Goods Sold = Gross Profit;
 // Gross Profit - Operating Expenses = Net Income. cost_of_goods_sold/operating_expenses are
-// split via ledger_account.is_cost_of_goods_sold - only EXPENSES-type accounts ever populate
-// either list.
+// split via ledger_account.income_statement_category_id - only EXPENSES-type accounts ever
+// populate either list.
 type IncomeStatement struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	Revenue                []*IncomeStatementLine `protobuf:"bytes,1,rep,name=revenue,proto3" json:"revenue,omitempty"`

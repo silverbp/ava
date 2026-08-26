@@ -79,8 +79,8 @@ func deactivateLedgerAccount(ctx context.Context, conn *grpc.ClientConn, id stri
 
 func newLedgerAccountCreateCmd() *cobra.Command {
 	var code, name, description string
-	var accountTypeID, parentID, cashFlowCategoryID int32
-	var reconcilable, container bool
+	var accountTypeID, cashFlowCategoryID, balanceSheetCategoryID, incomeStatementCategoryID int32
+	var reconcilable bool
 
 	cmd := &cobra.Command{
 		Use:  "create",
@@ -98,16 +98,18 @@ func newLedgerAccountCreateCmd() *cobra.Command {
 				Code:           code,
 				Name:           name,
 				IsReconcilable: reconcilable,
-				IsContainer:    container,
 			}
 			if description != "" {
 				req.Description = &description
 			}
-			if parentID != 0 {
-				req.ParentAccountId = &parentID
-			}
 			if cashFlowCategoryID != 0 {
 				req.CashFlowCategoryId = &cashFlowCategoryID
+			}
+			if balanceSheetCategoryID != 0 {
+				req.BalanceSheetCategoryId = &balanceSheetCategoryID
+			}
+			if incomeStatementCategoryID != 0 {
+				req.IncomeStatementCategoryId = &incomeStatementCategoryID
 			}
 
 			resp, err := avav1.NewLedgerAccountServiceClient(conn).CreateLedgerAccount(cmd.Context(), req)
@@ -121,10 +123,10 @@ func newLedgerAccountCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "account name (required)")
 	cmd.Flags().StringVar(&description, "description", "", "account description")
 	cmd.Flags().Int32Var(&accountTypeID, "account-type", 0, "ledger_account_type id: 1=ASSETS 2=LIABILITIES 3=EQUITY 4=REVENUE 5=EXPENSES 6=TAX_LIABILITY (required)")
-	cmd.Flags().Int32Var(&parentID, "parent", 0, "parent ledger account id")
 	cmd.Flags().Int32Var(&cashFlowCategoryID, "cash-flow-category", 0, "cash_flow_category id: 1=Operating 2=Investing 3=Financing")
+	cmd.Flags().Int32Var(&balanceSheetCategoryID, "balance-sheet-category", 0, "balance_sheet_category id (for ASSETS/LIABILITIES/EQUITY/TAX_LIABILITY accounts)")
+	cmd.Flags().Int32Var(&incomeStatementCategoryID, "income-statement-category", 0, "income_statement_category id: 1=Revenue 2=Cost of Goods Sold 3=Operating Expenses (for REVENUE/EXPENSES accounts)")
 	cmd.Flags().BoolVar(&reconcilable, "reconcilable", false, "mark this account eligible for bank-statement reconciliation")
-	cmd.Flags().BoolVar(&container, "container", false, "mark this account as a non-postable grouping node")
 	_ = cmd.MarkFlagRequired("code")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("account-type")
@@ -137,8 +139,8 @@ func newLedgerAccountCreateCmd() *cobra.Command {
 
 func newLedgerAccountUpdateCmd() *cobra.Command {
 	var name, description string
-	var cashFlowCategoryID, balanceSheetCategoryID int32
-	var reconcilable, container, cogs bool
+	var cashFlowCategoryID, balanceSheetCategoryID, incomeStatementCategoryID int32
+	var reconcilable bool
 
 	cmd := &cobra.Command{
 		Use:  "update <id>",
@@ -164,17 +166,14 @@ func newLedgerAccountUpdateCmd() *cobra.Command {
 			if cmd.Flags().Changed("reconcilable") {
 				req.IsReconcilable = &reconcilable
 			}
-			if cmd.Flags().Changed("container") {
-				req.IsContainer = &container
-			}
 			if cmd.Flags().Changed("cash-flow-category") {
 				req.CashFlowCategoryId = &cashFlowCategoryID
 			}
 			if cmd.Flags().Changed("balance-sheet-category") {
 				req.BalanceSheetCategoryId = &balanceSheetCategoryID
 			}
-			if cmd.Flags().Changed("cogs") {
-				req.IsCostOfGoodsSold = &cogs
+			if cmd.Flags().Changed("income-statement-category") {
+				req.IncomeStatementCategoryId = &incomeStatementCategoryID
 			}
 
 			resp, err := avav1.NewLedgerAccountServiceClient(conn).UpdateLedgerAccount(cmd.Context(), req)
@@ -188,9 +187,8 @@ func newLedgerAccountUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&description, "description", "", "new account description")
 	cmd.Flags().Int32Var(&cashFlowCategoryID, "cash-flow-category", 0, "new cash_flow_category id: 1=Operating 2=Investing 3=Financing")
 	cmd.Flags().Int32Var(&balanceSheetCategoryID, "balance-sheet-category", 0, "new balance_sheet_category id")
+	cmd.Flags().Int32Var(&incomeStatementCategoryID, "income-statement-category", 0, "new income_statement_category id: 1=Revenue 2=Cost of Goods Sold 3=Operating Expenses")
 	cmd.Flags().BoolVar(&reconcilable, "reconcilable", false, "eligible for bank-statement reconciliation")
-	cmd.Flags().BoolVar(&container, "container", false, "a non-postable grouping node")
-	cmd.Flags().BoolVar(&cogs, "cogs", false, "a cost-of-goods-sold account")
 	resource.Doc{
 		Summary:  "Update a ledger account",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

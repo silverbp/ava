@@ -19,7 +19,7 @@ SELECT
     la.name,
     la.account_type_id,
     la.balance_sheet_category_id,
-    la.is_cost_of_goods_sold,
+    la.income_statement_category_id,
     lat.normal_balance,
     COALESCE(SUM(CASE WHEN lt.transaction_date BETWEEN $1 AND $2 THEN le.debit_amount ELSE 0 END), 0)::numeric AS total_debit,
     COALESCE(SUM(CASE WHEN lt.transaction_date BETWEEN $1 AND $2 THEN le.credit_amount ELSE 0 END), 0)::numeric AS total_credit
@@ -28,7 +28,7 @@ JOIN ledger_account_type lat ON lat.id = la.account_type_id
 LEFT JOIN ledger_entry le ON le.account_id = la.id AND le.deleted_at IS NULL
 LEFT JOIN ledger_transaction lt ON lt.id = le.ledger_transaction_id AND lt.deleted_at IS NULL
 WHERE la.business_id = $3
-GROUP BY la.id, la.code, la.name, la.account_type_id, la.balance_sheet_category_id, la.is_cost_of_goods_sold, lat.normal_balance
+GROUP BY la.id, la.code, la.name, la.account_type_id, la.balance_sheet_category_id, la.income_statement_category_id, lat.normal_balance
 ORDER BY la.code
 `
 
@@ -39,15 +39,15 @@ type AccountBalancesAsOfParams struct {
 }
 
 type AccountBalancesAsOfRow struct {
-	AccountID              int32          `json:"account_id"`
-	Code                   string         `json:"code"`
-	Name                   string         `json:"name"`
-	AccountTypeID          int32          `json:"account_type_id"`
-	BalanceSheetCategoryID *int32         `json:"balance_sheet_category_id"`
-	IsCostOfGoodsSold      bool           `json:"is_cost_of_goods_sold"`
-	NormalBalance          string         `json:"normal_balance"`
-	TotalDebit             pgtype.Numeric `json:"total_debit"`
-	TotalCredit            pgtype.Numeric `json:"total_credit"`
+	AccountID                 int32          `json:"account_id"`
+	Code                      string         `json:"code"`
+	Name                      string         `json:"name"`
+	AccountTypeID             int32          `json:"account_type_id"`
+	BalanceSheetCategoryID    *int32         `json:"balance_sheet_category_id"`
+	IncomeStatementCategoryID *int32         `json:"income_statement_category_id"`
+	NormalBalance             string         `json:"normal_balance"`
+	TotalDebit                pgtype.Numeric `json:"total_debit"`
+	TotalCredit               pgtype.Numeric `json:"total_credit"`
 }
 
 // Copyright (c) 2025 Casey Entzi
@@ -79,7 +79,7 @@ func (q *Queries) AccountBalancesAsOf(ctx context.Context, arg AccountBalancesAs
 			&i.Name,
 			&i.AccountTypeID,
 			&i.BalanceSheetCategoryID,
-			&i.IsCostOfGoodsSold,
+			&i.IncomeStatementCategoryID,
 			&i.NormalBalance,
 			&i.TotalDebit,
 			&i.TotalCredit,

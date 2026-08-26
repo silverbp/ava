@@ -27,27 +27,24 @@ const (
 )
 
 type LedgerAccount struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	Id                     int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	BusinessId             int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	AccountTypeId          int32                  `protobuf:"varint,3,opt,name=account_type_id,json=accountTypeId,proto3" json:"account_type_id,omitempty"`
-	ParentAccountId        *int32                 `protobuf:"varint,4,opt,name=parent_account_id,json=parentAccountId,proto3,oneof" json:"parent_account_id,omitempty"`
-	Code                   string                 `protobuf:"bytes,5,opt,name=code,proto3" json:"code,omitempty"`
-	Name                   string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
-	Description            *string                `protobuf:"bytes,7,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	IsSystem               bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	IsReconcilable         bool                   `protobuf:"varint,9,opt,name=is_reconcilable,json=isReconcilable,proto3" json:"is_reconcilable,omitempty"`
-	IsContainer            bool                   `protobuf:"varint,10,opt,name=is_container,json=isContainer,proto3" json:"is_container,omitempty"`
-	CashFlowCategoryId     *int32                 `protobuf:"varint,11,opt,name=cash_flow_category_id,json=cashFlowCategoryId,proto3,oneof" json:"cash_flow_category_id,omitempty"`
-	DefaultTaxRateId       *int64                 `protobuf:"varint,12,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
-	IsActive               bool                   `protobuf:"varint,13,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	CreatedByUserId        *int64                 `protobuf:"varint,14,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
-	CreatedAt              *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt              *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	BalanceSheetCategoryId *int32                 `protobuf:"varint,17,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
-	IsCostOfGoodsSold      bool                   `protobuf:"varint,18,opt,name=is_cost_of_goods_sold,json=isCostOfGoodsSold,proto3" json:"is_cost_of_goods_sold,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Id                        int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BusinessId                int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	AccountTypeId             int32                  `protobuf:"varint,3,opt,name=account_type_id,json=accountTypeId,proto3" json:"account_type_id,omitempty"`
+	Code                      string                 `protobuf:"bytes,5,opt,name=code,proto3" json:"code,omitempty"`
+	Name                      string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Description               *string                `protobuf:"bytes,7,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	IsSystem                  bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	IsReconcilable            bool                   `protobuf:"varint,9,opt,name=is_reconcilable,json=isReconcilable,proto3" json:"is_reconcilable,omitempty"`
+	CashFlowCategoryId        *int32                 `protobuf:"varint,11,opt,name=cash_flow_category_id,json=cashFlowCategoryId,proto3,oneof" json:"cash_flow_category_id,omitempty"`
+	IsActive                  bool                   `protobuf:"varint,13,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	CreatedByUserId           *int64                 `protobuf:"varint,14,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
+	CreatedAt                 *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                 *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	BalanceSheetCategoryId    *int32                 `protobuf:"varint,17,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
+	IncomeStatementCategoryId *int32                 `protobuf:"varint,19,opt,name=income_statement_category_id,json=incomeStatementCategoryId,proto3,oneof" json:"income_statement_category_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *LedgerAccount) Reset() {
@@ -101,13 +98,6 @@ func (x *LedgerAccount) GetAccountTypeId() int32 {
 	return 0
 }
 
-func (x *LedgerAccount) GetParentAccountId() int32 {
-	if x != nil && x.ParentAccountId != nil {
-		return *x.ParentAccountId
-	}
-	return 0
-}
-
 func (x *LedgerAccount) GetCode() string {
 	if x != nil {
 		return x.Code
@@ -143,23 +133,9 @@ func (x *LedgerAccount) GetIsReconcilable() bool {
 	return false
 }
 
-func (x *LedgerAccount) GetIsContainer() bool {
-	if x != nil {
-		return x.IsContainer
-	}
-	return false
-}
-
 func (x *LedgerAccount) GetCashFlowCategoryId() int32 {
 	if x != nil && x.CashFlowCategoryId != nil {
 		return *x.CashFlowCategoryId
-	}
-	return 0
-}
-
-func (x *LedgerAccount) GetDefaultTaxRateId() int64 {
-	if x != nil && x.DefaultTaxRateId != nil {
-		return *x.DefaultTaxRateId
 	}
 	return 0
 }
@@ -199,11 +175,11 @@ func (x *LedgerAccount) GetBalanceSheetCategoryId() int32 {
 	return 0
 }
 
-func (x *LedgerAccount) GetIsCostOfGoodsSold() bool {
-	if x != nil {
-		return x.IsCostOfGoodsSold
+func (x *LedgerAccount) GetIncomeStatementCategoryId() int32 {
+	if x != nil && x.IncomeStatementCategoryId != nil {
+		return *x.IncomeStatementCategoryId
 	}
-	return false
+	return 0
 }
 
 type GetLedgerAccountRequest struct {
@@ -383,20 +359,18 @@ func (x *ListLedgerAccountsResponse) GetAccounts() []*LedgerAccount {
 }
 
 type CreateLedgerAccountRequest struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId             int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	AccountTypeId          int32                  `protobuf:"varint,2,opt,name=account_type_id,json=accountTypeId,proto3" json:"account_type_id,omitempty"`
-	ParentAccountId        *int32                 `protobuf:"varint,3,opt,name=parent_account_id,json=parentAccountId,proto3,oneof" json:"parent_account_id,omitempty"`
-	Code                   string                 `protobuf:"bytes,4,opt,name=code,proto3" json:"code,omitempty"`
-	Name                   string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
-	Description            *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	IsReconcilable         bool                   `protobuf:"varint,7,opt,name=is_reconcilable,json=isReconcilable,proto3" json:"is_reconcilable,omitempty"`
-	IsContainer            bool                   `protobuf:"varint,8,opt,name=is_container,json=isContainer,proto3" json:"is_container,omitempty"`
-	CashFlowCategoryId     *int32                 `protobuf:"varint,9,opt,name=cash_flow_category_id,json=cashFlowCategoryId,proto3,oneof" json:"cash_flow_category_id,omitempty"`
-	BalanceSheetCategoryId *int32                 `protobuf:"varint,10,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
-	IsCostOfGoodsSold      bool                   `protobuf:"varint,11,opt,name=is_cost_of_goods_sold,json=isCostOfGoodsSold,proto3" json:"is_cost_of_goods_sold,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId                int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	AccountTypeId             int32                  `protobuf:"varint,2,opt,name=account_type_id,json=accountTypeId,proto3" json:"account_type_id,omitempty"`
+	Code                      string                 `protobuf:"bytes,4,opt,name=code,proto3" json:"code,omitempty"`
+	Name                      string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
+	Description               *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	IsReconcilable            bool                   `protobuf:"varint,7,opt,name=is_reconcilable,json=isReconcilable,proto3" json:"is_reconcilable,omitempty"`
+	CashFlowCategoryId        *int32                 `protobuf:"varint,9,opt,name=cash_flow_category_id,json=cashFlowCategoryId,proto3,oneof" json:"cash_flow_category_id,omitempty"`
+	BalanceSheetCategoryId    *int32                 `protobuf:"varint,10,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
+	IncomeStatementCategoryId *int32                 `protobuf:"varint,12,opt,name=income_statement_category_id,json=incomeStatementCategoryId,proto3,oneof" json:"income_statement_category_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *CreateLedgerAccountRequest) Reset() {
@@ -443,13 +417,6 @@ func (x *CreateLedgerAccountRequest) GetAccountTypeId() int32 {
 	return 0
 }
 
-func (x *CreateLedgerAccountRequest) GetParentAccountId() int32 {
-	if x != nil && x.ParentAccountId != nil {
-		return *x.ParentAccountId
-	}
-	return 0
-}
-
 func (x *CreateLedgerAccountRequest) GetCode() string {
 	if x != nil {
 		return x.Code
@@ -478,13 +445,6 @@ func (x *CreateLedgerAccountRequest) GetIsReconcilable() bool {
 	return false
 }
 
-func (x *CreateLedgerAccountRequest) GetIsContainer() bool {
-	if x != nil {
-		return x.IsContainer
-	}
-	return false
-}
-
 func (x *CreateLedgerAccountRequest) GetCashFlowCategoryId() int32 {
 	if x != nil && x.CashFlowCategoryId != nil {
 		return *x.CashFlowCategoryId
@@ -499,11 +459,11 @@ func (x *CreateLedgerAccountRequest) GetBalanceSheetCategoryId() int32 {
 	return 0
 }
 
-func (x *CreateLedgerAccountRequest) GetIsCostOfGoodsSold() bool {
-	if x != nil {
-		return x.IsCostOfGoodsSold
+func (x *CreateLedgerAccountRequest) GetIncomeStatementCategoryId() int32 {
+	if x != nil && x.IncomeStatementCategoryId != nil {
+		return *x.IncomeStatementCategoryId
 	}
-	return false
+	return 0
 }
 
 type CreateLedgerAccountResponse struct {
@@ -551,17 +511,16 @@ func (x *CreateLedgerAccountResponse) GetAccount() *LedgerAccount {
 }
 
 type UpdateLedgerAccountRequest struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	Id                     int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                   *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description            *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	IsReconcilable         *bool                  `protobuf:"varint,4,opt,name=is_reconcilable,json=isReconcilable,proto3,oneof" json:"is_reconcilable,omitempty"`
-	IsContainer            *bool                  `protobuf:"varint,5,opt,name=is_container,json=isContainer,proto3,oneof" json:"is_container,omitempty"`
-	CashFlowCategoryId     *int32                 `protobuf:"varint,6,opt,name=cash_flow_category_id,json=cashFlowCategoryId,proto3,oneof" json:"cash_flow_category_id,omitempty"`
-	BalanceSheetCategoryId *int32                 `protobuf:"varint,7,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
-	IsCostOfGoodsSold      *bool                  `protobuf:"varint,8,opt,name=is_cost_of_goods_sold,json=isCostOfGoodsSold,proto3,oneof" json:"is_cost_of_goods_sold,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Id                        int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                      *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description               *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	IsReconcilable            *bool                  `protobuf:"varint,4,opt,name=is_reconcilable,json=isReconcilable,proto3,oneof" json:"is_reconcilable,omitempty"`
+	CashFlowCategoryId        *int32                 `protobuf:"varint,6,opt,name=cash_flow_category_id,json=cashFlowCategoryId,proto3,oneof" json:"cash_flow_category_id,omitempty"`
+	BalanceSheetCategoryId    *int32                 `protobuf:"varint,7,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
+	IncomeStatementCategoryId *int32                 `protobuf:"varint,9,opt,name=income_statement_category_id,json=incomeStatementCategoryId,proto3,oneof" json:"income_statement_category_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *UpdateLedgerAccountRequest) Reset() {
@@ -622,13 +581,6 @@ func (x *UpdateLedgerAccountRequest) GetIsReconcilable() bool {
 	return false
 }
 
-func (x *UpdateLedgerAccountRequest) GetIsContainer() bool {
-	if x != nil && x.IsContainer != nil {
-		return *x.IsContainer
-	}
-	return false
-}
-
 func (x *UpdateLedgerAccountRequest) GetCashFlowCategoryId() int32 {
 	if x != nil && x.CashFlowCategoryId != nil {
 		return *x.CashFlowCategoryId
@@ -643,11 +595,11 @@ func (x *UpdateLedgerAccountRequest) GetBalanceSheetCategoryId() int32 {
 	return 0
 }
 
-func (x *UpdateLedgerAccountRequest) GetIsCostOfGoodsSold() bool {
-	if x != nil && x.IsCostOfGoodsSold != nil {
-		return *x.IsCostOfGoodsSold
+func (x *UpdateLedgerAccountRequest) GetIncomeStatementCategoryId() int32 {
+	if x != nil && x.IncomeStatementCategoryId != nil {
+		return *x.IncomeStatementCategoryId
 	}
-	return false
+	return 0
 }
 
 type UpdateLedgerAccountResponse struct {
@@ -1360,36 +1312,31 @@ var File_ava_v1_ledger_proto protoreflect.FileDescriptor
 
 const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\n" +
-	"\x13ava/v1/ledger.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\x81\a\n" +
+	"\x13ava/v1/ledger.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\x80\x06\n" +
 	"\rLedgerAccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
 	"businessId\x12&\n" +
-	"\x0faccount_type_id\x18\x03 \x01(\x05R\raccountTypeId\x12/\n" +
-	"\x11parent_account_id\x18\x04 \x01(\x05H\x00R\x0fparentAccountId\x88\x01\x01\x12\x12\n" +
+	"\x0faccount_type_id\x18\x03 \x01(\x05R\raccountTypeId\x12\x12\n" +
 	"\x04code\x18\x05 \x01(\tR\x04code\x12\x12\n" +
 	"\x04name\x18\x06 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\a \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1b\n" +
+	"\vdescription\x18\a \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1b\n" +
 	"\tis_system\x18\b \x01(\bR\bisSystem\x12'\n" +
-	"\x0fis_reconcilable\x18\t \x01(\bR\x0eisReconcilable\x12!\n" +
-	"\fis_container\x18\n" +
-	" \x01(\bR\visContainer\x126\n" +
-	"\x15cash_flow_category_id\x18\v \x01(\x05H\x02R\x12cashFlowCategoryId\x88\x01\x01\x122\n" +
-	"\x13default_tax_rate_id\x18\f \x01(\x03H\x03R\x10defaultTaxRateId\x88\x01\x01\x12\x1b\n" +
+	"\x0fis_reconcilable\x18\t \x01(\bR\x0eisReconcilable\x126\n" +
+	"\x15cash_flow_category_id\x18\v \x01(\x05H\x01R\x12cashFlowCategoryId\x88\x01\x01\x12\x1b\n" +
 	"\tis_active\x18\r \x01(\bR\bisActive\x120\n" +
-	"\x12created_by_user_id\x18\x0e \x01(\x03H\x04R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
+	"\x12created_by_user_id\x18\x0e \x01(\x03H\x02R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12>\n" +
-	"\x19balance_sheet_category_id\x18\x11 \x01(\x05H\x05R\x16balanceSheetCategoryId\x88\x01\x01\x120\n" +
-	"\x15is_cost_of_goods_sold\x18\x12 \x01(\bR\x11isCostOfGoodsSoldB\x14\n" +
-	"\x12_parent_account_idB\x0e\n" +
+	"\x19balance_sheet_category_id\x18\x11 \x01(\x05H\x03R\x16balanceSheetCategoryId\x88\x01\x01\x12D\n" +
+	"\x1cincome_statement_category_id\x18\x13 \x01(\x05H\x04R\x19incomeStatementCategoryId\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x18\n" +
-	"\x16_cash_flow_category_idB\x16\n" +
-	"\x14_default_tax_rate_idB\x15\n" +
+	"\x16_cash_flow_category_idB\x15\n" +
 	"\x13_created_by_user_idB\x1c\n" +
-	"\x1a_balance_sheet_category_id\")\n" +
+	"\x1a_balance_sheet_category_idB\x1f\n" +
+	"\x1d_income_statement_category_id\")\n" +
 	"\x17GetLedgerAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\"K\n" +
 	"\x18GetLedgerAccountResponse\x12/\n" +
@@ -1398,43 +1345,39 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\"O\n" +
 	"\x1aListLedgerAccountsResponse\x121\n" +
-	"\baccounts\x18\x01 \x03(\v2\x15.ava.v1.LedgerAccountR\baccounts\"\xb9\x04\n" +
+	"\baccounts\x18\x01 \x03(\v2\x15.ava.v1.LedgerAccountR\baccounts\"\x84\x04\n" +
 	"\x1aCreateLedgerAccountRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12&\n" +
-	"\x0faccount_type_id\x18\x02 \x01(\x05R\raccountTypeId\x12/\n" +
-	"\x11parent_account_id\x18\x03 \x01(\x05H\x00R\x0fparentAccountId\x88\x01\x01\x12\x12\n" +
+	"\x0faccount_type_id\x18\x02 \x01(\x05R\raccountTypeId\x12\x12\n" +
 	"\x04code\x18\x04 \x01(\tR\x04code\x12\x12\n" +
 	"\x04name\x18\x05 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x06 \x01(\tH\x01R\vdescription\x88\x01\x01\x12'\n" +
-	"\x0fis_reconcilable\x18\a \x01(\bR\x0eisReconcilable\x12!\n" +
-	"\fis_container\x18\b \x01(\bR\visContainer\x126\n" +
-	"\x15cash_flow_category_id\x18\t \x01(\x05H\x02R\x12cashFlowCategoryId\x88\x01\x01\x12>\n" +
+	"\vdescription\x18\x06 \x01(\tH\x00R\vdescription\x88\x01\x01\x12'\n" +
+	"\x0fis_reconcilable\x18\a \x01(\bR\x0eisReconcilable\x126\n" +
+	"\x15cash_flow_category_id\x18\t \x01(\x05H\x01R\x12cashFlowCategoryId\x88\x01\x01\x12>\n" +
 	"\x19balance_sheet_category_id\x18\n" +
-	" \x01(\x05H\x03R\x16balanceSheetCategoryId\x88\x01\x01\x120\n" +
-	"\x15is_cost_of_goods_sold\x18\v \x01(\bR\x11isCostOfGoodsSoldB\x14\n" +
-	"\x12_parent_account_idB\x0e\n" +
+	" \x01(\x05H\x02R\x16balanceSheetCategoryId\x88\x01\x01\x12D\n" +
+	"\x1cincome_statement_category_id\x18\f \x01(\x05H\x03R\x19incomeStatementCategoryId\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x18\n" +
 	"\x16_cash_flow_category_idB\x1c\n" +
-	"\x1a_balance_sheet_category_id\"N\n" +
+	"\x1a_balance_sheet_category_idB\x1f\n" +
+	"\x1d_income_statement_category_id\"N\n" +
 	"\x1bCreateLedgerAccountResponse\x12/\n" +
-	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"\x81\x04\n" +
+	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"\xde\x03\n" +
 	"\x1aUpdateLedgerAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12,\n" +
-	"\x0fis_reconcilable\x18\x04 \x01(\bH\x02R\x0eisReconcilable\x88\x01\x01\x12&\n" +
-	"\fis_container\x18\x05 \x01(\bH\x03R\visContainer\x88\x01\x01\x126\n" +
-	"\x15cash_flow_category_id\x18\x06 \x01(\x05H\x04R\x12cashFlowCategoryId\x88\x01\x01\x12>\n" +
-	"\x19balance_sheet_category_id\x18\a \x01(\x05H\x05R\x16balanceSheetCategoryId\x88\x01\x01\x125\n" +
-	"\x15is_cost_of_goods_sold\x18\b \x01(\bH\x06R\x11isCostOfGoodsSold\x88\x01\x01B\a\n" +
+	"\x0fis_reconcilable\x18\x04 \x01(\bH\x02R\x0eisReconcilable\x88\x01\x01\x126\n" +
+	"\x15cash_flow_category_id\x18\x06 \x01(\x05H\x03R\x12cashFlowCategoryId\x88\x01\x01\x12>\n" +
+	"\x19balance_sheet_category_id\x18\a \x01(\x05H\x04R\x16balanceSheetCategoryId\x88\x01\x01\x12D\n" +
+	"\x1cincome_statement_category_id\x18\t \x01(\x05H\x05R\x19incomeStatementCategoryId\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x12\n" +
-	"\x10_is_reconcilableB\x0f\n" +
-	"\r_is_containerB\x18\n" +
+	"\x10_is_reconcilableB\x18\n" +
 	"\x16_cash_flow_category_idB\x1c\n" +
-	"\x1a_balance_sheet_category_idB\x18\n" +
-	"\x16_is_cost_of_goods_sold\"N\n" +
+	"\x1a_balance_sheet_category_idB\x1f\n" +
+	"\x1d_income_statement_category_id\"N\n" +
 	"\x1bUpdateLedgerAccountResponse\x12/\n" +
 	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"0\n" +
 	"\x1eDeactivateLedgerAccountRequest\x12\x0e\n" +

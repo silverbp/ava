@@ -74,8 +74,8 @@ type BalanceSheetResult struct {
 
 // IncomeStatementResult is the standard US multi-step income statement shape: Revenue - Cost of
 // Goods Sold = Gross Profit; Gross Profit - Operating Expenses = Net Income.
-// CostOfGoodsSold/OperatingExpenses are split via ledger_account.is_cost_of_goods_sold - only
-// EXPENSES-type accounts ever populate either list.
+// CostOfGoodsSold/OperatingExpenses are split via ledger_account.income_statement_category_id -
+// only EXPENSES-type accounts ever populate either list.
 type IncomeStatementResult struct {
 	Revenue                []AccountLine
 	TotalRevenue           decimal.Decimal

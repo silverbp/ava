@@ -116,8 +116,8 @@ message IncomeStatementLine {
 
 // Standard US multi-step income statement shape: Revenue - Cost of Goods Sold = Gross Profit;
 // Gross Profit - Operating Expenses = Net Income. cost_of_goods_sold/operating_expenses are
-// split via ledger_account.is_cost_of_goods_sold - only EXPENSES-type accounts ever populate
-// either list.
+// split via ledger_account.income_statement_category_id - only EXPENSES-type accounts ever
+// populate either list.
 message IncomeStatement {
   repeated IncomeStatementLine revenue = 1;
   Decimal total_revenue = 2;

@@ -16,7 +16,7 @@ import (
 // IncomeStatement sums REVENUE/EXPENSE activity over [start, end] into the standard US
 // multi-step shape (Revenue - Cost of Goods Sold = Gross Profit; Gross Profit - Operating
 // Expenses = Net Income), splitting EXPENSES-type accounts via
-// ledger_account.is_cost_of_goods_sold. Reads ledger_entry directly regardless of period-close
+// ledger_account.income_statement_category_id. Reads ledger_entry directly regardless of period-close
 // state — a P&L for a range doesn't care whether that range has since been closed
 // (docs/architecture.md#period-close, "Reporting integration").
 func IncomeStatement(ctx context.Context, q *sqlcgen.Queries, businessID int64, start, end time.Time) (*IncomeStatementResult, error) {
@@ -57,7 +57,7 @@ func IncomeStatement(ctx context.Context, q *sqlcgen.Queries, businessID int64, 
 		case r.AccountTypeID == revenueTypeID:
 			result.Revenue = append(result.Revenue, line)
 			result.TotalRevenue = result.TotalRevenue.Add(net)
-		case r.IsCostOfGoodsSold:
+		case r.IncomeStatementCategoryID != nil && *r.IncomeStatementCategoryID == costOfGoodsSoldCategoryID:
 			result.CostOfGoodsSold = append(result.CostOfGoodsSold, line)
 			result.TotalCostOfGoodsSold = result.TotalCostOfGoodsSold.Add(net)
 		default:

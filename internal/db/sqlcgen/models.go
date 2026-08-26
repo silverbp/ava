@@ -209,6 +209,12 @@ type EstimateLineItem struct {
 	DeletedAt    pgtype.Timestamp `json:"deleted_at"`
 }
 
+type IncomeStatementCategory struct {
+	ID              int32  `json:"id"`
+	Name            string `json:"name"`
+	DisplaySequence int32  `json:"display_sequence"`
+}
+
 type Invoice struct {
 	ID                  int64            `json:"id"`
 	BusinessID          int64            `json:"business_id"`
@@ -255,25 +261,22 @@ type InvoiceLineItem struct {
 }
 
 type LedgerAccount struct {
-	ID                     int32            `json:"id"`
-	BusinessID             int64            `json:"business_id"`
-	AccountTypeID          int32            `json:"account_type_id"`
-	Code                   string           `json:"code"`
-	Name                   string           `json:"name"`
-	Description            *string          `json:"description"`
-	ParentAccountID        *int32           `json:"parent_account_id"`
-	IsSystem               bool             `json:"is_system"`
-	IsReconcilable         bool             `json:"is_reconcilable"`
-	IsContainer            bool             `json:"is_container"`
-	DisplaySequence        int32            `json:"display_sequence"`
-	DefaultTaxRateID       *int64           `json:"default_tax_rate_id"`
-	CashFlowCategoryID     *int32           `json:"cash_flow_category_id"`
-	BalanceSheetCategoryID *int32           `json:"balance_sheet_category_id"`
-	IsCostOfGoodsSold      bool             `json:"is_cost_of_goods_sold"`
-	IsActive               bool             `json:"is_active"`
-	CreatedByUserID        *int64           `json:"created_by_user_id"`
-	CreatedAt              pgtype.Timestamp `json:"created_at"`
-	UpdatedAt              pgtype.Timestamp `json:"updated_at"`
+	ID                        int32            `json:"id"`
+	BusinessID                int64            `json:"business_id"`
+	AccountTypeID             int32            `json:"account_type_id"`
+	Code                      string           `json:"code"`
+	Name                      string           `json:"name"`
+	Description               *string          `json:"description"`
+	IsSystem                  bool             `json:"is_system"`
+	IsReconcilable            bool             `json:"is_reconcilable"`
+	DisplaySequence           int32            `json:"display_sequence"`
+	CashFlowCategoryID        *int32           `json:"cash_flow_category_id"`
+	BalanceSheetCategoryID    *int32           `json:"balance_sheet_category_id"`
+	IncomeStatementCategoryID *int32           `json:"income_statement_category_id"`
+	IsActive                  bool             `json:"is_active"`
+	CreatedByUserID           *int64           `json:"created_by_user_id"`
+	CreatedAt                 pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamp `json:"updated_at"`
 }
 
 type LedgerAccountType struct {
