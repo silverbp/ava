@@ -248,6 +248,11 @@ message CreateInvoiceRequest {
   google.type.Date due_date = 7;
   optional string notes = 8;
   optional string terms = 9;
+  // May be left empty when estimate_id is set - the invoice is then built from that
+  // estimate's own line items (service_id/description/quantity/unit_price/is_taxable/
+  // tax_rate_id carried over as-is; ledger_account_id resolved fresh via each line's
+  // service.default_ledger_account_id, same as any other line that sets service_id without
+  // an explicit ledger_account_id - see NewInvoiceLineItem). Required otherwise.
   repeated NewInvoiceLineItem line_items = 10;
 }
 

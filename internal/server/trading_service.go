@@ -260,6 +260,37 @@ func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.N
 	return resolved, nil
 }
 
+// newInvoiceLineItemsFromEstimate converts an accepted estimate's line items into the
+// NewInvoiceLineItem shape CreateInvoice expects, carrying over service_id (and the
+// quantity/price/tax fields the estimate already resolved) but never ledger_account_id -
+// estimate_line_item has no such column, so it's left unset here and picked up from the
+// line's service.default_ledger_account_id by resolveInvoiceLines, same as any other
+// invoice line that sets service_id without an explicit ledger_account_id.
+func newInvoiceLineItemsFromEstimate(estLines []sqlcgen.EstimateLineItem) ([]*avav1.NewInvoiceLineItem, error) {
+	out := make([]*avav1.NewInvoiceLineItem, len(estLines))
+	for i, eli := range estLines {
+		quantity, err := moneypb.ToProto(eli.Quantity)
+		if err != nil {
+			return nil, fmt.Errorf("estimate line %d: quantity: %w", i, err)
+		}
+		unitPrice, err := moneypb.ToProto(eli.UnitPrice)
+		if err != nil {
+			return nil, fmt.Errorf("estimate line %d: unit_price: %w", i, err)
+		}
+		isTaxable := eli.IsTaxable
+		out[i] = &avav1.NewInvoiceLineItem{
+			ServiceId:   eli.ServiceID,
+			LineNumber:  eli.LineNumber,
+			Description: eli.Description,
+			Quantity:    quantity,
+			UnitPrice:   unitPrice,
+			IsTaxable:   &isTaxable,
+			TaxRateId:   eli.TaxRateID,
+		}
+	}
+	return out, nil
+}
+
 func createDecimalEntry(ctx context.Context, q *sqlcgen.Queries, businessID, txnID int64, accountID int32, debit, credit decimal.Decimal) error {
 	debitNum, err := ledgermath.DecimalToNumeric(debit)
 	if err != nil {
@@ -778,7 +809,7 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 	if req.GetInvoiceType() != "SALES" && req.GetInvoiceType() != "PURCHASE" {
 		return nil, status.Error(codes.InvalidArgument, "invoice_type must be SALES or PURCHASE")
 	}
-	if len(req.GetLineItems()) == 0 {
+	if len(req.GetLineItems()) == 0 && req.EstimateId == nil {
 		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
 	}
 	if req.GetInvoiceType() == "PURCHASE" && req.GetInvoiceNumber() == "" {
@@ -793,7 +824,32 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 		lineItems []sqlcgen.InvoiceLineItem
 	)
 	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		resolved, err := resolveInvoiceLines(ctx, q, req.GetLineItems())
+		rawLineItems := req.GetLineItems()
+		if len(rawLineItems) == 0 {
+			est, err := q.GetEstimate(ctx, req.GetEstimateId())
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return status.Errorf(codes.InvalidArgument, "estimate %d not found", req.GetEstimateId())
+				}
+				return err
+			}
+			if est.BusinessID != req.GetBusinessId() {
+				return status.Errorf(codes.InvalidArgument, "estimate %d does not belong to business %d", req.GetEstimateId(), req.GetBusinessId())
+			}
+			estLines, err := q.ListEstimateLineItems(ctx, est.ID)
+			if err != nil {
+				return err
+			}
+			if len(estLines) == 0 {
+				return status.Errorf(codes.InvalidArgument, "estimate %d has no line items", est.ID)
+			}
+			rawLineItems, err = newInvoiceLineItemsFromEstimate(estLines)
+			if err != nil {
+				return err
+			}
+		}
+
+		resolved, err := resolveInvoiceLines(ctx, q, rawLineItems)
 		if err != nil {
 			return err
 		}

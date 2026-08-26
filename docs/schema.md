@@ -310,7 +310,12 @@ erDiagram
   `contact_id` resolves to a customer or vendor depending on type. `ledger_transaction_id` links
   back to the GL posting this invoice produced — required to be set as of CreateInvoice, since
   every line item's `ledger_account_id` and the contact's own customer/vendor `ledger_account_id`
-  (whichever `invoice_type` selects) are both mandatory (see below).
+  (whichever `invoice_type` selects) are both mandatory (see below). `estimate_id` links an
+  invoice back to the estimate it came from; `CreateInvoice` can also build the invoice's line
+  items *from* that estimate — pass `estimate_id` with `line_items` empty and each estimate line's
+  `service_id`/`description`/`quantity`/`unit_price`/`is_taxable`/`tax_rate_id` carries over as-is,
+  with `ledger_account_id` resolved fresh through `resolveInvoiceLines` (estimate lines have no
+  ledger account of their own — see below).
 - **`invoice_line_item.ledger_account_id`** — which revenue (SALES) or expense (PURCHASE)
   account this line posts to, required on every line one way or another. A caller can set it
   explicitly, or leave it unset and set `service_id` on a service that has its own

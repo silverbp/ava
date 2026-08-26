@@ -121,6 +121,9 @@ func newInvoiceCreateCmd() *cobra.Command {
 		Use:  "create",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(rawLines) == 0 && estimate == 0 {
+				return fmt.Errorf("either --line or --estimate is required")
+			}
 			rawFields, err := parseLineFlags(rawLines)
 			if err != nil {
 				return err
@@ -202,22 +205,25 @@ func newInvoiceCreateCmd() *cobra.Command {
 	cmd.Flags().Int64Var(&estimate, "estimate", 0, "estimate id this invoice converts from")
 	cmd.Flags().StringVar(&notes, "notes", "", "notes")
 	cmd.Flags().StringVar(&terms, "terms", "", "terms")
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the service when omitted")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the service when omitted. Omit entirely when --estimate is set to build the lines from that estimate instead.")
 	_ = cmd.MarkFlagRequired("contact")
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("due")
-	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Create an invoice",
 		Detail: "Every line needs a ledger_account_id one way or another - either set account=<id> " +
 			"explicitly, or set service=<id> on a service that has its own default_ledger_account_id. " +
 			"The contact must also have a customer (for SALES) or vendor (for PURCHASE) record with its " +
-			"own ledger_account_id set — the invoice posts to the ledger atomically as part of creation.",
+			"own ledger_account_id set — the invoice posts to the ledger atomically as part of creation. " +
+			"Pass --estimate with no --line flags to build the invoice's lines from that estimate's own " +
+			"lines instead (service_id/description/qty/price/taxable/tax_rate carried over as-is, " +
+			"ledger_account_id resolved fresh from each line's service default).",
 		Examples: []resource.Example{
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
 				`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`},
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
 				`--line "desc=Consulting,service=71,qty=10"`},
+			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 --estimate 12"},
 		},
 	}.Apply(cmd)
 	return cmd
