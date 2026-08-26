@@ -125,10 +125,7 @@ type CashFlowCategory struct {
 type Contact struct {
 	ID                   int64            `json:"id"`
 	BusinessID           int64            `json:"business_id"`
-	LedgerAccountID      *int32           `json:"ledger_account_id"`
 	ContactNumber        string           `json:"contact_number"`
-	IsCustomer           bool             `json:"is_customer"`
-	IsVendor             bool             `json:"is_vendor"`
 	Name                 string           `json:"name"`
 	Email                *string          `json:"email"`
 	Phone                *string          `json:"phone"`
@@ -151,6 +148,14 @@ type Contact struct {
 	CreatedAt            pgtype.Timestamp `json:"created_at"`
 	UpdatedAt            pgtype.Timestamp `json:"updated_at"`
 	DeletedAt            pgtype.Timestamp `json:"deleted_at"`
+}
+
+type Customer struct {
+	ID              int64            `json:"id"`
+	ContactID       int64            `json:"contact_id"`
+	LedgerAccountID *int32           `json:"ledger_account_id"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
 }
 
 type EntityContext struct {
@@ -267,8 +272,10 @@ type LedgerAccount struct {
 	Code                      string           `json:"code"`
 	Name                      string           `json:"name"`
 	Description               *string          `json:"description"`
+	ParentAccountID           *int32           `json:"parent_account_id"`
 	IsSystem                  bool             `json:"is_system"`
 	IsReconcilable            bool             `json:"is_reconcilable"`
+	IsContainer               bool             `json:"is_container"`
 	DisplaySequence           int32            `json:"display_sequence"`
 	CashFlowCategoryID        *int32           `json:"cash_flow_category_id"`
 	BalanceSheetCategoryID    *int32           `json:"balance_sheet_category_id"`
@@ -360,21 +367,22 @@ type PeriodCloseEntry struct {
 }
 
 type Service struct {
-	ID               int64            `json:"id"`
-	BusinessID       int64            `json:"business_id"`
-	ServiceCode      string           `json:"service_code"`
-	Name             string           `json:"name"`
-	Description      *string          `json:"description"`
-	UnitOfMeasure    *string          `json:"unit_of_measure"`
-	CostPrice        pgtype.Numeric   `json:"cost_price"`
-	RetailPrice      pgtype.Numeric   `json:"retail_price"`
-	IsTaxable        bool             `json:"is_taxable"`
-	DefaultTaxRateID *int64           `json:"default_tax_rate_id"`
-	IsActive         bool             `json:"is_active"`
-	CreatedByUserID  *int64           `json:"created_by_user_id"`
-	CreatedAt        pgtype.Timestamp `json:"created_at"`
-	UpdatedAt        pgtype.Timestamp `json:"updated_at"`
-	DeletedAt        pgtype.Timestamp `json:"deleted_at"`
+	ID                     int64            `json:"id"`
+	BusinessID             int64            `json:"business_id"`
+	ServiceCode            string           `json:"service_code"`
+	Name                   string           `json:"name"`
+	Description            *string          `json:"description"`
+	UnitOfMeasure          *string          `json:"unit_of_measure"`
+	CostPrice              pgtype.Numeric   `json:"cost_price"`
+	RetailPrice            pgtype.Numeric   `json:"retail_price"`
+	IsTaxable              bool             `json:"is_taxable"`
+	DefaultTaxRateID       *int64           `json:"default_tax_rate_id"`
+	DefaultLedgerAccountID *int32           `json:"default_ledger_account_id"`
+	IsActive               bool             `json:"is_active"`
+	CreatedByUserID        *int64           `json:"created_by_user_id"`
+	CreatedAt              pgtype.Timestamp `json:"created_at"`
+	UpdatedAt              pgtype.Timestamp `json:"updated_at"`
+	DeletedAt              pgtype.Timestamp `json:"deleted_at"`
 }
 
 type TaxRate struct {
@@ -399,6 +407,14 @@ type UserSession struct {
 	LastUsedAt          pgtype.Timestamp `json:"last_used_at"`
 	RevokedAt           pgtype.Timestamp `json:"revoked_at"`
 	ReplacedBySessionID *int64           `json:"replaced_by_session_id"`
+}
+
+type Vendor struct {
+	ID              int64            `json:"id"`
+	ContactID       int64            `json:"contact_id"`
+	LedgerAccountID *int32           `json:"ledger_account_id"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
 }
 
 type WebauthnCredential struct {

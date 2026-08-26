@@ -25,8 +25,8 @@ var contactNoun = resource.Noun{
 		{Header: "ID", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Contact).GetId()) }},
 		{Header: "NUMBER", Value: func(v proto.Message) string { return v.(*avav1.Contact).GetContactNumber() }},
 		{Header: "NAME", Value: func(v proto.Message) string { return v.(*avav1.Contact).GetName() }},
-		{Header: "CUSTOMER", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetIsCustomer()) }},
-		{Header: "VENDOR", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetIsVendor()) }},
+		{Header: "CUSTOMER", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetCustomer() != nil) }},
+		{Header: "VENDOR", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetVendor() != nil) }},
 		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetIsActive()) }},
 	},
 }
@@ -86,7 +86,7 @@ func deactivateContact(ctx context.Context, conn *grpc.ClientConn, id string) (p
 
 func newContactCreateCmd() *cobra.Command {
 	var contactNumber, name, email, phone string
-	var ledgerAccount, paymentTerms int32
+	var customerLedgerAccount, vendorLedgerAccount, paymentTerms int32
 	var isCustomer, isVendor bool
 	var creditLimit string
 	var addr1, addr2, city, state, postal, country string
@@ -114,8 +114,11 @@ func newContactCreateCmd() *cobra.Command {
 			if phone != "" {
 				req.Phone = &phone
 			}
-			if ledgerAccount != 0 {
-				req.LedgerAccountId = &ledgerAccount
+			if customerLedgerAccount != 0 {
+				req.CustomerLedgerAccountId = &customerLedgerAccount
+			}
+			if vendorLedgerAccount != 0 {
+				req.VendorLedgerAccountId = &vendorLedgerAccount
 			}
 			if paymentTerms != 0 {
 				req.PaymentTermsDays = &paymentTerms
@@ -155,7 +158,8 @@ func newContactCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&phone, "phone", "", "phone number")
 	cmd.Flags().BoolVar(&isCustomer, "customer", true, "this contact is a customer")
 	cmd.Flags().BoolVar(&isVendor, "vendor", false, "this contact is a vendor")
-	cmd.Flags().Int32Var(&ledgerAccount, "ledger-account", 0, "this contact's AR/AP ledger account id, for posting invoices/payments")
+	cmd.Flags().Int32Var(&customerLedgerAccount, "customer-ledger-account", 0, "this contact's AR ledger account id (requires --customer), for posting invoices/payments")
+	cmd.Flags().Int32Var(&vendorLedgerAccount, "vendor-ledger-account", 0, "this contact's AP ledger account id (requires --vendor), for posting invoices/payments")
 	cmd.Flags().Int32Var(&paymentTerms, "payment-terms", 0, "default payment terms, in days")
 	cmd.Flags().StringVar(&creditLimit, "credit-limit", "", "credit limit")
 	cmd.Flags().StringVar(&addr1, "address1", "", "billing address line 1")
@@ -168,14 +172,14 @@ func newContactCreateCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("name")
 	resource.Doc{
 		Summary:  "Create a customer/vendor contact",
-		Examples: []resource.Example{{Cmd: "avactl contact create --contact-number C-1 --name \"Acme Co\" --ledger-account 12"}},
+		Examples: []resource.Example{{Cmd: "avactl contact create --contact-number C-1 --name \"Acme Co\" --customer-ledger-account 12"}},
 	}.Apply(cmd)
 	return cmd
 }
 
 func newContactUpdateCmd() *cobra.Command {
 	var name, email, phone string
-	var ledgerAccount, paymentTerms int32
+	var paymentTerms int32
 	var creditLimit string
 	var addr1, addr2, city, state, postal, country string
 
@@ -202,9 +206,6 @@ func newContactUpdateCmd() *cobra.Command {
 			}
 			if cmd.Flags().Changed("phone") {
 				req.Phone = &phone
-			}
-			if cmd.Flags().Changed("ledger-account") {
-				req.LedgerAccountId = &ledgerAccount
 			}
 			if cmd.Flags().Changed("payment-terms") {
 				req.PaymentTermsDays = &paymentTerms
@@ -241,7 +242,6 @@ func newContactUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "new contact name")
 	cmd.Flags().StringVar(&email, "email", "", "new email address")
 	cmd.Flags().StringVar(&phone, "phone", "", "new phone number")
-	cmd.Flags().Int32Var(&ledgerAccount, "ledger-account", 0, "new AR/AP ledger account id")
 	cmd.Flags().Int32Var(&paymentTerms, "payment-terms", 0, "new default payment terms, in days")
 	cmd.Flags().StringVar(&creditLimit, "credit-limit", "", "new credit limit")
 	cmd.Flags().StringVar(&addr1, "address1", "", "new billing address line 1")

@@ -40,7 +40,7 @@ func (s *contactService) GetContact(ctx context.Context, req *avav1.GetContactRe
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, c.BusinessID, "VIEWER"); err != nil {
 		return nil, err
 	}
-	pb, err := contactToProto(c)
+	pb, err := contactToProto(ctx, s.store.Queries, c)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting contact: %v", err)
 	}
@@ -60,7 +60,7 @@ func (s *contactService) ListContacts(ctx context.Context, req *avav1.ListContac
 	}
 	resp := &avav1.ListContactsResponse{}
 	for _, c := range rows {
-		pb, err := contactToProto(c)
+		pb, err := contactToProto(ctx, s.store.Queries, c)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "converting contact: %v", err)
 		}
@@ -88,10 +88,7 @@ func (s *contactService) CreateContact(ctx context.Context, req *avav1.CreateCon
 
 	created, err := s.store.Queries.CreateContact(ctx, sqlcgen.CreateContactParams{
 		BusinessID:          req.GetBusinessId(),
-		LedgerAccountID:     req.LedgerAccountId,
 		ContactNumber:       req.GetContactNumber(),
-		IsCustomer:          req.GetIsCustomer(),
-		IsVendor:            req.GetIsVendor(),
 		Name:                req.GetName(),
 		Email:               req.Email,
 		Phone:               req.Phone,
@@ -108,7 +105,25 @@ func (s *contactService) CreateContact(ctx context.Context, req *avav1.CreateCon
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-	pb, err := contactToProto(created)
+
+	if req.GetIsCustomer() {
+		if _, err := s.store.Queries.CreateCustomer(ctx, sqlcgen.CreateCustomerParams{
+			ContactID:       created.ID,
+			LedgerAccountID: req.CustomerLedgerAccountId,
+		}); err != nil {
+			return nil, translatePgError(err)
+		}
+	}
+	if req.GetIsVendor() {
+		if _, err := s.store.Queries.CreateVendor(ctx, sqlcgen.CreateVendorParams{
+			ContactID:       created.ID,
+			LedgerAccountID: req.VendorLedgerAccountId,
+		}); err != nil {
+			return nil, translatePgError(err)
+		}
+	}
+
+	pb, err := contactToProto(ctx, s.store.Queries, created)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting contact: %v", err)
 	}
@@ -137,7 +152,6 @@ func (s *contactService) UpdateContact(ctx context.Context, req *avav1.UpdateCon
 		Name:                req.Name,
 		Email:               req.Email,
 		Phone:               req.Phone,
-		LedgerAccountID:     req.LedgerAccountId,
 		PaymentTermsDays:    req.PaymentTermsDays,
 		CreditLimit:         creditLimit,
 		BillingAddressLine1: req.BillingAddressLine1,
@@ -150,7 +164,7 @@ func (s *contactService) UpdateContact(ctx context.Context, req *avav1.UpdateCon
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-	pb, err := contactToProto(updated)
+	pb, err := contactToProto(ctx, s.store.Queries, updated)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting contact: %v", err)
 	}
@@ -172,25 +186,49 @@ func (s *contactService) DeactivateContact(ctx context.Context, req *avav1.Deact
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-	pb, err := contactToProto(deactivated)
+	pb, err := contactToProto(ctx, s.store.Queries, deactivated)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting contact: %v", err)
 	}
 	return &avav1.DeactivateContactResponse{Contact: pb}, nil
 }
 
-func contactToProto(c sqlcgen.Contact) (*avav1.Contact, error) {
+func contactToProto(ctx context.Context, q *sqlcgen.Queries, c sqlcgen.Contact) (*avav1.Contact, error) {
 	creditLimit, err := moneypb.ToProto(c.CreditLimit)
 	if err != nil {
 		return nil, err
 	}
+
+	var customer *avav1.Customer
+	if cust, err := q.GetCustomerByContactID(ctx, c.ID); err == nil {
+		customer = &avav1.Customer{
+			Id:              cust.ID,
+			ContactId:       cust.ContactID,
+			LedgerAccountId: cust.LedgerAccountID,
+			CreatedAt:       timestampProto(cust.CreatedAt),
+			UpdatedAt:       timestampProto(cust.UpdatedAt),
+		}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
+	var vendor *avav1.Vendor
+	if ven, err := q.GetVendorByContactID(ctx, c.ID); err == nil {
+		vendor = &avav1.Vendor{
+			Id:              ven.ID,
+			ContactId:       ven.ContactID,
+			LedgerAccountId: ven.LedgerAccountID,
+			CreatedAt:       timestampProto(ven.CreatedAt),
+			UpdatedAt:       timestampProto(ven.UpdatedAt),
+		}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
 	return &avav1.Contact{
 		Id:                  c.ID,
 		BusinessId:          c.BusinessID,
-		LedgerAccountId:     c.LedgerAccountID,
 		ContactNumber:       c.ContactNumber,
-		IsCustomer:          c.IsCustomer,
-		IsVendor:            c.IsVendor,
 		Name:                c.Name,
 		Email:               c.Email,
 		Phone:               c.Phone,
@@ -206,6 +244,8 @@ func contactToProto(c sqlcgen.Contact) (*avav1.Contact, error) {
 		BillingState:        c.BillingState,
 		BillingPostalCode:   c.BillingPostalCode,
 		BillingCountry:      c.BillingCountry,
+		Customer:            customer,
+		Vendor:              vendor,
 	}, nil
 }
 
@@ -282,16 +322,17 @@ func (s *serviceCatalogService) CreateService(ctx context.Context, req *avav1.Cr
 	}
 
 	created, err := s.store.Queries.CreateService(ctx, sqlcgen.CreateServiceParams{
-		BusinessID:       req.GetBusinessId(),
-		ServiceCode:      req.GetServiceCode(),
-		Name:             req.GetName(),
-		Description:      req.Description,
-		UnitOfMeasure:    req.UnitOfMeasure,
-		CostPrice:        costPrice,
-		RetailPrice:      retailPrice,
-		IsTaxable:        req.GetIsTaxable(),
-		DefaultTaxRateID: req.DefaultTaxRateId,
-		CreatedByUserID:  &u.ID,
+		BusinessID:             req.GetBusinessId(),
+		ServiceCode:            req.GetServiceCode(),
+		Name:                   req.GetName(),
+		Description:            req.Description,
+		UnitOfMeasure:          req.UnitOfMeasure,
+		CostPrice:              costPrice,
+		RetailPrice:            retailPrice,
+		IsTaxable:              req.GetIsTaxable(),
+		DefaultTaxRateID:       req.DefaultTaxRateId,
+		DefaultLedgerAccountID: req.DefaultLedgerAccountId,
+		CreatedByUserID:        &u.ID,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -325,13 +366,14 @@ func (s *serviceCatalogService) UpdateService(ctx context.Context, req *avav1.Up
 	}
 
 	updated, err := s.store.Queries.UpdateService(ctx, sqlcgen.UpdateServiceParams{
-		ID:               req.GetId(),
-		Name:             req.Name,
-		Description:      req.Description,
-		RetailPrice:      retailPrice,
-		CostPrice:        costPrice,
-		IsTaxable:        req.IsTaxable,
-		DefaultTaxRateID: req.DefaultTaxRateId,
+		ID:                     req.GetId(),
+		Name:                   req.Name,
+		Description:            req.Description,
+		RetailPrice:            retailPrice,
+		CostPrice:              costPrice,
+		IsTaxable:              req.IsTaxable,
+		DefaultTaxRateID:       req.DefaultTaxRateId,
+		DefaultLedgerAccountID: req.DefaultLedgerAccountId,
 	})
 	if err != nil {
 		return nil, translatePgError(err)
@@ -375,20 +417,21 @@ func serviceToProto(svc sqlcgen.Service) (*avav1.Service, error) {
 		return nil, err
 	}
 	return &avav1.Service{
-		Id:               svc.ID,
-		BusinessId:       svc.BusinessID,
-		ServiceCode:      svc.ServiceCode,
-		Name:             svc.Name,
-		Description:      svc.Description,
-		UnitOfMeasure:    derefOr(svc.UnitOfMeasure, "EACH"),
-		CostPrice:        costPrice,
-		RetailPrice:      retailPrice,
-		IsTaxable:        svc.IsTaxable,
-		DefaultTaxRateId: svc.DefaultTaxRateID,
-		IsActive:         svc.IsActive,
-		CreatedByUserId:  svc.CreatedByUserID,
-		CreatedAt:        timestampProto(svc.CreatedAt),
-		UpdatedAt:        timestampProto(svc.UpdatedAt),
+		Id:                     svc.ID,
+		BusinessId:             svc.BusinessID,
+		ServiceCode:            svc.ServiceCode,
+		Name:                   svc.Name,
+		Description:            svc.Description,
+		UnitOfMeasure:          derefOr(svc.UnitOfMeasure, "EACH"),
+		CostPrice:              costPrice,
+		RetailPrice:            retailPrice,
+		IsTaxable:              svc.IsTaxable,
+		DefaultTaxRateId:       svc.DefaultTaxRateID,
+		DefaultLedgerAccountId: svc.DefaultLedgerAccountID,
+		IsActive:               svc.IsActive,
+		CreatedByUserId:        svc.CreatedByUserID,
+		CreatedAt:              timestampProto(svc.CreatedAt),
+		UpdatedAt:              timestampProto(svc.UpdatedAt),
 	}, nil
 }
 

@@ -34,13 +34,34 @@ service TaxRateService {
   rpc DeactivateTaxRate(DeactivateTaxRateRequest) returns (DeactivateTaxRateResponse);
 }
 
+// Customer is present only when this contact plays the customer (AR) role -
+// its existence is the flag, not a boolean on Contact. ledger_account_id is
+// that customer's own AR sub-ledger account, rolled up under a business's
+// "Accounts Receivable" container account (ledger_account.parent_account_id).
+message Customer {
+  int64 id = 1;
+  int64 contact_id = 2;
+  optional int32 ledger_account_id = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// Same pattern as Customer, for the vendor (AP) role.
+message Vendor {
+  int64 id = 1;
+  int64 contact_id = 2;
+  optional int32 ledger_account_id = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
 message Contact {
+  reserved 3, 5, 6;
+  reserved "ledger_account_id", "is_customer", "is_vendor";
+
   int64 id = 1;
   int64 business_id = 2;
-  optional int32 ledger_account_id = 3;
   string contact_number = 4;
-  bool is_customer = 5;
-  bool is_vendor = 6;
   string name = 7;
   optional string email = 8;
   optional string phone = 9;
@@ -56,6 +77,8 @@ message Contact {
   optional string billing_state = 19;
   optional string billing_postal_code = 20;
   optional string billing_country = 21;
+  optional Customer customer = 22;
+  optional Vendor vendor = 23;
 }
 
 message GetContactRequest {
@@ -78,11 +101,18 @@ message ListContactsResponse {
 }
 
 message CreateContactRequest {
+  reserved 2;
+  reserved "ledger_account_id";
+
   int64 business_id = 1;
-  optional int32 ledger_account_id = 2;
   string contact_number = 3;
+  // Setting either (or both) provisions a customer/vendor row for the new
+  // contact - see Contact.customer/vendor. The optional ledger_account_id
+  // on each becomes that role's own AR/AP sub-ledger account.
   bool is_customer = 4;
   bool is_vendor = 5;
+  optional int32 customer_ledger_account_id = 17;
+  optional int32 vendor_ledger_account_id = 18;
   string name = 6;
   optional string email = 7;
   optional string phone = 8;
@@ -101,11 +131,13 @@ message CreateContactResponse {
 }
 
 message UpdateContactRequest {
+  reserved 5;
+  reserved "ledger_account_id";
+
   int64 id = 1;
   optional string name = 2;
   optional string email = 3;
   optional string phone = 4;
-  optional int32 ledger_account_id = 5;
   optional int32 payment_terms_days = 6;
   optional Decimal credit_limit = 7;
   optional string billing_address_line1 = 8;
@@ -145,6 +177,10 @@ message Service {
   // a service is catalog data, not a historical transaction, so there's no
   // need to also snapshot a decimal rate alongside the reference.
   optional int64 default_tax_rate_id = 15;
+  // Which revenue/expense ledger_account a line normally posts to - a
+  // default, not enforced; invoice_line_item.ledger_account_id can still
+  // override it per line.
+  optional int32 default_ledger_account_id = 16;
   bool is_active = 11;
   optional int64 created_by_user_id = 12;
   google.protobuf.Timestamp created_at = 13;
@@ -183,6 +219,7 @@ message CreateServiceRequest {
   Decimal retail_price = 7;
   bool is_taxable = 8;
   optional int64 default_tax_rate_id = 10;
+  optional int32 default_ledger_account_id = 11;
 }
 
 message CreateServiceResponse {
@@ -200,6 +237,7 @@ message UpdateServiceRequest {
   optional Decimal cost_price = 5;
   optional bool is_taxable = 6;
   optional int64 default_tax_rate_id = 8;
+  optional int32 default_ledger_account_id = 9;
 }
 
 message UpdateServiceResponse {

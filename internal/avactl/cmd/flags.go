@@ -94,6 +94,17 @@ func parseDecimalField(fields map[string]string, key string) *avav1.Decimal {
 	return &avav1.Decimal{Value: v}
 }
 
+// parseOptionalBool distinguishes "not set at all" (nil - a service's own
+// default applies, if the line has one) from an explicit true/false.
+func parseOptionalBool(fields map[string]string, key string) *bool {
+	v, ok := fields[key]
+	if !ok {
+		return nil
+	}
+	b := v == "true"
+	return &b
+}
+
 // parseEntryFlags parses repeatable --entry "account=<id>,debit=<amt>" or
 // "account=<id>,credit=<amt>" flags for `ledger-transaction post`.
 func parseEntryFlags(raw []string) ([]*avav1.NewLedgerEntry, error) {

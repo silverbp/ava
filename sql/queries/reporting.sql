@@ -19,6 +19,8 @@ SELECT
     la.code,
     la.name,
     la.account_type_id,
+    la.parent_account_id,
+    la.is_container,
     la.balance_sheet_category_id,
     la.income_statement_category_id,
     lat.normal_balance,
@@ -29,7 +31,7 @@ JOIN ledger_account_type lat ON lat.id = la.account_type_id
 LEFT JOIN ledger_entry le ON le.account_id = la.id AND le.deleted_at IS NULL
 LEFT JOIN ledger_transaction lt ON lt.id = le.ledger_transaction_id AND lt.deleted_at IS NULL
 WHERE la.business_id = sqlc.arg('business_id')
-GROUP BY la.id, la.code, la.name, la.account_type_id, la.balance_sheet_category_id, la.income_statement_category_id, lat.normal_balance
+GROUP BY la.id, la.code, la.name, la.account_type_id, la.parent_account_id, la.is_container, la.balance_sheet_category_id, la.income_statement_category_id, lat.normal_balance
 ORDER BY la.code;
 
 -- name: GetLastPeriodClose :one

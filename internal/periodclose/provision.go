@@ -28,8 +28,10 @@ const (
 	// (internal/reporting.BalanceSheet).
 	capitalAndReservesCategoryID = 4
 
-	IncomeSummaryCode    = "INCOME-SUMMARY"
-	RetainedEarningsCode = "RETAINED-EARNINGS"
+	// QuickBooks-style numeric account codes (see docs/schema.md's chart-of-accounts numbering
+	// convention: 3000s = Equity), not descriptive strings like the schema used to use.
+	IncomeSummaryCode    = "3910"
+	RetainedEarningsCode = "3900"
 )
 
 // ProvisionSystemAccounts ensures a business has its Income Summary and

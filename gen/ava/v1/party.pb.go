@@ -25,14 +25,168 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Customer is present only when this contact plays the customer (AR) role -
+// its existence is the flag, not a boolean on Contact. ledger_account_id is
+// that customer's own AR sub-ledger account, rolled up under a business's
+// "Accounts Receivable" container account (ledger_account.parent_account_id).
+type Customer struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ContactId       int64                  `protobuf:"varint,2,opt,name=contact_id,json=contactId,proto3" json:"contact_id,omitempty"`
+	LedgerAccountId *int32                 `protobuf:"varint,3,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *Customer) Reset() {
+	*x = Customer{}
+	mi := &file_ava_v1_party_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Customer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Customer) ProtoMessage() {}
+
+func (x *Customer) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_party_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Customer.ProtoReflect.Descriptor instead.
+func (*Customer) Descriptor() ([]byte, []int) {
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Customer) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Customer) GetContactId() int64 {
+	if x != nil {
+		return x.ContactId
+	}
+	return 0
+}
+
+func (x *Customer) GetLedgerAccountId() int32 {
+	if x != nil && x.LedgerAccountId != nil {
+		return *x.LedgerAccountId
+	}
+	return 0
+}
+
+func (x *Customer) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Customer) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+// Same pattern as Customer, for the vendor (AP) role.
+type Vendor struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ContactId       int64                  `protobuf:"varint,2,opt,name=contact_id,json=contactId,proto3" json:"contact_id,omitempty"`
+	LedgerAccountId *int32                 `protobuf:"varint,3,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *Vendor) Reset() {
+	*x = Vendor{}
+	mi := &file_ava_v1_party_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Vendor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Vendor) ProtoMessage() {}
+
+func (x *Vendor) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_party_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Vendor.ProtoReflect.Descriptor instead.
+func (*Vendor) Descriptor() ([]byte, []int) {
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Vendor) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Vendor) GetContactId() int64 {
+	if x != nil {
+		return x.ContactId
+	}
+	return 0
+}
+
+func (x *Vendor) GetLedgerAccountId() int32 {
+	if x != nil && x.LedgerAccountId != nil {
+		return *x.LedgerAccountId
+	}
+	return 0
+}
+
+func (x *Vendor) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Vendor) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 type Contact struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	BusinessId          int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	LedgerAccountId     *int32                 `protobuf:"varint,3,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
 	ContactNumber       string                 `protobuf:"bytes,4,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
-	IsCustomer          bool                   `protobuf:"varint,5,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
-	IsVendor            bool                   `protobuf:"varint,6,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
 	Name                string                 `protobuf:"bytes,7,opt,name=name,proto3" json:"name,omitempty"`
 	Email               *string                `protobuf:"bytes,8,opt,name=email,proto3,oneof" json:"email,omitempty"`
 	Phone               *string                `protobuf:"bytes,9,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
@@ -48,13 +202,15 @@ type Contact struct {
 	BillingState        *string                `protobuf:"bytes,19,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
 	BillingPostalCode   *string                `protobuf:"bytes,20,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
 	BillingCountry      *string                `protobuf:"bytes,21,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
+	Customer            *Customer              `protobuf:"bytes,22,opt,name=customer,proto3,oneof" json:"customer,omitempty"`
+	Vendor              *Vendor                `protobuf:"bytes,23,opt,name=vendor,proto3,oneof" json:"vendor,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Contact) Reset() {
 	*x = Contact{}
-	mi := &file_ava_v1_party_proto_msgTypes[0]
+	mi := &file_ava_v1_party_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -66,7 +222,7 @@ func (x *Contact) String() string {
 func (*Contact) ProtoMessage() {}
 
 func (x *Contact) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[0]
+	mi := &file_ava_v1_party_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -79,7 +235,7 @@ func (x *Contact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Contact.ProtoReflect.Descriptor instead.
 func (*Contact) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{0}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Contact) GetId() int64 {
@@ -96,32 +252,11 @@ func (x *Contact) GetBusinessId() int64 {
 	return 0
 }
 
-func (x *Contact) GetLedgerAccountId() int32 {
-	if x != nil && x.LedgerAccountId != nil {
-		return *x.LedgerAccountId
-	}
-	return 0
-}
-
 func (x *Contact) GetContactNumber() string {
 	if x != nil {
 		return x.ContactNumber
 	}
 	return ""
-}
-
-func (x *Contact) GetIsCustomer() bool {
-	if x != nil {
-		return x.IsCustomer
-	}
-	return false
-}
-
-func (x *Contact) GetIsVendor() bool {
-	if x != nil {
-		return x.IsVendor
-	}
-	return false
 }
 
 func (x *Contact) GetName() string {
@@ -229,6 +364,20 @@ func (x *Contact) GetBillingCountry() string {
 	return ""
 }
 
+func (x *Contact) GetCustomer() *Customer {
+	if x != nil {
+		return x.Customer
+	}
+	return nil
+}
+
+func (x *Contact) GetVendor() *Vendor {
+	if x != nil {
+		return x.Vendor
+	}
+	return nil
+}
+
 type GetContactRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -238,7 +387,7 @@ type GetContactRequest struct {
 
 func (x *GetContactRequest) Reset() {
 	*x = GetContactRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[1]
+	mi := &file_ava_v1_party_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -250,7 +399,7 @@ func (x *GetContactRequest) String() string {
 func (*GetContactRequest) ProtoMessage() {}
 
 func (x *GetContactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[1]
+	mi := &file_ava_v1_party_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -263,7 +412,7 @@ func (x *GetContactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetContactRequest.ProtoReflect.Descriptor instead.
 func (*GetContactRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{1}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetContactRequest) GetId() int64 {
@@ -282,7 +431,7 @@ type GetContactResponse struct {
 
 func (x *GetContactResponse) Reset() {
 	*x = GetContactResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[2]
+	mi := &file_ava_v1_party_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -294,7 +443,7 @@ func (x *GetContactResponse) String() string {
 func (*GetContactResponse) ProtoMessage() {}
 
 func (x *GetContactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[2]
+	mi := &file_ava_v1_party_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -307,7 +456,7 @@ func (x *GetContactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetContactResponse.ProtoReflect.Descriptor instead.
 func (*GetContactResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{2}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetContactResponse) GetContact() *Contact {
@@ -329,7 +478,7 @@ type ListContactsRequest struct {
 
 func (x *ListContactsRequest) Reset() {
 	*x = ListContactsRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[3]
+	mi := &file_ava_v1_party_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -341,7 +490,7 @@ func (x *ListContactsRequest) String() string {
 func (*ListContactsRequest) ProtoMessage() {}
 
 func (x *ListContactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[3]
+	mi := &file_ava_v1_party_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -354,7 +503,7 @@ func (x *ListContactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContactsRequest.ProtoReflect.Descriptor instead.
 func (*ListContactsRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{3}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListContactsRequest) GetBusinessId() int64 {
@@ -380,7 +529,7 @@ type ListContactsResponse struct {
 
 func (x *ListContactsResponse) Reset() {
 	*x = ListContactsResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[4]
+	mi := &file_ava_v1_party_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +541,7 @@ func (x *ListContactsResponse) String() string {
 func (*ListContactsResponse) ProtoMessage() {}
 
 func (x *ListContactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[4]
+	mi := &file_ava_v1_party_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +554,7 @@ func (x *ListContactsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContactsResponse.ProtoReflect.Descriptor instead.
 func (*ListContactsResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{4}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListContactsResponse) GetContacts() []*Contact {
@@ -416,30 +565,34 @@ func (x *ListContactsResponse) GetContacts() []*Contact {
 }
 
 type CreateContactRequest struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId          int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	LedgerAccountId     *int32                 `protobuf:"varint,2,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
-	ContactNumber       string                 `protobuf:"bytes,3,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
-	IsCustomer          bool                   `protobuf:"varint,4,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
-	IsVendor            bool                   `protobuf:"varint,5,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
-	Name                string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
-	Email               *string                `protobuf:"bytes,7,opt,name=email,proto3,oneof" json:"email,omitempty"`
-	Phone               *string                `protobuf:"bytes,8,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
-	PaymentTermsDays    *int32                 `protobuf:"varint,9,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
-	CreditLimit         *Decimal               `protobuf:"bytes,10,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
-	BillingAddressLine1 *string                `protobuf:"bytes,11,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
-	BillingAddressLine2 *string                `protobuf:"bytes,12,opt,name=billing_address_line2,json=billingAddressLine2,proto3,oneof" json:"billing_address_line2,omitempty"`
-	BillingCity         *string                `protobuf:"bytes,13,opt,name=billing_city,json=billingCity,proto3,oneof" json:"billing_city,omitempty"`
-	BillingState        *string                `protobuf:"bytes,14,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
-	BillingPostalCode   *string                `protobuf:"bytes,15,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
-	BillingCountry      *string                `protobuf:"bytes,16,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	ContactNumber string                 `protobuf:"bytes,3,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
+	// Setting either (or both) provisions a customer/vendor row for the new
+	// contact - see Contact.customer/vendor. The optional ledger_account_id
+	// on each becomes that role's own AR/AP sub-ledger account.
+	IsCustomer              bool     `protobuf:"varint,4,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
+	IsVendor                bool     `protobuf:"varint,5,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
+	CustomerLedgerAccountId *int32   `protobuf:"varint,17,opt,name=customer_ledger_account_id,json=customerLedgerAccountId,proto3,oneof" json:"customer_ledger_account_id,omitempty"`
+	VendorLedgerAccountId   *int32   `protobuf:"varint,18,opt,name=vendor_ledger_account_id,json=vendorLedgerAccountId,proto3,oneof" json:"vendor_ledger_account_id,omitempty"`
+	Name                    string   `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Email                   *string  `protobuf:"bytes,7,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	Phone                   *string  `protobuf:"bytes,8,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
+	PaymentTermsDays        *int32   `protobuf:"varint,9,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
+	CreditLimit             *Decimal `protobuf:"bytes,10,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
+	BillingAddressLine1     *string  `protobuf:"bytes,11,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
+	BillingAddressLine2     *string  `protobuf:"bytes,12,opt,name=billing_address_line2,json=billingAddressLine2,proto3,oneof" json:"billing_address_line2,omitempty"`
+	BillingCity             *string  `protobuf:"bytes,13,opt,name=billing_city,json=billingCity,proto3,oneof" json:"billing_city,omitempty"`
+	BillingState            *string  `protobuf:"bytes,14,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
+	BillingPostalCode       *string  `protobuf:"bytes,15,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
+	BillingCountry          *string  `protobuf:"bytes,16,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *CreateContactRequest) Reset() {
 	*x = CreateContactRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[5]
+	mi := &file_ava_v1_party_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -451,7 +604,7 @@ func (x *CreateContactRequest) String() string {
 func (*CreateContactRequest) ProtoMessage() {}
 
 func (x *CreateContactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[5]
+	mi := &file_ava_v1_party_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -464,19 +617,12 @@ func (x *CreateContactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateContactRequest.ProtoReflect.Descriptor instead.
 func (*CreateContactRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{5}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CreateContactRequest) GetBusinessId() int64 {
 	if x != nil {
 		return x.BusinessId
-	}
-	return 0
-}
-
-func (x *CreateContactRequest) GetLedgerAccountId() int32 {
-	if x != nil && x.LedgerAccountId != nil {
-		return *x.LedgerAccountId
 	}
 	return 0
 }
@@ -500,6 +646,20 @@ func (x *CreateContactRequest) GetIsVendor() bool {
 		return x.IsVendor
 	}
 	return false
+}
+
+func (x *CreateContactRequest) GetCustomerLedgerAccountId() int32 {
+	if x != nil && x.CustomerLedgerAccountId != nil {
+		return *x.CustomerLedgerAccountId
+	}
+	return 0
+}
+
+func (x *CreateContactRequest) GetVendorLedgerAccountId() int32 {
+	if x != nil && x.VendorLedgerAccountId != nil {
+		return *x.VendorLedgerAccountId
+	}
+	return 0
 }
 
 func (x *CreateContactRequest) GetName() string {
@@ -588,7 +748,7 @@ type CreateContactResponse struct {
 
 func (x *CreateContactResponse) Reset() {
 	*x = CreateContactResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[6]
+	mi := &file_ava_v1_party_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +760,7 @@ func (x *CreateContactResponse) String() string {
 func (*CreateContactResponse) ProtoMessage() {}
 
 func (x *CreateContactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[6]
+	mi := &file_ava_v1_party_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +773,7 @@ func (x *CreateContactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateContactResponse.ProtoReflect.Descriptor instead.
 func (*CreateContactResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{6}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateContactResponse) GetContact() *Contact {
@@ -629,7 +789,6 @@ type UpdateContactRequest struct {
 	Name                *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Email               *string                `protobuf:"bytes,3,opt,name=email,proto3,oneof" json:"email,omitempty"`
 	Phone               *string                `protobuf:"bytes,4,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
-	LedgerAccountId     *int32                 `protobuf:"varint,5,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
 	PaymentTermsDays    *int32                 `protobuf:"varint,6,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
 	CreditLimit         *Decimal               `protobuf:"bytes,7,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
 	BillingAddressLine1 *string                `protobuf:"bytes,8,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
@@ -644,7 +803,7 @@ type UpdateContactRequest struct {
 
 func (x *UpdateContactRequest) Reset() {
 	*x = UpdateContactRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[7]
+	mi := &file_ava_v1_party_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -656,7 +815,7 @@ func (x *UpdateContactRequest) String() string {
 func (*UpdateContactRequest) ProtoMessage() {}
 
 func (x *UpdateContactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[7]
+	mi := &file_ava_v1_party_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,7 +828,7 @@ func (x *UpdateContactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateContactRequest.ProtoReflect.Descriptor instead.
 func (*UpdateContactRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{7}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateContactRequest) GetId() int64 {
@@ -698,13 +857,6 @@ func (x *UpdateContactRequest) GetPhone() string {
 		return *x.Phone
 	}
 	return ""
-}
-
-func (x *UpdateContactRequest) GetLedgerAccountId() int32 {
-	if x != nil && x.LedgerAccountId != nil {
-		return *x.LedgerAccountId
-	}
-	return 0
 }
 
 func (x *UpdateContactRequest) GetPaymentTermsDays() int32 {
@@ -772,7 +924,7 @@ type UpdateContactResponse struct {
 
 func (x *UpdateContactResponse) Reset() {
 	*x = UpdateContactResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[8]
+	mi := &file_ava_v1_party_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -784,7 +936,7 @@ func (x *UpdateContactResponse) String() string {
 func (*UpdateContactResponse) ProtoMessage() {}
 
 func (x *UpdateContactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[8]
+	mi := &file_ava_v1_party_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -797,7 +949,7 @@ func (x *UpdateContactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateContactResponse.ProtoReflect.Descriptor instead.
 func (*UpdateContactResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{8}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateContactResponse) GetContact() *Contact {
@@ -816,7 +968,7 @@ type DeactivateContactRequest struct {
 
 func (x *DeactivateContactRequest) Reset() {
 	*x = DeactivateContactRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[9]
+	mi := &file_ava_v1_party_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -828,7 +980,7 @@ func (x *DeactivateContactRequest) String() string {
 func (*DeactivateContactRequest) ProtoMessage() {}
 
 func (x *DeactivateContactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[9]
+	mi := &file_ava_v1_party_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -841,7 +993,7 @@ func (x *DeactivateContactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateContactRequest.ProtoReflect.Descriptor instead.
 func (*DeactivateContactRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{9}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeactivateContactRequest) GetId() int64 {
@@ -860,7 +1012,7 @@ type DeactivateContactResponse struct {
 
 func (x *DeactivateContactResponse) Reset() {
 	*x = DeactivateContactResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[10]
+	mi := &file_ava_v1_party_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -872,7 +1024,7 @@ func (x *DeactivateContactResponse) String() string {
 func (*DeactivateContactResponse) ProtoMessage() {}
 
 func (x *DeactivateContactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[10]
+	mi := &file_ava_v1_party_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -885,7 +1037,7 @@ func (x *DeactivateContactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateContactResponse.ProtoReflect.Descriptor instead.
 func (*DeactivateContactResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{10}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeactivateContactResponse) GetContact() *Contact {
@@ -909,18 +1061,22 @@ type Service struct {
 	// References tax_rate.id - unlike invoice_line_item/estimate_line_item,
 	// a service is catalog data, not a historical transaction, so there's no
 	// need to also snapshot a decimal rate alongside the reference.
-	DefaultTaxRateId *int64                 `protobuf:"varint,15,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
-	IsActive         bool                   `protobuf:"varint,11,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	CreatedByUserId  *int64                 `protobuf:"varint,12,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	DefaultTaxRateId *int64 `protobuf:"varint,15,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
+	// Which revenue/expense ledger_account a line normally posts to - a
+	// default, not enforced; invoice_line_item.ledger_account_id can still
+	// override it per line.
+	DefaultLedgerAccountId *int32                 `protobuf:"varint,16,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
+	IsActive               bool                   `protobuf:"varint,11,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	CreatedByUserId        *int64                 `protobuf:"varint,12,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
+	CreatedAt              *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt              *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Service) Reset() {
 	*x = Service{}
-	mi := &file_ava_v1_party_proto_msgTypes[11]
+	mi := &file_ava_v1_party_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -932,7 +1088,7 @@ func (x *Service) String() string {
 func (*Service) ProtoMessage() {}
 
 func (x *Service) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[11]
+	mi := &file_ava_v1_party_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -945,7 +1101,7 @@ func (x *Service) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Service.ProtoReflect.Descriptor instead.
 func (*Service) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{11}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Service) GetId() int64 {
@@ -1018,6 +1174,13 @@ func (x *Service) GetDefaultTaxRateId() int64 {
 	return 0
 }
 
+func (x *Service) GetDefaultLedgerAccountId() int32 {
+	if x != nil && x.DefaultLedgerAccountId != nil {
+		return *x.DefaultLedgerAccountId
+	}
+	return 0
+}
+
 func (x *Service) GetIsActive() bool {
 	if x != nil {
 		return x.IsActive
@@ -1055,7 +1218,7 @@ type GetServiceRequest struct {
 
 func (x *GetServiceRequest) Reset() {
 	*x = GetServiceRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[12]
+	mi := &file_ava_v1_party_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1067,7 +1230,7 @@ func (x *GetServiceRequest) String() string {
 func (*GetServiceRequest) ProtoMessage() {}
 
 func (x *GetServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[12]
+	mi := &file_ava_v1_party_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1080,7 +1243,7 @@ func (x *GetServiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServiceRequest.ProtoReflect.Descriptor instead.
 func (*GetServiceRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{12}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetServiceRequest) GetId() int64 {
@@ -1099,7 +1262,7 @@ type GetServiceResponse struct {
 
 func (x *GetServiceResponse) Reset() {
 	*x = GetServiceResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[13]
+	mi := &file_ava_v1_party_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1111,7 +1274,7 @@ func (x *GetServiceResponse) String() string {
 func (*GetServiceResponse) ProtoMessage() {}
 
 func (x *GetServiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[13]
+	mi := &file_ava_v1_party_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1124,7 +1287,7 @@ func (x *GetServiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServiceResponse.ProtoReflect.Descriptor instead.
 func (*GetServiceResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{13}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetServiceResponse) GetService() *Service {
@@ -1146,7 +1309,7 @@ type ListServicesRequest struct {
 
 func (x *ListServicesRequest) Reset() {
 	*x = ListServicesRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[14]
+	mi := &file_ava_v1_party_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1321,7 @@ func (x *ListServicesRequest) String() string {
 func (*ListServicesRequest) ProtoMessage() {}
 
 func (x *ListServicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[14]
+	mi := &file_ava_v1_party_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1334,7 @@ func (x *ListServicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListServicesRequest.ProtoReflect.Descriptor instead.
 func (*ListServicesRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{14}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListServicesRequest) GetBusinessId() int64 {
@@ -1197,7 +1360,7 @@ type ListServicesResponse struct {
 
 func (x *ListServicesResponse) Reset() {
 	*x = ListServicesResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[15]
+	mi := &file_ava_v1_party_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1209,7 +1372,7 @@ func (x *ListServicesResponse) String() string {
 func (*ListServicesResponse) ProtoMessage() {}
 
 func (x *ListServicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[15]
+	mi := &file_ava_v1_party_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1222,7 +1385,7 @@ func (x *ListServicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListServicesResponse.ProtoReflect.Descriptor instead.
 func (*ListServicesResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{15}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListServicesResponse) GetServices() []*Service {
@@ -1233,23 +1396,24 @@ func (x *ListServicesResponse) GetServices() []*Service {
 }
 
 type CreateServiceRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId       int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	ServiceCode      string                 `protobuf:"bytes,2,opt,name=service_code,json=serviceCode,proto3" json:"service_code,omitempty"`
-	Name             string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description      *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	UnitOfMeasure    *string                `protobuf:"bytes,5,opt,name=unit_of_measure,json=unitOfMeasure,proto3,oneof" json:"unit_of_measure,omitempty"`
-	CostPrice        *Decimal               `protobuf:"bytes,6,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
-	RetailPrice      *Decimal               `protobuf:"bytes,7,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
-	IsTaxable        bool                   `protobuf:"varint,8,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
-	DefaultTaxRateId *int64                 `protobuf:"varint,10,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId             int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	ServiceCode            string                 `protobuf:"bytes,2,opt,name=service_code,json=serviceCode,proto3" json:"service_code,omitempty"`
+	Name                   string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description            *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	UnitOfMeasure          *string                `protobuf:"bytes,5,opt,name=unit_of_measure,json=unitOfMeasure,proto3,oneof" json:"unit_of_measure,omitempty"`
+	CostPrice              *Decimal               `protobuf:"bytes,6,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
+	RetailPrice            *Decimal               `protobuf:"bytes,7,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
+	IsTaxable              bool                   `protobuf:"varint,8,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
+	DefaultTaxRateId       *int64                 `protobuf:"varint,10,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
+	DefaultLedgerAccountId *int32                 `protobuf:"varint,11,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *CreateServiceRequest) Reset() {
 	*x = CreateServiceRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[16]
+	mi := &file_ava_v1_party_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1261,7 +1425,7 @@ func (x *CreateServiceRequest) String() string {
 func (*CreateServiceRequest) ProtoMessage() {}
 
 func (x *CreateServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[16]
+	mi := &file_ava_v1_party_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1274,7 +1438,7 @@ func (x *CreateServiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateServiceRequest.ProtoReflect.Descriptor instead.
 func (*CreateServiceRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{16}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CreateServiceRequest) GetBusinessId() int64 {
@@ -1340,6 +1504,13 @@ func (x *CreateServiceRequest) GetDefaultTaxRateId() int64 {
 	return 0
 }
 
+func (x *CreateServiceRequest) GetDefaultLedgerAccountId() int32 {
+	if x != nil && x.DefaultLedgerAccountId != nil {
+		return *x.DefaultLedgerAccountId
+	}
+	return 0
+}
+
 type CreateServiceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Service       *Service               `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
@@ -1349,7 +1520,7 @@ type CreateServiceResponse struct {
 
 func (x *CreateServiceResponse) Reset() {
 	*x = CreateServiceResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[17]
+	mi := &file_ava_v1_party_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +1532,7 @@ func (x *CreateServiceResponse) String() string {
 func (*CreateServiceResponse) ProtoMessage() {}
 
 func (x *CreateServiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[17]
+	mi := &file_ava_v1_party_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +1545,7 @@ func (x *CreateServiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateServiceResponse.ProtoReflect.Descriptor instead.
 func (*CreateServiceResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{17}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CreateServiceResponse) GetService() *Service {
@@ -1385,21 +1556,22 @@ func (x *CreateServiceResponse) GetService() *Service {
 }
 
 type UpdateServiceRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name             *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	RetailPrice      *Decimal               `protobuf:"bytes,4,opt,name=retail_price,json=retailPrice,proto3,oneof" json:"retail_price,omitempty"`
-	CostPrice        *Decimal               `protobuf:"bytes,5,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
-	IsTaxable        *bool                  `protobuf:"varint,6,opt,name=is_taxable,json=isTaxable,proto3,oneof" json:"is_taxable,omitempty"`
-	DefaultTaxRateId *int64                 `protobuf:"varint,8,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Id                     int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                   *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description            *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	RetailPrice            *Decimal               `protobuf:"bytes,4,opt,name=retail_price,json=retailPrice,proto3,oneof" json:"retail_price,omitempty"`
+	CostPrice              *Decimal               `protobuf:"bytes,5,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
+	IsTaxable              *bool                  `protobuf:"varint,6,opt,name=is_taxable,json=isTaxable,proto3,oneof" json:"is_taxable,omitempty"`
+	DefaultTaxRateId       *int64                 `protobuf:"varint,8,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
+	DefaultLedgerAccountId *int32                 `protobuf:"varint,9,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *UpdateServiceRequest) Reset() {
 	*x = UpdateServiceRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[18]
+	mi := &file_ava_v1_party_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1411,7 +1583,7 @@ func (x *UpdateServiceRequest) String() string {
 func (*UpdateServiceRequest) ProtoMessage() {}
 
 func (x *UpdateServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[18]
+	mi := &file_ava_v1_party_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1424,7 +1596,7 @@ func (x *UpdateServiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateServiceRequest.ProtoReflect.Descriptor instead.
 func (*UpdateServiceRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{18}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpdateServiceRequest) GetId() int64 {
@@ -1476,6 +1648,13 @@ func (x *UpdateServiceRequest) GetDefaultTaxRateId() int64 {
 	return 0
 }
 
+func (x *UpdateServiceRequest) GetDefaultLedgerAccountId() int32 {
+	if x != nil && x.DefaultLedgerAccountId != nil {
+		return *x.DefaultLedgerAccountId
+	}
+	return 0
+}
+
 type UpdateServiceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Service       *Service               `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
@@ -1485,7 +1664,7 @@ type UpdateServiceResponse struct {
 
 func (x *UpdateServiceResponse) Reset() {
 	*x = UpdateServiceResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[19]
+	mi := &file_ava_v1_party_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1497,7 +1676,7 @@ func (x *UpdateServiceResponse) String() string {
 func (*UpdateServiceResponse) ProtoMessage() {}
 
 func (x *UpdateServiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[19]
+	mi := &file_ava_v1_party_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1510,7 +1689,7 @@ func (x *UpdateServiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateServiceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateServiceResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{19}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UpdateServiceResponse) GetService() *Service {
@@ -1529,7 +1708,7 @@ type DeactivateServiceRequest struct {
 
 func (x *DeactivateServiceRequest) Reset() {
 	*x = DeactivateServiceRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[20]
+	mi := &file_ava_v1_party_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1541,7 +1720,7 @@ func (x *DeactivateServiceRequest) String() string {
 func (*DeactivateServiceRequest) ProtoMessage() {}
 
 func (x *DeactivateServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[20]
+	mi := &file_ava_v1_party_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1554,7 +1733,7 @@ func (x *DeactivateServiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateServiceRequest.ProtoReflect.Descriptor instead.
 func (*DeactivateServiceRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{20}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeactivateServiceRequest) GetId() int64 {
@@ -1573,7 +1752,7 @@ type DeactivateServiceResponse struct {
 
 func (x *DeactivateServiceResponse) Reset() {
 	*x = DeactivateServiceResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[21]
+	mi := &file_ava_v1_party_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1585,7 +1764,7 @@ func (x *DeactivateServiceResponse) String() string {
 func (*DeactivateServiceResponse) ProtoMessage() {}
 
 func (x *DeactivateServiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[21]
+	mi := &file_ava_v1_party_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1598,7 +1777,7 @@ func (x *DeactivateServiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateServiceResponse.ProtoReflect.Descriptor instead.
 func (*DeactivateServiceResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{21}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DeactivateServiceResponse) GetService() *Service {
@@ -1625,7 +1804,7 @@ type TaxRate struct {
 
 func (x *TaxRate) Reset() {
 	*x = TaxRate{}
-	mi := &file_ava_v1_party_proto_msgTypes[22]
+	mi := &file_ava_v1_party_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1637,7 +1816,7 @@ func (x *TaxRate) String() string {
 func (*TaxRate) ProtoMessage() {}
 
 func (x *TaxRate) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[22]
+	mi := &file_ava_v1_party_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1650,7 +1829,7 @@ func (x *TaxRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaxRate.ProtoReflect.Descriptor instead.
 func (*TaxRate) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{22}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *TaxRate) GetId() int64 {
@@ -1725,7 +1904,7 @@ type GetTaxRateRequest struct {
 
 func (x *GetTaxRateRequest) Reset() {
 	*x = GetTaxRateRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[23]
+	mi := &file_ava_v1_party_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1737,7 +1916,7 @@ func (x *GetTaxRateRequest) String() string {
 func (*GetTaxRateRequest) ProtoMessage() {}
 
 func (x *GetTaxRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[23]
+	mi := &file_ava_v1_party_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1750,7 +1929,7 @@ func (x *GetTaxRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaxRateRequest.ProtoReflect.Descriptor instead.
 func (*GetTaxRateRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{23}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetTaxRateRequest) GetId() int64 {
@@ -1769,7 +1948,7 @@ type GetTaxRateResponse struct {
 
 func (x *GetTaxRateResponse) Reset() {
 	*x = GetTaxRateResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[24]
+	mi := &file_ava_v1_party_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1781,7 +1960,7 @@ func (x *GetTaxRateResponse) String() string {
 func (*GetTaxRateResponse) ProtoMessage() {}
 
 func (x *GetTaxRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[24]
+	mi := &file_ava_v1_party_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1794,7 +1973,7 @@ func (x *GetTaxRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaxRateResponse.ProtoReflect.Descriptor instead.
 func (*GetTaxRateResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{24}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetTaxRateResponse) GetTaxRate() *TaxRate {
@@ -1813,7 +1992,7 @@ type ListTaxRatesRequest struct {
 
 func (x *ListTaxRatesRequest) Reset() {
 	*x = ListTaxRatesRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[25]
+	mi := &file_ava_v1_party_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1825,7 +2004,7 @@ func (x *ListTaxRatesRequest) String() string {
 func (*ListTaxRatesRequest) ProtoMessage() {}
 
 func (x *ListTaxRatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[25]
+	mi := &file_ava_v1_party_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1838,7 +2017,7 @@ func (x *ListTaxRatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaxRatesRequest.ProtoReflect.Descriptor instead.
 func (*ListTaxRatesRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{25}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListTaxRatesRequest) GetBusinessId() int64 {
@@ -1857,7 +2036,7 @@ type ListTaxRatesResponse struct {
 
 func (x *ListTaxRatesResponse) Reset() {
 	*x = ListTaxRatesResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[26]
+	mi := &file_ava_v1_party_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1869,7 +2048,7 @@ func (x *ListTaxRatesResponse) String() string {
 func (*ListTaxRatesResponse) ProtoMessage() {}
 
 func (x *ListTaxRatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[26]
+	mi := &file_ava_v1_party_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1882,7 +2061,7 @@ func (x *ListTaxRatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaxRatesResponse.ProtoReflect.Descriptor instead.
 func (*ListTaxRatesResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{26}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListTaxRatesResponse) GetTaxRates() []*TaxRate {
@@ -1904,7 +2083,7 @@ type CreateTaxRateRequest struct {
 
 func (x *CreateTaxRateRequest) Reset() {
 	*x = CreateTaxRateRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[27]
+	mi := &file_ava_v1_party_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1916,7 +2095,7 @@ func (x *CreateTaxRateRequest) String() string {
 func (*CreateTaxRateRequest) ProtoMessage() {}
 
 func (x *CreateTaxRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[27]
+	mi := &file_ava_v1_party_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1929,7 +2108,7 @@ func (x *CreateTaxRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaxRateRequest.ProtoReflect.Descriptor instead.
 func (*CreateTaxRateRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{27}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CreateTaxRateRequest) GetBusinessId() int64 {
@@ -1969,7 +2148,7 @@ type CreateTaxRateResponse struct {
 
 func (x *CreateTaxRateResponse) Reset() {
 	*x = CreateTaxRateResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[28]
+	mi := &file_ava_v1_party_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1981,7 +2160,7 @@ func (x *CreateTaxRateResponse) String() string {
 func (*CreateTaxRateResponse) ProtoMessage() {}
 
 func (x *CreateTaxRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[28]
+	mi := &file_ava_v1_party_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1994,7 +2173,7 @@ func (x *CreateTaxRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaxRateResponse.ProtoReflect.Descriptor instead.
 func (*CreateTaxRateResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{28}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *CreateTaxRateResponse) GetTaxRate() *TaxRate {
@@ -2015,7 +2194,7 @@ type UpdateTaxRateRequest struct {
 
 func (x *UpdateTaxRateRequest) Reset() {
 	*x = UpdateTaxRateRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[29]
+	mi := &file_ava_v1_party_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2027,7 +2206,7 @@ func (x *UpdateTaxRateRequest) String() string {
 func (*UpdateTaxRateRequest) ProtoMessage() {}
 
 func (x *UpdateTaxRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[29]
+	mi := &file_ava_v1_party_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2040,7 +2219,7 @@ func (x *UpdateTaxRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaxRateRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTaxRateRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{29}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *UpdateTaxRateRequest) GetId() int64 {
@@ -2073,7 +2252,7 @@ type UpdateTaxRateResponse struct {
 
 func (x *UpdateTaxRateResponse) Reset() {
 	*x = UpdateTaxRateResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[30]
+	mi := &file_ava_v1_party_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2085,7 +2264,7 @@ func (x *UpdateTaxRateResponse) String() string {
 func (*UpdateTaxRateResponse) ProtoMessage() {}
 
 func (x *UpdateTaxRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[30]
+	mi := &file_ava_v1_party_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2098,7 +2277,7 @@ func (x *UpdateTaxRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaxRateResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTaxRateResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{30}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *UpdateTaxRateResponse) GetTaxRate() *TaxRate {
@@ -2117,7 +2296,7 @@ type DeactivateTaxRateRequest struct {
 
 func (x *DeactivateTaxRateRequest) Reset() {
 	*x = DeactivateTaxRateRequest{}
-	mi := &file_ava_v1_party_proto_msgTypes[31]
+	mi := &file_ava_v1_party_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2129,7 +2308,7 @@ func (x *DeactivateTaxRateRequest) String() string {
 func (*DeactivateTaxRateRequest) ProtoMessage() {}
 
 func (x *DeactivateTaxRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[31]
+	mi := &file_ava_v1_party_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2142,7 +2321,7 @@ func (x *DeactivateTaxRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateTaxRateRequest.ProtoReflect.Descriptor instead.
 func (*DeactivateTaxRateRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{31}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DeactivateTaxRateRequest) GetId() int64 {
@@ -2161,7 +2340,7 @@ type DeactivateTaxRateResponse struct {
 
 func (x *DeactivateTaxRateResponse) Reset() {
 	*x = DeactivateTaxRateResponse{}
-	mi := &file_ava_v1_party_proto_msgTypes[32]
+	mi := &file_ava_v1_party_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2173,7 +2352,7 @@ func (x *DeactivateTaxRateResponse) String() string {
 func (*DeactivateTaxRateResponse) ProtoMessage() {}
 
 func (x *DeactivateTaxRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_party_proto_msgTypes[32]
+	mi := &file_ava_v1_party_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2186,7 +2365,7 @@ func (x *DeactivateTaxRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateTaxRateResponse.ProtoReflect.Descriptor instead.
 func (*DeactivateTaxRateResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_party_proto_rawDescGZIP(), []int{32}
+	return file_ava_v1_party_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DeactivateTaxRateResponse) GetTaxRate() *TaxRate {
@@ -2200,36 +2379,53 @@ var File_ava_v1_party_proto protoreflect.FileDescriptor
 
 const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
-	"\x12ava/v1/party.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\b\n" +
+	"\x12ava/v1/party.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf6\x01\n" +
+	"\bCustomer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
+	"\n" +
+	"contact_id\x18\x02 \x01(\x03R\tcontactId\x12/\n" +
+	"\x11ledger_account_id\x18\x03 \x01(\x05H\x00R\x0fledgerAccountId\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x14\n" +
+	"\x12_ledger_account_id\"\xf4\x01\n" +
+	"\x06Vendor\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
+	"\n" +
+	"contact_id\x18\x02 \x01(\x03R\tcontactId\x12/\n" +
+	"\x11ledger_account_id\x18\x03 \x01(\x05H\x00R\x0fledgerAccountId\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x14\n" +
+	"\x12_ledger_account_id\"\xf8\b\n" +
 	"\aContact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
-	"businessId\x12/\n" +
-	"\x11ledger_account_id\x18\x03 \x01(\x05H\x00R\x0fledgerAccountId\x88\x01\x01\x12%\n" +
-	"\x0econtact_number\x18\x04 \x01(\tR\rcontactNumber\x12\x1f\n" +
-	"\vis_customer\x18\x05 \x01(\bR\n" +
-	"isCustomer\x12\x1b\n" +
-	"\tis_vendor\x18\x06 \x01(\bR\bisVendor\x12\x12\n" +
+	"businessId\x12%\n" +
+	"\x0econtact_number\x18\x04 \x01(\tR\rcontactNumber\x12\x12\n" +
 	"\x04name\x18\a \x01(\tR\x04name\x12\x19\n" +
-	"\x05email\x18\b \x01(\tH\x01R\x05email\x88\x01\x01\x12\x19\n" +
-	"\x05phone\x18\t \x01(\tH\x02R\x05phone\x88\x01\x01\x121\n" +
+	"\x05email\x18\b \x01(\tH\x00R\x05email\x88\x01\x01\x12\x19\n" +
+	"\x05phone\x18\t \x01(\tH\x01R\x05phone\x88\x01\x01\x121\n" +
 	"\x12payment_terms_days\x18\n" +
-	" \x01(\x05H\x03R\x10paymentTermsDays\x88\x01\x01\x122\n" +
+	" \x01(\x05H\x02R\x10paymentTermsDays\x88\x01\x01\x122\n" +
 	"\fcredit_limit\x18\v \x01(\v2\x0f.ava.v1.DecimalR\vcreditLimit\x12\x1b\n" +
 	"\tis_active\x18\f \x01(\bR\bisActive\x120\n" +
-	"\x12created_by_user_id\x18\r \x01(\x03H\x04R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
+	"\x12created_by_user_id\x18\r \x01(\x03H\x03R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x127\n" +
-	"\x15billing_address_line1\x18\x10 \x01(\tH\x05R\x13billingAddressLine1\x88\x01\x01\x127\n" +
-	"\x15billing_address_line2\x18\x11 \x01(\tH\x06R\x13billingAddressLine2\x88\x01\x01\x12&\n" +
-	"\fbilling_city\x18\x12 \x01(\tH\aR\vbillingCity\x88\x01\x01\x12(\n" +
-	"\rbilling_state\x18\x13 \x01(\tH\bR\fbillingState\x88\x01\x01\x123\n" +
-	"\x13billing_postal_code\x18\x14 \x01(\tH\tR\x11billingPostalCode\x88\x01\x01\x12,\n" +
-	"\x0fbilling_country\x18\x15 \x01(\tH\n" +
-	"R\x0ebillingCountry\x88\x01\x01B\x14\n" +
-	"\x12_ledger_account_idB\b\n" +
+	"\x15billing_address_line1\x18\x10 \x01(\tH\x04R\x13billingAddressLine1\x88\x01\x01\x127\n" +
+	"\x15billing_address_line2\x18\x11 \x01(\tH\x05R\x13billingAddressLine2\x88\x01\x01\x12&\n" +
+	"\fbilling_city\x18\x12 \x01(\tH\x06R\vbillingCity\x88\x01\x01\x12(\n" +
+	"\rbilling_state\x18\x13 \x01(\tH\aR\fbillingState\x88\x01\x01\x123\n" +
+	"\x13billing_postal_code\x18\x14 \x01(\tH\bR\x11billingPostalCode\x88\x01\x01\x12,\n" +
+	"\x0fbilling_country\x18\x15 \x01(\tH\tR\x0ebillingCountry\x88\x01\x01\x121\n" +
+	"\bcustomer\x18\x16 \x01(\v2\x10.ava.v1.CustomerH\n" +
+	"R\bcustomer\x88\x01\x01\x12+\n" +
+	"\x06vendor\x18\x17 \x01(\v2\x0e.ava.v1.VendorH\vR\x06vendor\x88\x01\x01B\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x15\n" +
 	"\x13_payment_terms_daysB\x15\n" +
@@ -2239,7 +2435,9 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\r_billing_cityB\x10\n" +
 	"\x0e_billing_stateB\x16\n" +
 	"\x14_billing_postal_codeB\x12\n" +
-	"\x10_billing_country\"#\n" +
+	"\x10_billing_countryB\v\n" +
+	"\t_customerB\t\n" +
+	"\a_vendorJ\x04\b\x03\x10\x04J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x11ledger_account_idR\vis_customerR\tis_vendor\"#\n" +
 	"\x11GetContactRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
 	"\x12GetContactResponse\x12)\n" +
@@ -2249,29 +2447,31 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"businessId\x12)\n" +
 	"\x10include_inactive\x18\x02 \x01(\bR\x0fincludeInactive\"C\n" +
 	"\x14ListContactsResponse\x12+\n" +
-	"\bcontacts\x18\x01 \x03(\v2\x0f.ava.v1.ContactR\bcontacts\"\xff\x06\n" +
+	"\bcontacts\x18\x01 \x03(\v2\x0f.ava.v1.ContactR\bcontacts\"\x8d\b\n" +
 	"\x14CreateContactRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
-	"businessId\x12/\n" +
-	"\x11ledger_account_id\x18\x02 \x01(\x05H\x00R\x0fledgerAccountId\x88\x01\x01\x12%\n" +
+	"businessId\x12%\n" +
 	"\x0econtact_number\x18\x03 \x01(\tR\rcontactNumber\x12\x1f\n" +
 	"\vis_customer\x18\x04 \x01(\bR\n" +
 	"isCustomer\x12\x1b\n" +
-	"\tis_vendor\x18\x05 \x01(\bR\bisVendor\x12\x12\n" +
+	"\tis_vendor\x18\x05 \x01(\bR\bisVendor\x12@\n" +
+	"\x1acustomer_ledger_account_id\x18\x11 \x01(\x05H\x00R\x17customerLedgerAccountId\x88\x01\x01\x12<\n" +
+	"\x18vendor_ledger_account_id\x18\x12 \x01(\x05H\x01R\x15vendorLedgerAccountId\x88\x01\x01\x12\x12\n" +
 	"\x04name\x18\x06 \x01(\tR\x04name\x12\x19\n" +
-	"\x05email\x18\a \x01(\tH\x01R\x05email\x88\x01\x01\x12\x19\n" +
-	"\x05phone\x18\b \x01(\tH\x02R\x05phone\x88\x01\x01\x121\n" +
-	"\x12payment_terms_days\x18\t \x01(\x05H\x03R\x10paymentTermsDays\x88\x01\x01\x127\n" +
+	"\x05email\x18\a \x01(\tH\x02R\x05email\x88\x01\x01\x12\x19\n" +
+	"\x05phone\x18\b \x01(\tH\x03R\x05phone\x88\x01\x01\x121\n" +
+	"\x12payment_terms_days\x18\t \x01(\x05H\x04R\x10paymentTermsDays\x88\x01\x01\x127\n" +
 	"\fcredit_limit\x18\n" +
-	" \x01(\v2\x0f.ava.v1.DecimalH\x04R\vcreditLimit\x88\x01\x01\x127\n" +
-	"\x15billing_address_line1\x18\v \x01(\tH\x05R\x13billingAddressLine1\x88\x01\x01\x127\n" +
-	"\x15billing_address_line2\x18\f \x01(\tH\x06R\x13billingAddressLine2\x88\x01\x01\x12&\n" +
-	"\fbilling_city\x18\r \x01(\tH\aR\vbillingCity\x88\x01\x01\x12(\n" +
-	"\rbilling_state\x18\x0e \x01(\tH\bR\fbillingState\x88\x01\x01\x123\n" +
-	"\x13billing_postal_code\x18\x0f \x01(\tH\tR\x11billingPostalCode\x88\x01\x01\x12,\n" +
-	"\x0fbilling_country\x18\x10 \x01(\tH\n" +
-	"R\x0ebillingCountry\x88\x01\x01B\x14\n" +
-	"\x12_ledger_account_idB\b\n" +
+	" \x01(\v2\x0f.ava.v1.DecimalH\x05R\vcreditLimit\x88\x01\x01\x127\n" +
+	"\x15billing_address_line1\x18\v \x01(\tH\x06R\x13billingAddressLine1\x88\x01\x01\x127\n" +
+	"\x15billing_address_line2\x18\f \x01(\tH\aR\x13billingAddressLine2\x88\x01\x01\x12&\n" +
+	"\fbilling_city\x18\r \x01(\tH\bR\vbillingCity\x88\x01\x01\x12(\n" +
+	"\rbilling_state\x18\x0e \x01(\tH\tR\fbillingState\x88\x01\x01\x123\n" +
+	"\x13billing_postal_code\x18\x0f \x01(\tH\n" +
+	"R\x11billingPostalCode\x88\x01\x01\x12,\n" +
+	"\x0fbilling_country\x18\x10 \x01(\tH\vR\x0ebillingCountry\x88\x01\x01B\x1d\n" +
+	"\x1b_customer_ledger_account_idB\x1b\n" +
+	"\x19_vendor_ledger_account_idB\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x15\n" +
 	"\x13_payment_terms_daysB\x0f\n" +
@@ -2281,29 +2481,27 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\r_billing_cityB\x10\n" +
 	"\x0e_billing_stateB\x16\n" +
 	"\x14_billing_postal_codeB\x12\n" +
-	"\x10_billing_country\"B\n" +
+	"\x10_billing_countryJ\x04\b\x02\x10\x03R\x11ledger_account_id\"B\n" +
 	"\x15CreateContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\x97\x06\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\xe9\x05\n" +
 	"\x14UpdateContactRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x19\n" +
 	"\x05email\x18\x03 \x01(\tH\x01R\x05email\x88\x01\x01\x12\x19\n" +
-	"\x05phone\x18\x04 \x01(\tH\x02R\x05phone\x88\x01\x01\x12/\n" +
-	"\x11ledger_account_id\x18\x05 \x01(\x05H\x03R\x0fledgerAccountId\x88\x01\x01\x121\n" +
-	"\x12payment_terms_days\x18\x06 \x01(\x05H\x04R\x10paymentTermsDays\x88\x01\x01\x127\n" +
-	"\fcredit_limit\x18\a \x01(\v2\x0f.ava.v1.DecimalH\x05R\vcreditLimit\x88\x01\x01\x127\n" +
-	"\x15billing_address_line1\x18\b \x01(\tH\x06R\x13billingAddressLine1\x88\x01\x01\x127\n" +
-	"\x15billing_address_line2\x18\t \x01(\tH\aR\x13billingAddressLine2\x88\x01\x01\x12&\n" +
+	"\x05phone\x18\x04 \x01(\tH\x02R\x05phone\x88\x01\x01\x121\n" +
+	"\x12payment_terms_days\x18\x06 \x01(\x05H\x03R\x10paymentTermsDays\x88\x01\x01\x127\n" +
+	"\fcredit_limit\x18\a \x01(\v2\x0f.ava.v1.DecimalH\x04R\vcreditLimit\x88\x01\x01\x127\n" +
+	"\x15billing_address_line1\x18\b \x01(\tH\x05R\x13billingAddressLine1\x88\x01\x01\x127\n" +
+	"\x15billing_address_line2\x18\t \x01(\tH\x06R\x13billingAddressLine2\x88\x01\x01\x12&\n" +
 	"\fbilling_city\x18\n" +
-	" \x01(\tH\bR\vbillingCity\x88\x01\x01\x12(\n" +
-	"\rbilling_state\x18\v \x01(\tH\tR\fbillingState\x88\x01\x01\x123\n" +
-	"\x13billing_postal_code\x18\f \x01(\tH\n" +
-	"R\x11billingPostalCode\x88\x01\x01\x12,\n" +
-	"\x0fbilling_country\x18\r \x01(\tH\vR\x0ebillingCountry\x88\x01\x01B\a\n" +
+	" \x01(\tH\aR\vbillingCity\x88\x01\x01\x12(\n" +
+	"\rbilling_state\x18\v \x01(\tH\bR\fbillingState\x88\x01\x01\x123\n" +
+	"\x13billing_postal_code\x18\f \x01(\tH\tR\x11billingPostalCode\x88\x01\x01\x12,\n" +
+	"\x0fbilling_country\x18\r \x01(\tH\n" +
+	"R\x0ebillingCountry\x88\x01\x01B\a\n" +
 	"\x05_nameB\b\n" +
 	"\x06_emailB\b\n" +
-	"\x06_phoneB\x14\n" +
-	"\x12_ledger_account_idB\x15\n" +
+	"\x06_phoneB\x15\n" +
 	"\x13_payment_terms_daysB\x0f\n" +
 	"\r_credit_limitB\x18\n" +
 	"\x16_billing_address_line1B\x18\n" +
@@ -2311,13 +2509,13 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\r_billing_cityB\x10\n" +
 	"\x0e_billing_stateB\x16\n" +
 	"\x14_billing_postal_codeB\x12\n" +
-	"\x10_billing_country\"B\n" +
+	"\x10_billing_countryJ\x04\b\x05\x10\x06R\x11ledger_account_id\"B\n" +
 	"\x15UpdateContactResponse\x12)\n" +
 	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"*\n" +
 	"\x18DeactivateContactRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"F\n" +
 	"\x19DeactivateContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\x93\x05\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\xf1\x05\n" +
 	"\aService\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2331,15 +2529,17 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\fretail_price\x18\b \x01(\v2\x0f.ava.v1.DecimalR\vretailPrice\x12\x1d\n" +
 	"\n" +
 	"is_taxable\x18\t \x01(\bR\tisTaxable\x122\n" +
-	"\x13default_tax_rate_id\x18\x0f \x01(\x03H\x01R\x10defaultTaxRateId\x88\x01\x01\x12\x1b\n" +
+	"\x13default_tax_rate_id\x18\x0f \x01(\x03H\x01R\x10defaultTaxRateId\x88\x01\x01\x12>\n" +
+	"\x19default_ledger_account_id\x18\x10 \x01(\x05H\x02R\x16defaultLedgerAccountId\x88\x01\x01\x12\x1b\n" +
 	"\tis_active\x18\v \x01(\bR\bisActive\x120\n" +
-	"\x12created_by_user_id\x18\f \x01(\x03H\x02R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
+	"\x12created_by_user_id\x18\f \x01(\x03H\x03R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
 	"\f_descriptionB\x16\n" +
-	"\x14_default_tax_rate_idB\x15\n" +
+	"\x14_default_tax_rate_idB\x1c\n" +
+	"\x1a_default_ledger_account_idB\x15\n" +
 	"\x13_created_by_user_idJ\x04\b\n" +
 	"\x10\vR\x10default_tax_rate\"#\n" +
 	"\x11GetServiceRequest\x12\x0e\n" +
@@ -2351,7 +2551,7 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"businessId\x12)\n" +
 	"\x10include_inactive\x18\x02 \x01(\bR\x0fincludeInactive\"C\n" +
 	"\x14ListServicesResponse\x12+\n" +
-	"\bservices\x18\x01 \x03(\v2\x0f.ava.v1.ServiceR\bservices\"\xe1\x03\n" +
+	"\bservices\x18\x01 \x03(\v2\x0f.ava.v1.ServiceR\bservices\"\xbf\x04\n" +
 	"\x14CreateServiceRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12!\n" +
@@ -2365,14 +2565,16 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
 	"is_taxable\x18\b \x01(\bR\tisTaxable\x122\n" +
 	"\x13default_tax_rate_id\x18\n" +
-	" \x01(\x03H\x03R\x10defaultTaxRateId\x88\x01\x01B\x0e\n" +
+	" \x01(\x03H\x03R\x10defaultTaxRateId\x88\x01\x01\x12>\n" +
+	"\x19default_ledger_account_id\x18\v \x01(\x05H\x04R\x16defaultLedgerAccountId\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x12\n" +
 	"\x10_unit_of_measureB\r\n" +
 	"\v_cost_priceB\x16\n" +
-	"\x14_default_tax_rate_idJ\x04\b\t\x10\n" +
+	"\x14_default_tax_rate_idB\x1c\n" +
+	"\x1a_default_ledger_account_idJ\x04\b\t\x10\n" +
 	"R\x10default_tax_rate\"B\n" +
 	"\x15CreateServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\xa4\x03\n" +
+	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\x82\x04\n" +
 	"\x14UpdateServiceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -2382,13 +2584,15 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"cost_price\x18\x05 \x01(\v2\x0f.ava.v1.DecimalH\x03R\tcostPrice\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"is_taxable\x18\x06 \x01(\bH\x04R\tisTaxable\x88\x01\x01\x122\n" +
-	"\x13default_tax_rate_id\x18\b \x01(\x03H\x05R\x10defaultTaxRateId\x88\x01\x01B\a\n" +
+	"\x13default_tax_rate_id\x18\b \x01(\x03H\x05R\x10defaultTaxRateId\x88\x01\x01\x12>\n" +
+	"\x19default_ledger_account_id\x18\t \x01(\x05H\x06R\x16defaultLedgerAccountId\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x0f\n" +
 	"\r_retail_priceB\r\n" +
 	"\v_cost_priceB\r\n" +
 	"\v_is_taxableB\x16\n" +
-	"\x14_default_tax_rate_idJ\x04\b\a\x10\bR\x10default_tax_rate\"B\n" +
+	"\x14_default_tax_rate_idB\x1c\n" +
+	"\x1a_default_ledger_account_idJ\x04\b\a\x10\bR\x10default_tax_rate\"B\n" +
 	"\x15UpdateServiceResponse\x12)\n" +
 	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"*\n" +
 	"\x18DeactivateServiceRequest\x12\x0e\n" +
@@ -2472,113 +2676,121 @@ func file_ava_v1_party_proto_rawDescGZIP() []byte {
 	return file_ava_v1_party_proto_rawDescData
 }
 
-var file_ava_v1_party_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_ava_v1_party_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_ava_v1_party_proto_goTypes = []any{
-	(*Contact)(nil),                   // 0: ava.v1.Contact
-	(*GetContactRequest)(nil),         // 1: ava.v1.GetContactRequest
-	(*GetContactResponse)(nil),        // 2: ava.v1.GetContactResponse
-	(*ListContactsRequest)(nil),       // 3: ava.v1.ListContactsRequest
-	(*ListContactsResponse)(nil),      // 4: ava.v1.ListContactsResponse
-	(*CreateContactRequest)(nil),      // 5: ava.v1.CreateContactRequest
-	(*CreateContactResponse)(nil),     // 6: ava.v1.CreateContactResponse
-	(*UpdateContactRequest)(nil),      // 7: ava.v1.UpdateContactRequest
-	(*UpdateContactResponse)(nil),     // 8: ava.v1.UpdateContactResponse
-	(*DeactivateContactRequest)(nil),  // 9: ava.v1.DeactivateContactRequest
-	(*DeactivateContactResponse)(nil), // 10: ava.v1.DeactivateContactResponse
-	(*Service)(nil),                   // 11: ava.v1.Service
-	(*GetServiceRequest)(nil),         // 12: ava.v1.GetServiceRequest
-	(*GetServiceResponse)(nil),        // 13: ava.v1.GetServiceResponse
-	(*ListServicesRequest)(nil),       // 14: ava.v1.ListServicesRequest
-	(*ListServicesResponse)(nil),      // 15: ava.v1.ListServicesResponse
-	(*CreateServiceRequest)(nil),      // 16: ava.v1.CreateServiceRequest
-	(*CreateServiceResponse)(nil),     // 17: ava.v1.CreateServiceResponse
-	(*UpdateServiceRequest)(nil),      // 18: ava.v1.UpdateServiceRequest
-	(*UpdateServiceResponse)(nil),     // 19: ava.v1.UpdateServiceResponse
-	(*DeactivateServiceRequest)(nil),  // 20: ava.v1.DeactivateServiceRequest
-	(*DeactivateServiceResponse)(nil), // 21: ava.v1.DeactivateServiceResponse
-	(*TaxRate)(nil),                   // 22: ava.v1.TaxRate
-	(*GetTaxRateRequest)(nil),         // 23: ava.v1.GetTaxRateRequest
-	(*GetTaxRateResponse)(nil),        // 24: ava.v1.GetTaxRateResponse
-	(*ListTaxRatesRequest)(nil),       // 25: ava.v1.ListTaxRatesRequest
-	(*ListTaxRatesResponse)(nil),      // 26: ava.v1.ListTaxRatesResponse
-	(*CreateTaxRateRequest)(nil),      // 27: ava.v1.CreateTaxRateRequest
-	(*CreateTaxRateResponse)(nil),     // 28: ava.v1.CreateTaxRateResponse
-	(*UpdateTaxRateRequest)(nil),      // 29: ava.v1.UpdateTaxRateRequest
-	(*UpdateTaxRateResponse)(nil),     // 30: ava.v1.UpdateTaxRateResponse
-	(*DeactivateTaxRateRequest)(nil),  // 31: ava.v1.DeactivateTaxRateRequest
-	(*DeactivateTaxRateResponse)(nil), // 32: ava.v1.DeactivateTaxRateResponse
-	(*Decimal)(nil),                   // 33: ava.v1.Decimal
-	(*timestamppb.Timestamp)(nil),     // 34: google.protobuf.Timestamp
+	(*Customer)(nil),                  // 0: ava.v1.Customer
+	(*Vendor)(nil),                    // 1: ava.v1.Vendor
+	(*Contact)(nil),                   // 2: ava.v1.Contact
+	(*GetContactRequest)(nil),         // 3: ava.v1.GetContactRequest
+	(*GetContactResponse)(nil),        // 4: ava.v1.GetContactResponse
+	(*ListContactsRequest)(nil),       // 5: ava.v1.ListContactsRequest
+	(*ListContactsResponse)(nil),      // 6: ava.v1.ListContactsResponse
+	(*CreateContactRequest)(nil),      // 7: ava.v1.CreateContactRequest
+	(*CreateContactResponse)(nil),     // 8: ava.v1.CreateContactResponse
+	(*UpdateContactRequest)(nil),      // 9: ava.v1.UpdateContactRequest
+	(*UpdateContactResponse)(nil),     // 10: ava.v1.UpdateContactResponse
+	(*DeactivateContactRequest)(nil),  // 11: ava.v1.DeactivateContactRequest
+	(*DeactivateContactResponse)(nil), // 12: ava.v1.DeactivateContactResponse
+	(*Service)(nil),                   // 13: ava.v1.Service
+	(*GetServiceRequest)(nil),         // 14: ava.v1.GetServiceRequest
+	(*GetServiceResponse)(nil),        // 15: ava.v1.GetServiceResponse
+	(*ListServicesRequest)(nil),       // 16: ava.v1.ListServicesRequest
+	(*ListServicesResponse)(nil),      // 17: ava.v1.ListServicesResponse
+	(*CreateServiceRequest)(nil),      // 18: ava.v1.CreateServiceRequest
+	(*CreateServiceResponse)(nil),     // 19: ava.v1.CreateServiceResponse
+	(*UpdateServiceRequest)(nil),      // 20: ava.v1.UpdateServiceRequest
+	(*UpdateServiceResponse)(nil),     // 21: ava.v1.UpdateServiceResponse
+	(*DeactivateServiceRequest)(nil),  // 22: ava.v1.DeactivateServiceRequest
+	(*DeactivateServiceResponse)(nil), // 23: ava.v1.DeactivateServiceResponse
+	(*TaxRate)(nil),                   // 24: ava.v1.TaxRate
+	(*GetTaxRateRequest)(nil),         // 25: ava.v1.GetTaxRateRequest
+	(*GetTaxRateResponse)(nil),        // 26: ava.v1.GetTaxRateResponse
+	(*ListTaxRatesRequest)(nil),       // 27: ava.v1.ListTaxRatesRequest
+	(*ListTaxRatesResponse)(nil),      // 28: ava.v1.ListTaxRatesResponse
+	(*CreateTaxRateRequest)(nil),      // 29: ava.v1.CreateTaxRateRequest
+	(*CreateTaxRateResponse)(nil),     // 30: ava.v1.CreateTaxRateResponse
+	(*UpdateTaxRateRequest)(nil),      // 31: ava.v1.UpdateTaxRateRequest
+	(*UpdateTaxRateResponse)(nil),     // 32: ava.v1.UpdateTaxRateResponse
+	(*DeactivateTaxRateRequest)(nil),  // 33: ava.v1.DeactivateTaxRateRequest
+	(*DeactivateTaxRateResponse)(nil), // 34: ava.v1.DeactivateTaxRateResponse
+	(*timestamppb.Timestamp)(nil),     // 35: google.protobuf.Timestamp
+	(*Decimal)(nil),                   // 36: ava.v1.Decimal
 }
 var file_ava_v1_party_proto_depIdxs = []int32{
-	33, // 0: ava.v1.Contact.credit_limit:type_name -> ava.v1.Decimal
-	34, // 1: ava.v1.Contact.created_at:type_name -> google.protobuf.Timestamp
-	34, // 2: ava.v1.Contact.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: ava.v1.GetContactResponse.contact:type_name -> ava.v1.Contact
-	0,  // 4: ava.v1.ListContactsResponse.contacts:type_name -> ava.v1.Contact
-	33, // 5: ava.v1.CreateContactRequest.credit_limit:type_name -> ava.v1.Decimal
-	0,  // 6: ava.v1.CreateContactResponse.contact:type_name -> ava.v1.Contact
-	33, // 7: ava.v1.UpdateContactRequest.credit_limit:type_name -> ava.v1.Decimal
-	0,  // 8: ava.v1.UpdateContactResponse.contact:type_name -> ava.v1.Contact
-	0,  // 9: ava.v1.DeactivateContactResponse.contact:type_name -> ava.v1.Contact
-	33, // 10: ava.v1.Service.cost_price:type_name -> ava.v1.Decimal
-	33, // 11: ava.v1.Service.retail_price:type_name -> ava.v1.Decimal
-	34, // 12: ava.v1.Service.created_at:type_name -> google.protobuf.Timestamp
-	34, // 13: ava.v1.Service.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 14: ava.v1.GetServiceResponse.service:type_name -> ava.v1.Service
-	11, // 15: ava.v1.ListServicesResponse.services:type_name -> ava.v1.Service
-	33, // 16: ava.v1.CreateServiceRequest.cost_price:type_name -> ava.v1.Decimal
-	33, // 17: ava.v1.CreateServiceRequest.retail_price:type_name -> ava.v1.Decimal
-	11, // 18: ava.v1.CreateServiceResponse.service:type_name -> ava.v1.Service
-	33, // 19: ava.v1.UpdateServiceRequest.retail_price:type_name -> ava.v1.Decimal
-	33, // 20: ava.v1.UpdateServiceRequest.cost_price:type_name -> ava.v1.Decimal
-	11, // 21: ava.v1.UpdateServiceResponse.service:type_name -> ava.v1.Service
-	11, // 22: ava.v1.DeactivateServiceResponse.service:type_name -> ava.v1.Service
-	33, // 23: ava.v1.TaxRate.rate:type_name -> ava.v1.Decimal
-	34, // 24: ava.v1.TaxRate.created_at:type_name -> google.protobuf.Timestamp
-	34, // 25: ava.v1.TaxRate.updated_at:type_name -> google.protobuf.Timestamp
-	22, // 26: ava.v1.GetTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
-	22, // 27: ava.v1.ListTaxRatesResponse.tax_rates:type_name -> ava.v1.TaxRate
-	33, // 28: ava.v1.CreateTaxRateRequest.rate:type_name -> ava.v1.Decimal
-	22, // 29: ava.v1.CreateTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
-	33, // 30: ava.v1.UpdateTaxRateRequest.rate:type_name -> ava.v1.Decimal
-	22, // 31: ava.v1.UpdateTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
-	22, // 32: ava.v1.DeactivateTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
-	1,  // 33: ava.v1.ContactService.GetContact:input_type -> ava.v1.GetContactRequest
-	3,  // 34: ava.v1.ContactService.ListContacts:input_type -> ava.v1.ListContactsRequest
-	5,  // 35: ava.v1.ContactService.CreateContact:input_type -> ava.v1.CreateContactRequest
-	7,  // 36: ava.v1.ContactService.UpdateContact:input_type -> ava.v1.UpdateContactRequest
-	9,  // 37: ava.v1.ContactService.DeactivateContact:input_type -> ava.v1.DeactivateContactRequest
-	12, // 38: ava.v1.ServiceCatalogService.GetService:input_type -> ava.v1.GetServiceRequest
-	14, // 39: ava.v1.ServiceCatalogService.ListServices:input_type -> ava.v1.ListServicesRequest
-	16, // 40: ava.v1.ServiceCatalogService.CreateService:input_type -> ava.v1.CreateServiceRequest
-	18, // 41: ava.v1.ServiceCatalogService.UpdateService:input_type -> ava.v1.UpdateServiceRequest
-	20, // 42: ava.v1.ServiceCatalogService.DeactivateService:input_type -> ava.v1.DeactivateServiceRequest
-	23, // 43: ava.v1.TaxRateService.GetTaxRate:input_type -> ava.v1.GetTaxRateRequest
-	25, // 44: ava.v1.TaxRateService.ListTaxRates:input_type -> ava.v1.ListTaxRatesRequest
-	27, // 45: ava.v1.TaxRateService.CreateTaxRate:input_type -> ava.v1.CreateTaxRateRequest
-	29, // 46: ava.v1.TaxRateService.UpdateTaxRate:input_type -> ava.v1.UpdateTaxRateRequest
-	31, // 47: ava.v1.TaxRateService.DeactivateTaxRate:input_type -> ava.v1.DeactivateTaxRateRequest
-	2,  // 48: ava.v1.ContactService.GetContact:output_type -> ava.v1.GetContactResponse
-	4,  // 49: ava.v1.ContactService.ListContacts:output_type -> ava.v1.ListContactsResponse
-	6,  // 50: ava.v1.ContactService.CreateContact:output_type -> ava.v1.CreateContactResponse
-	8,  // 51: ava.v1.ContactService.UpdateContact:output_type -> ava.v1.UpdateContactResponse
-	10, // 52: ava.v1.ContactService.DeactivateContact:output_type -> ava.v1.DeactivateContactResponse
-	13, // 53: ava.v1.ServiceCatalogService.GetService:output_type -> ava.v1.GetServiceResponse
-	15, // 54: ava.v1.ServiceCatalogService.ListServices:output_type -> ava.v1.ListServicesResponse
-	17, // 55: ava.v1.ServiceCatalogService.CreateService:output_type -> ava.v1.CreateServiceResponse
-	19, // 56: ava.v1.ServiceCatalogService.UpdateService:output_type -> ava.v1.UpdateServiceResponse
-	21, // 57: ava.v1.ServiceCatalogService.DeactivateService:output_type -> ava.v1.DeactivateServiceResponse
-	24, // 58: ava.v1.TaxRateService.GetTaxRate:output_type -> ava.v1.GetTaxRateResponse
-	26, // 59: ava.v1.TaxRateService.ListTaxRates:output_type -> ava.v1.ListTaxRatesResponse
-	28, // 60: ava.v1.TaxRateService.CreateTaxRate:output_type -> ava.v1.CreateTaxRateResponse
-	30, // 61: ava.v1.TaxRateService.UpdateTaxRate:output_type -> ava.v1.UpdateTaxRateResponse
-	32, // 62: ava.v1.TaxRateService.DeactivateTaxRate:output_type -> ava.v1.DeactivateTaxRateResponse
-	48, // [48:63] is the sub-list for method output_type
-	33, // [33:48] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	35, // 0: ava.v1.Customer.created_at:type_name -> google.protobuf.Timestamp
+	35, // 1: ava.v1.Customer.updated_at:type_name -> google.protobuf.Timestamp
+	35, // 2: ava.v1.Vendor.created_at:type_name -> google.protobuf.Timestamp
+	35, // 3: ava.v1.Vendor.updated_at:type_name -> google.protobuf.Timestamp
+	36, // 4: ava.v1.Contact.credit_limit:type_name -> ava.v1.Decimal
+	35, // 5: ava.v1.Contact.created_at:type_name -> google.protobuf.Timestamp
+	35, // 6: ava.v1.Contact.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 7: ava.v1.Contact.customer:type_name -> ava.v1.Customer
+	1,  // 8: ava.v1.Contact.vendor:type_name -> ava.v1.Vendor
+	2,  // 9: ava.v1.GetContactResponse.contact:type_name -> ava.v1.Contact
+	2,  // 10: ava.v1.ListContactsResponse.contacts:type_name -> ava.v1.Contact
+	36, // 11: ava.v1.CreateContactRequest.credit_limit:type_name -> ava.v1.Decimal
+	2,  // 12: ava.v1.CreateContactResponse.contact:type_name -> ava.v1.Contact
+	36, // 13: ava.v1.UpdateContactRequest.credit_limit:type_name -> ava.v1.Decimal
+	2,  // 14: ava.v1.UpdateContactResponse.contact:type_name -> ava.v1.Contact
+	2,  // 15: ava.v1.DeactivateContactResponse.contact:type_name -> ava.v1.Contact
+	36, // 16: ava.v1.Service.cost_price:type_name -> ava.v1.Decimal
+	36, // 17: ava.v1.Service.retail_price:type_name -> ava.v1.Decimal
+	35, // 18: ava.v1.Service.created_at:type_name -> google.protobuf.Timestamp
+	35, // 19: ava.v1.Service.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 20: ava.v1.GetServiceResponse.service:type_name -> ava.v1.Service
+	13, // 21: ava.v1.ListServicesResponse.services:type_name -> ava.v1.Service
+	36, // 22: ava.v1.CreateServiceRequest.cost_price:type_name -> ava.v1.Decimal
+	36, // 23: ava.v1.CreateServiceRequest.retail_price:type_name -> ava.v1.Decimal
+	13, // 24: ava.v1.CreateServiceResponse.service:type_name -> ava.v1.Service
+	36, // 25: ava.v1.UpdateServiceRequest.retail_price:type_name -> ava.v1.Decimal
+	36, // 26: ava.v1.UpdateServiceRequest.cost_price:type_name -> ava.v1.Decimal
+	13, // 27: ava.v1.UpdateServiceResponse.service:type_name -> ava.v1.Service
+	13, // 28: ava.v1.DeactivateServiceResponse.service:type_name -> ava.v1.Service
+	36, // 29: ava.v1.TaxRate.rate:type_name -> ava.v1.Decimal
+	35, // 30: ava.v1.TaxRate.created_at:type_name -> google.protobuf.Timestamp
+	35, // 31: ava.v1.TaxRate.updated_at:type_name -> google.protobuf.Timestamp
+	24, // 32: ava.v1.GetTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
+	24, // 33: ava.v1.ListTaxRatesResponse.tax_rates:type_name -> ava.v1.TaxRate
+	36, // 34: ava.v1.CreateTaxRateRequest.rate:type_name -> ava.v1.Decimal
+	24, // 35: ava.v1.CreateTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
+	36, // 36: ava.v1.UpdateTaxRateRequest.rate:type_name -> ava.v1.Decimal
+	24, // 37: ava.v1.UpdateTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
+	24, // 38: ava.v1.DeactivateTaxRateResponse.tax_rate:type_name -> ava.v1.TaxRate
+	3,  // 39: ava.v1.ContactService.GetContact:input_type -> ava.v1.GetContactRequest
+	5,  // 40: ava.v1.ContactService.ListContacts:input_type -> ava.v1.ListContactsRequest
+	7,  // 41: ava.v1.ContactService.CreateContact:input_type -> ava.v1.CreateContactRequest
+	9,  // 42: ava.v1.ContactService.UpdateContact:input_type -> ava.v1.UpdateContactRequest
+	11, // 43: ava.v1.ContactService.DeactivateContact:input_type -> ava.v1.DeactivateContactRequest
+	14, // 44: ava.v1.ServiceCatalogService.GetService:input_type -> ava.v1.GetServiceRequest
+	16, // 45: ava.v1.ServiceCatalogService.ListServices:input_type -> ava.v1.ListServicesRequest
+	18, // 46: ava.v1.ServiceCatalogService.CreateService:input_type -> ava.v1.CreateServiceRequest
+	20, // 47: ava.v1.ServiceCatalogService.UpdateService:input_type -> ava.v1.UpdateServiceRequest
+	22, // 48: ava.v1.ServiceCatalogService.DeactivateService:input_type -> ava.v1.DeactivateServiceRequest
+	25, // 49: ava.v1.TaxRateService.GetTaxRate:input_type -> ava.v1.GetTaxRateRequest
+	27, // 50: ava.v1.TaxRateService.ListTaxRates:input_type -> ava.v1.ListTaxRatesRequest
+	29, // 51: ava.v1.TaxRateService.CreateTaxRate:input_type -> ava.v1.CreateTaxRateRequest
+	31, // 52: ava.v1.TaxRateService.UpdateTaxRate:input_type -> ava.v1.UpdateTaxRateRequest
+	33, // 53: ava.v1.TaxRateService.DeactivateTaxRate:input_type -> ava.v1.DeactivateTaxRateRequest
+	4,  // 54: ava.v1.ContactService.GetContact:output_type -> ava.v1.GetContactResponse
+	6,  // 55: ava.v1.ContactService.ListContacts:output_type -> ava.v1.ListContactsResponse
+	8,  // 56: ava.v1.ContactService.CreateContact:output_type -> ava.v1.CreateContactResponse
+	10, // 57: ava.v1.ContactService.UpdateContact:output_type -> ava.v1.UpdateContactResponse
+	12, // 58: ava.v1.ContactService.DeactivateContact:output_type -> ava.v1.DeactivateContactResponse
+	15, // 59: ava.v1.ServiceCatalogService.GetService:output_type -> ava.v1.GetServiceResponse
+	17, // 60: ava.v1.ServiceCatalogService.ListServices:output_type -> ava.v1.ListServicesResponse
+	19, // 61: ava.v1.ServiceCatalogService.CreateService:output_type -> ava.v1.CreateServiceResponse
+	21, // 62: ava.v1.ServiceCatalogService.UpdateService:output_type -> ava.v1.UpdateServiceResponse
+	23, // 63: ava.v1.ServiceCatalogService.DeactivateService:output_type -> ava.v1.DeactivateServiceResponse
+	26, // 64: ava.v1.TaxRateService.GetTaxRate:output_type -> ava.v1.GetTaxRateResponse
+	28, // 65: ava.v1.TaxRateService.ListTaxRates:output_type -> ava.v1.ListTaxRatesResponse
+	30, // 66: ava.v1.TaxRateService.CreateTaxRate:output_type -> ava.v1.CreateTaxRateResponse
+	32, // 67: ava.v1.TaxRateService.UpdateTaxRate:output_type -> ava.v1.UpdateTaxRateResponse
+	34, // 68: ava.v1.TaxRateService.DeactivateTaxRate:output_type -> ava.v1.DeactivateTaxRateResponse
+	54, // [54:69] is the sub-list for method output_type
+	39, // [39:54] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_party_proto_init() }
@@ -2588,20 +2800,22 @@ func file_ava_v1_party_proto_init() {
 	}
 	file_ava_v1_common_proto_init()
 	file_ava_v1_party_proto_msgTypes[0].OneofWrappers = []any{}
-	file_ava_v1_party_proto_msgTypes[5].OneofWrappers = []any{}
+	file_ava_v1_party_proto_msgTypes[1].OneofWrappers = []any{}
+	file_ava_v1_party_proto_msgTypes[2].OneofWrappers = []any{}
 	file_ava_v1_party_proto_msgTypes[7].OneofWrappers = []any{}
-	file_ava_v1_party_proto_msgTypes[11].OneofWrappers = []any{}
-	file_ava_v1_party_proto_msgTypes[16].OneofWrappers = []any{}
+	file_ava_v1_party_proto_msgTypes[9].OneofWrappers = []any{}
+	file_ava_v1_party_proto_msgTypes[13].OneofWrappers = []any{}
 	file_ava_v1_party_proto_msgTypes[18].OneofWrappers = []any{}
-	file_ava_v1_party_proto_msgTypes[22].OneofWrappers = []any{}
-	file_ava_v1_party_proto_msgTypes[29].OneofWrappers = []any{}
+	file_ava_v1_party_proto_msgTypes[20].OneofWrappers = []any{}
+	file_ava_v1_party_proto_msgTypes[24].OneofWrappers = []any{}
+	file_ava_v1_party_proto_msgTypes[31].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_party_proto_rawDesc), len(file_ava_v1_party_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

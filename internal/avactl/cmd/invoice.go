@@ -155,7 +155,7 @@ func newInvoiceCreateCmd() *cobra.Command {
 					Description:     f["desc"],
 					Quantity:        parseDecimalField(f, "qty"),
 					UnitPrice:       parseDecimalField(f, "price"),
-					IsTaxable:       f["taxable"] == "true",
+					IsTaxable:       parseOptionalBool(f, "taxable"),
 					TaxRateId:       taxRateID,
 				})
 			}
@@ -202,17 +202,23 @@ func newInvoiceCreateCmd() *cobra.Command {
 	cmd.Flags().Int64Var(&estimate, "estimate", 0, "estimate id this invoice converts from")
 	cmd.Flags().StringVar(&notes, "notes", "", "notes")
 	cmd.Flags().StringVar(&terms, "terms", "", "terms")
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...,account=<id>[,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the service when omitted")
 	_ = cmd.MarkFlagRequired("contact")
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("due")
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Create an invoice",
-		Detail: "account=<id> is required on every line, and the contact must already have " +
-			"--ledger-account set — the invoice posts to the ledger atomically as part of creation.",
-		Examples: []resource.Example{{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
-			`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`}},
+		Detail: "Every line needs a ledger_account_id one way or another - either set account=<id> " +
+			"explicitly, or set service=<id> on a service that has its own default_ledger_account_id. " +
+			"The contact must also have a customer (for SALES) or vendor (for PURCHASE) record with its " +
+			"own ledger_account_id set — the invoice posts to the ledger atomically as part of creation.",
+		Examples: []resource.Example{
+			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
+				`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`},
+			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
+				`--line "desc=Consulting,service=71,qty=10"`},
+		},
 	}.Apply(cmd)
 	return cmd
 }
@@ -254,7 +260,7 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 					Description:     f["desc"],
 					Quantity:        parseDecimalField(f, "qty"),
 					UnitPrice:       parseDecimalField(f, "price"),
-					IsTaxable:       f["taxable"] == "true",
+					IsTaxable:       parseOptionalBool(f, "taxable"),
 					TaxRateId:       taxRateID,
 				})
 			}
@@ -275,7 +281,7 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetInvoice(), invoiceNoun.Columns)
 		},
 	}
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...,account=<id>[,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the service when omitted")
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Replace an invoice's line items",

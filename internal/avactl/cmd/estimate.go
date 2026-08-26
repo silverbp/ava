@@ -152,7 +152,7 @@ func newEstimateCreateCmd() *cobra.Command {
 					Description: f["desc"],
 					Quantity:    parseDecimalField(f, "qty"),
 					UnitPrice:   parseDecimalField(f, "price"),
-					IsTaxable:   f["taxable"] == "true",
+					IsTaxable:   parseOptionalBool(f, "taxable"),
 					TaxRateId:   taxRateID,
 				})
 			}
@@ -189,15 +189,18 @@ func newEstimateCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&expires, "expires", "", "expiration date, YYYY-MM-DD (required)")
 	cmd.Flags().StringVar(&notes, "notes", "", "notes")
 	cmd.Flags().StringVar(&terms, "terms", "", "terms")
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...[,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - price/taxable/tax-rate default from the service when omitted")
 	_ = cmd.MarkFlagRequired("customer")
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("expires")
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
-		Summary:  "Create an estimate",
-		Detail:   "Repeat --line once per line item.",
-		Examples: []resource.Example{{Cmd: "avactl estimate create --customer 5 --date 2026-01-01 --expires 2026-02-01 " + `--line "desc=Consulting,qty=10,price=150.00,taxable,tax-rate=1"`}},
+		Summary: "Create an estimate",
+		Detail:  "Repeat --line once per line item. price/taxable/tax-rate default from service=<id>'s catalog entry when omitted.",
+		Examples: []resource.Example{
+			{Cmd: "avactl estimate create --customer 5 --date 2026-01-01 --expires 2026-02-01 " + `--line "desc=Consulting,qty=10,price=150.00,taxable,tax-rate=1"`},
+			{Cmd: "avactl estimate create --customer 5 --date 2026-01-01 --expires 2026-02-01 " + `--line "desc=Consulting,service=71,qty=10"`},
+		},
 	}.Apply(cmd)
 	return cmd
 }
@@ -234,7 +237,7 @@ func newEstimateUpdateLinesCmd() *cobra.Command {
 					Description: f["desc"],
 					Quantity:    parseDecimalField(f, "qty"),
 					UnitPrice:   parseDecimalField(f, "price"),
-					IsTaxable:   f["taxable"] == "true",
+					IsTaxable:   parseOptionalBool(f, "taxable"),
 					TaxRateId:   taxRateID,
 				})
 			}
@@ -255,7 +258,7 @@ func newEstimateUpdateLinesCmd() *cobra.Command {
 			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetEstimate(), estimateNoun.Columns)
 		},
 	}
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...[,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - price/taxable/tax-rate default from the service when omitted")
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Replace an estimate's line items",

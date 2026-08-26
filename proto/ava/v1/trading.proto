@@ -85,13 +85,16 @@ message Estimate {
   repeated EstimateLineItem line_items = 15;
 }
 
+// unit_price/is_taxable/tax_rate_id may all be left unset when service_id is set - the server
+// fills each one from that service's own catalog defaults (retail_price/is_taxable/
+// default_tax_rate_id) unless the line explicitly overrides it. See docs/schema.md, "service".
 message NewEstimateLineItem {
   optional int64 service_id = 1;
   int32 line_number = 2;
   string description = 3;
   Decimal quantity = 4;
   Decimal unit_price = 5;
-  bool is_taxable = 6;
+  optional bool is_taxable = 6;
   optional int64 tax_rate_id = 7;
 }
 
@@ -196,17 +199,20 @@ message Invoice {
   repeated InvoiceLineItem line_items = 20;
 }
 
+// ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when service_id is
+// set - the server fills each one from that service's own catalog defaults
+// (default_ledger_account_id/retail_price/is_taxable/default_tax_rate_id) unless the line
+// explicitly overrides it. ledger_account_id still ends up required either way -
+// CreateInvoice/UpdateInvoiceLineItems reject a line that has neither an explicit value nor a
+// service default to fall back on. See docs/schema.md, "service"/"invoice_line_item.ledger_account_id".
 message NewInvoiceLineItem {
   optional int64 service_id = 1;
-  // Required (kept proto3 `optional` for wire compatibility, not because
-  // it may be omitted) — CreateInvoice/UpdateInvoiceLineItems reject any
-  // line missing this.
   optional int32 ledger_account_id = 2;
   int32 line_number = 3;
   string description = 4;
   Decimal quantity = 5;
   Decimal unit_price = 6;
-  bool is_taxable = 7;
+  optional bool is_taxable = 7;
   optional int64 tax_rate_id = 8;
 }
 

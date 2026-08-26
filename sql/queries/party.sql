@@ -3,12 +3,12 @@
 
 -- name: CreateContact :one
 INSERT INTO contact (
-    business_id, ledger_account_id, contact_number, is_customer, is_vendor, name,
+    business_id, contact_number, name,
     email, phone, payment_terms_days, credit_limit, created_by_user_id,
     billing_address_line1, billing_address_line2, billing_city, billing_state,
     billing_postal_code, billing_country
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
 RETURNING *;
 
@@ -26,7 +26,6 @@ UPDATE contact SET
     name = COALESCE(sqlc.narg('name'), name),
     email = COALESCE(sqlc.narg('email'), email),
     phone = COALESCE(sqlc.narg('phone'), phone),
-    ledger_account_id = COALESCE(sqlc.narg('ledger_account_id'), ledger_account_id),
     payment_terms_days = COALESCE(sqlc.narg('payment_terms_days'), payment_terms_days),
     credit_limit = COALESCE(sqlc.narg('credit_limit'), credit_limit),
     billing_address_line1 = COALESCE(sqlc.narg('billing_address_line1'), billing_address_line1),
@@ -44,12 +43,26 @@ UPDATE contact SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
+-- name: CreateCustomer :one
+INSERT INTO customer (contact_id, ledger_account_id) VALUES ($1, $2)
+RETURNING *;
+
+-- name: GetCustomerByContactID :one
+SELECT * FROM customer WHERE contact_id = $1;
+
+-- name: CreateVendor :one
+INSERT INTO vendor (contact_id, ledger_account_id) VALUES ($1, $2)
+RETURNING *;
+
+-- name: GetVendorByContactID :one
+SELECT * FROM vendor WHERE contact_id = $1;
+
 -- name: CreateService :one
 INSERT INTO service (
     business_id, service_code, name, description, unit_of_measure, cost_price,
-    retail_price, is_taxable, default_tax_rate_id, created_by_user_id
+    retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, created_by_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
 RETURNING *;
 
@@ -70,6 +83,7 @@ UPDATE service SET
     cost_price = COALESCE(sqlc.narg('cost_price'), cost_price),
     is_taxable = COALESCE(sqlc.narg('is_taxable'), is_taxable),
     default_tax_rate_id = COALESCE(sqlc.narg('default_tax_rate_id'), default_tax_rate_id),
+    default_ledger_account_id = COALESCE(sqlc.narg('default_ledger_account_id'), default_ledger_account_id),
     updated_at = NOW()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
 RETURNING *;

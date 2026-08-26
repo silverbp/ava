@@ -122,6 +122,144 @@ func firstErr(errs ...error) error {
 	return nil
 }
 
+// ============================================================================
+// Service-catalog defaulting shared by EstimateService and InvoiceService.
+// ============================================================================
+
+// serviceLineDefaults is the subset of a service catalog row a line can fall back to.
+type serviceLineDefaults struct {
+	LedgerAccountID *int32
+	UnitPrice       *avav1.Decimal
+	IsTaxable       bool
+	TaxRateID       *int64
+}
+
+func serviceLineDefaultsFor(svc sqlcgen.Service) (serviceLineDefaults, error) {
+	price, err := moneypb.ToProto(svc.RetailPrice)
+	if err != nil {
+		return serviceLineDefaults{}, err
+	}
+	return serviceLineDefaults{
+		LedgerAccountID: svc.DefaultLedgerAccountID,
+		UnitPrice:       price,
+		IsTaxable:       svc.IsTaxable,
+		TaxRateID:       svc.DefaultTaxRateID,
+	}, nil
+}
+
+// resolvedEstimateLine is a NewEstimateLineItem after applying service-catalog defaults (see
+// resolveEstimateLines) - unit_price/is_taxable/tax_rate_id may have originated from the request
+// or the service, but from here on every caller treats them as final.
+type resolvedEstimateLine struct {
+	ServiceID   *int64
+	LineNumber  int32
+	Description string
+	Quantity    *avav1.Decimal
+	UnitPrice   *avav1.Decimal
+	IsTaxable   bool
+	TaxRateID   *int64
+}
+
+// resolveEstimateLines fills any unset unit_price/is_taxable/tax_rate_id from the line's
+// service.retail_price/is_taxable/default_tax_rate_id - a convenience, not enforcement: an
+// explicit value on the line always wins over the service's default (docs/schema.md, "service").
+func resolveEstimateLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.NewEstimateLineItem) ([]resolvedEstimateLine, error) {
+	resolved := make([]resolvedEstimateLine, len(raw))
+	for i, li := range raw {
+		r := resolvedEstimateLine{
+			ServiceID:   li.ServiceId,
+			LineNumber:  li.LineNumber,
+			Description: li.Description,
+			Quantity:    li.Quantity,
+			UnitPrice:   li.UnitPrice,
+			IsTaxable:   li.GetIsTaxable(),
+			TaxRateID:   li.TaxRateId,
+		}
+		if li.ServiceId != nil {
+			svc, err := q.GetService(ctx, li.GetServiceId())
+			if err != nil {
+				return nil, fmt.Errorf("line %d: service %d: %w", i, li.GetServiceId(), err)
+			}
+			defaults, err := serviceLineDefaultsFor(svc)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %w", i, err)
+			}
+			if r.UnitPrice == nil {
+				r.UnitPrice = defaults.UnitPrice
+			}
+			if li.IsTaxable == nil {
+				r.IsTaxable = defaults.IsTaxable
+			}
+			if r.TaxRateID == nil && r.IsTaxable {
+				r.TaxRateID = defaults.TaxRateID
+			}
+		}
+		resolved[i] = r
+	}
+	return resolved, nil
+}
+
+// resolvedInvoiceLine is the NewInvoiceLineItem equivalent of resolvedEstimateLine, additionally
+// carrying ledger_account_id (estimates have no ledger impact, so estimate_line_item has no such
+// column - see docs/schema.md, "estimate").
+type resolvedInvoiceLine struct {
+	ServiceID       *int64
+	LedgerAccountID *int32
+	LineNumber      int32
+	Description     string
+	Quantity        *avav1.Decimal
+	UnitPrice       *avav1.Decimal
+	IsTaxable       bool
+	TaxRateID       *int64
+}
+
+// resolveInvoiceLines is resolveEstimateLines plus ledger_account_id: also defaulted from the
+// service (default_ledger_account_id) when unset, but still required either way -
+// CreateInvoice/UpdateInvoiceLineItems reject a line with neither an explicit value nor a
+// service default to fall back on.
+func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.NewInvoiceLineItem) ([]resolvedInvoiceLine, error) {
+	resolved := make([]resolvedInvoiceLine, len(raw))
+	for i, li := range raw {
+		r := resolvedInvoiceLine{
+			ServiceID:       li.ServiceId,
+			LedgerAccountID: li.LedgerAccountId,
+			LineNumber:      li.LineNumber,
+			Description:     li.Description,
+			Quantity:        li.Quantity,
+			UnitPrice:       li.UnitPrice,
+			IsTaxable:       li.GetIsTaxable(),
+			TaxRateID:       li.TaxRateId,
+		}
+		if li.ServiceId != nil {
+			svc, err := q.GetService(ctx, li.GetServiceId())
+			if err != nil {
+				return nil, fmt.Errorf("line %d: service %d: %w", i, li.GetServiceId(), err)
+			}
+			defaults, err := serviceLineDefaultsFor(svc)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %w", i, err)
+			}
+			if r.LedgerAccountID == nil {
+				r.LedgerAccountID = defaults.LedgerAccountID
+			}
+			if r.UnitPrice == nil {
+				r.UnitPrice = defaults.UnitPrice
+			}
+			if li.IsTaxable == nil {
+				r.IsTaxable = defaults.IsTaxable
+			}
+			if r.TaxRateID == nil && r.IsTaxable {
+				r.TaxRateID = defaults.TaxRateID
+			}
+		}
+		if r.LedgerAccountID == nil {
+			return nil, fmt.Errorf("line %d: ledger_account_id is required (set it explicitly, or set service_id on a service that has a default_ledger_account_id)", i)
+		}
+		resolved[i] = r
+	}
+	return resolved, nil
+}
+
 func createDecimalEntry(ctx context.Context, q *sqlcgen.Queries, businessID, txnID int64, accountID int32, debit, credit decimal.Decimal) error {
 	debitNum, err := ledgermath.DecimalToNumeric(debit)
 	if err != nil {
@@ -246,9 +384,13 @@ func (s *estimateService) CreateEstimate(ctx context.Context, req *avav1.CreateE
 		lineItems []sqlcgen.EstimateLineItem
 	)
 	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		inputs := make([]lineInput, len(req.GetLineItems()))
-		for i, li := range req.GetLineItems() {
-			inputs[i] = lineInput{Quantity: li.Quantity, UnitPrice: li.UnitPrice, IsTaxable: li.IsTaxable, TaxRateID: li.TaxRateId}
+		resolved, err := resolveEstimateLines(ctx, q, req.GetLineItems())
+		if err != nil {
+			return err
+		}
+		inputs := make([]lineInput, len(resolved))
+		for i, r := range resolved {
+			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
 		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
 		if err != nil {
@@ -286,17 +428,17 @@ func (s *estimateService) CreateEstimate(ctx context.Context, req *avav1.CreateE
 		}
 
 		for i, cl := range computed {
-			src := req.GetLineItems()[i]
+			src := resolved[i]
 			li, err := q.CreateEstimateLineItem(ctx, sqlcgen.CreateEstimateLineItemParams{
 				EstimateID:   estimate.ID,
-				ServiceID:    src.ServiceId,
+				ServiceID:    src.ServiceID,
 				LineNumber:   src.LineNumber,
 				Description:  src.Description,
 				Quantity:     cl.Quantity,
 				UnitPrice:    cl.UnitPrice,
 				LineSubtotal: cl.LineSubtotal,
 				IsTaxable:    src.IsTaxable,
-				TaxRateID:    src.TaxRateId,
+				TaxRateID:    src.TaxRateID,
 				TaxRate:      cl.TaxRate,
 				TaxAmount:    cl.TaxAmount,
 				LineTotal:    cl.LineTotal,
@@ -369,9 +511,13 @@ func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav
 		lineItems []sqlcgen.EstimateLineItem
 	)
 	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		inputs := make([]lineInput, len(req.GetLineItems()))
-		for i, li := range req.GetLineItems() {
-			inputs[i] = lineInput{Quantity: li.Quantity, UnitPrice: li.UnitPrice, IsTaxable: li.IsTaxable, TaxRateID: li.TaxRateId}
+		resolved, err := resolveEstimateLines(ctx, q, req.GetLineItems())
+		if err != nil {
+			return err
+		}
+		inputs := make([]lineInput, len(resolved))
+		for i, r := range resolved {
+			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
 		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
 		if err != nil {
@@ -400,17 +546,17 @@ func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav
 		}
 
 		for i, cl := range computed {
-			src := req.GetLineItems()[i]
+			src := resolved[i]
 			li, err := q.CreateEstimateLineItem(ctx, sqlcgen.CreateEstimateLineItemParams{
 				EstimateID:   estimate.ID,
-				ServiceID:    src.ServiceId,
+				ServiceID:    src.ServiceID,
 				LineNumber:   src.LineNumber,
 				Description:  src.Description,
 				Quantity:     cl.Quantity,
 				UnitPrice:    cl.UnitPrice,
 				LineSubtotal: cl.LineSubtotal,
 				IsTaxable:    src.IsTaxable,
-				TaxRateID:    src.TaxRateId,
+				TaxRateID:    src.TaxRateID,
 				TaxRate:      cl.TaxRate,
 				TaxAmount:    cl.TaxAmount,
 				LineTotal:    cl.LineTotal,
@@ -635,11 +781,6 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 	if len(req.GetLineItems()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
 	}
-	for _, li := range req.GetLineItems() {
-		if li.LedgerAccountId == nil {
-			return nil, status.Error(codes.InvalidArgument, "every line item must set ledger_account_id")
-		}
-	}
 	if req.GetInvoiceType() == "PURCHASE" && req.GetInvoiceNumber() == "" {
 		return nil, status.Error(codes.InvalidArgument, "invoice_number is required for PURCHASE invoices")
 	}
@@ -652,9 +793,13 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 		lineItems []sqlcgen.InvoiceLineItem
 	)
 	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		inputs := make([]lineInput, len(req.GetLineItems()))
-		for i, li := range req.GetLineItems() {
-			inputs[i] = lineInput{Quantity: li.Quantity, UnitPrice: li.UnitPrice, IsTaxable: li.IsTaxable, TaxRateID: li.TaxRateId}
+		resolved, err := resolveInvoiceLines(ctx, q, req.GetLineItems())
+		if err != nil {
+			return err
+		}
+		inputs := make([]lineInput, len(resolved))
+		for i, r := range resolved {
+			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
 		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
 		if err != nil {
@@ -698,18 +843,18 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 		}
 
 		for i, cl := range computed {
-			src := req.GetLineItems()[i]
+			src := resolved[i]
 			li, err := q.CreateInvoiceLineItem(ctx, sqlcgen.CreateInvoiceLineItemParams{
 				InvoiceID:       invoice.ID,
-				ServiceID:       src.ServiceId,
-				LedgerAccountID: src.LedgerAccountId,
+				ServiceID:       src.ServiceID,
+				LedgerAccountID: src.LedgerAccountID,
 				LineNumber:      src.LineNumber,
 				Description:     src.Description,
 				Quantity:        cl.Quantity,
 				UnitPrice:       cl.UnitPrice,
 				LineSubtotal:    cl.LineSubtotal,
 				IsTaxable:       src.IsTaxable,
-				TaxRateID:       src.TaxRateId,
+				TaxRateID:       src.TaxRateID,
 				TaxRate:         cl.TaxRate,
 				TaxAmount:       cl.TaxAmount,
 				LineTotal:       cl.LineTotal,
@@ -791,11 +936,6 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 	if len(req.GetLineItems()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
 	}
-	for _, li := range req.GetLineItems() {
-		if li.LedgerAccountId == nil {
-			return nil, status.Error(codes.InvalidArgument, "every line item must set ledger_account_id")
-		}
-	}
 
 	paidAmount, err := ledgermath.NumericToDecimal(existing.PaidAmount)
 	if err != nil {
@@ -807,9 +947,13 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 		lineItems []sqlcgen.InvoiceLineItem
 	)
 	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		inputs := make([]lineInput, len(req.GetLineItems()))
-		for i, li := range req.GetLineItems() {
-			inputs[i] = lineInput{Quantity: li.Quantity, UnitPrice: li.UnitPrice, IsTaxable: li.IsTaxable, TaxRateID: li.TaxRateId}
+		resolved, err := resolveInvoiceLines(ctx, q, req.GetLineItems())
+		if err != nil {
+			return err
+		}
+		inputs := make([]lineInput, len(resolved))
+		for i, r := range resolved {
+			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
 		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
 		if err != nil {
@@ -844,18 +988,18 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 		}
 
 		for i, cl := range computed {
-			src := req.GetLineItems()[i]
+			src := resolved[i]
 			li, err := q.CreateInvoiceLineItem(ctx, sqlcgen.CreateInvoiceLineItemParams{
 				InvoiceID:       invoice.ID,
-				ServiceID:       src.ServiceId,
-				LedgerAccountID: src.LedgerAccountId,
+				ServiceID:       src.ServiceID,
+				LedgerAccountID: src.LedgerAccountID,
 				LineNumber:      src.LineNumber,
 				Description:     src.Description,
 				Quantity:        cl.Quantity,
 				UnitPrice:       cl.UnitPrice,
 				LineSubtotal:    cl.LineSubtotal,
 				IsTaxable:       src.IsTaxable,
-				TaxRateID:       src.TaxRateId,
+				TaxRateID:       src.TaxRateID,
 				TaxRate:         cl.TaxRate,
 				TaxAmount:       cl.TaxAmount,
 				LineTotal:       cl.LineTotal,
@@ -1087,18 +1231,43 @@ func formatAddressLines(line1, line2, city, state, postal *string) []string {
 	return lines
 }
 
+// resolveContactLedgerAccountID looks up a contact's own AR sub-ledger account (customer side)
+// or AP sub-ledger account (vendor side) - the role tables' ledger_account_id, not a column on
+// contact itself (see customer/vendor in migrations/00001_initial.up.sql). Returns (nil, nil),
+// not an error, if the contact has no row in that role's table at all.
+func resolveContactLedgerAccountID(ctx context.Context, q *sqlcgen.Queries, contactID int64, isCustomerSide bool) (*int32, error) {
+	if isCustomerSide {
+		customer, err := q.GetCustomerByContactID(ctx, contactID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return customer.LedgerAccountID, nil
+	}
+	vendor, err := q.GetVendorByContactID(ctx, contactID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return vendor.LedgerAccountID, nil
+}
+
 // postInvoiceLedger posts an invoice to the ledger: creates a new
 // ledger_transaction and its balanced entries. CreateInvoice/
 // UpdateInvoiceLineItems require every line item's ledger_account_id up
 // front, so the nil checks here (and in writeInvoiceLedgerEntries) are a
 // safety net, not the primary enforcement.
 func postInvoiceLedger(ctx context.Context, q *sqlcgen.Queries, businessID int64, invoice sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem, createdByUserID *int64) (int64, error) {
-	contact, err := q.GetContact(ctx, invoice.ContactID)
+	contactLedgerAccountID, err := resolveContactLedgerAccountID(ctx, q, invoice.ContactID, invoice.InvoiceType == "SALES")
 	if err != nil {
 		return 0, err
 	}
-	if contact.LedgerAccountID == nil {
-		return 0, fmt.Errorf("cannot post invoice: contact %d has no ledger_account_id set", contact.ID)
+	if contactLedgerAccountID == nil {
+		return 0, fmt.Errorf("cannot post invoice: contact %d has no customer/vendor ledger_account_id set", invoice.ContactID)
 	}
 
 	description := fmt.Sprintf("Invoice %s", invoice.InvoiceNumber)
@@ -1111,7 +1280,7 @@ func postInvoiceLedger(ctx context.Context, q *sqlcgen.Queries, businessID int64
 	if err != nil {
 		return 0, err
 	}
-	if err := writeInvoiceLedgerEntries(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, invoice, lineItems); err != nil {
+	if err := writeInvoiceLedgerEntries(ctx, q, businessID, txn.ID, *contactLedgerAccountID, invoice, lineItems); err != nil {
 		return 0, err
 	}
 	return txn.ID, nil
@@ -1126,17 +1295,17 @@ func postInvoiceLedger(ctx context.Context, q *sqlcgen.Queries, businessID int64
 // of deleted_at) and the inserts, so editing a transaction dated in a closed
 // period is still rejected.
 func repostInvoiceLedger(ctx context.Context, q *sqlcgen.Queries, businessID, ledgerTransactionID int64, invoice sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem) error {
-	contact, err := q.GetContact(ctx, invoice.ContactID)
+	contactLedgerAccountID, err := resolveContactLedgerAccountID(ctx, q, invoice.ContactID, invoice.InvoiceType == "SALES")
 	if err != nil {
 		return err
 	}
-	if contact.LedgerAccountID == nil {
-		return fmt.Errorf("cannot repost invoice: contact %d has no ledger_account_id set", contact.ID)
+	if contactLedgerAccountID == nil {
+		return fmt.Errorf("cannot repost invoice: contact %d has no customer/vendor ledger_account_id set", invoice.ContactID)
 	}
 	if err := q.SoftDeleteLedgerEntriesByTransaction(ctx, ledgerTransactionID); err != nil {
 		return err
 	}
-	return writeInvoiceLedgerEntries(ctx, q, businessID, ledgerTransactionID, *contact.LedgerAccountID, invoice, lineItems)
+	return writeInvoiceLedgerEntries(ctx, q, businessID, ledgerTransactionID, *contactLedgerAccountID, invoice, lineItems)
 }
 
 // writeInvoiceLedgerEntries generates and inserts the balanced ledger_entry
@@ -1483,12 +1652,12 @@ func maybePostPayment(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 	if payment.LedgerAccountID == nil {
 		return nil, nil
 	}
-	contact, err := q.GetContact(ctx, payment.ContactID)
+	contactLedgerAccountID, err := resolveContactLedgerAccountID(ctx, q, payment.ContactID, payment.PaymentType == "RECEIVED")
 	if err != nil {
 		return nil, err
 	}
-	if contact.LedgerAccountID == nil {
-		return nil, fmt.Errorf("cannot post payment: contact %d has no ledger_account_id set", contact.ID)
+	if contactLedgerAccountID == nil {
+		return nil, fmt.Errorf("cannot post payment: contact %d has no customer/vendor ledger_account_id set", payment.ContactID)
 	}
 
 	amount, err := ledgermath.NumericToDecimal(payment.Amount)
@@ -1512,12 +1681,12 @@ func maybePostPayment(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *payment.LedgerAccountID, amount, decimal.Zero); err != nil {
 			return nil, err
 		}
-		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, decimal.Zero, amount); err != nil {
+		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contactLedgerAccountID, decimal.Zero, amount); err != nil {
 			return nil, err
 		}
 	} else {
 		// MADE: DEBIT the contact's AP, CREDIT cash.
-		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, amount, decimal.Zero); err != nil {
+		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contactLedgerAccountID, amount, decimal.Zero); err != nil {
 			return nil, err
 		}
 		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *payment.LedgerAccountID, decimal.Zero, amount); err != nil {

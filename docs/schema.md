@@ -23,6 +23,7 @@ erDiagram
     cash_flow_category |o--o{ ledger_account : "cash_flow_category_id"
     balance_sheet_category |o--o{ ledger_account : "balance_sheet_category_id"
     income_statement_category |o--o{ ledger_account : "income_statement_category_id"
+    ledger_account |o--o{ ledger_account : "parent_account_id"
     business ||--o{ ledger_transaction : "business_id"
     ledger_transaction ||--o{ ledger_entry : "ledger_transaction_id"
     ledger_account ||--o{ ledger_entry : "account_id"
@@ -59,10 +60,12 @@ erDiagram
         int id PK
         bigint business_id FK
         int account_type_id FK
+        int parent_account_id FK
         varchar code UK
         varchar name
         boolean is_system
         boolean is_reconcilable
+        boolean is_container
         int cash_flow_category_id FK
         int balance_sheet_category_id FK
         int income_statement_category_id FK
@@ -100,8 +103,12 @@ erDiagram
 - **`ledger_account_type`** — a fixed six-row enum (ASSETS, LIABILITIES, EQUITY, REVENUE,
   EXPENSES, TAX_LIABILITY), seeded once. `normal_balance` drives which side (debit or credit) is
   the "natural" positive direction for display.
-- **`ledger_account`** — the chart of accounts. `is_system` protects default accounts from
-  deletion or rename; `is_reconcilable` flags which accounts (bank, cash) are eligible for
+- **`ledger_account`** — the chart of accounts. `parent_account_id` self-references for a tree;
+  `is_system` protects default accounts from deletion or rename; `is_container` marks a
+  non-postable "roll-up" node (e.g. a business's single "Accounts Receivable"/"Accounts Payable"
+  account, under which every customer's/vendor's own sub-ledger account is filed as a child - see
+  `customer`/`vendor` in diagram 2 - so the balance sheet shows one AR/AP total instead of one
+  line per customer); `is_reconcilable` flags which accounts (bank, cash) are eligible for
   statement import. `id` is a real identity column (unlike
   `ledger_account_type`/`cash_flow_category`/`balance_sheet_category`/`income_statement_category`,
   plain `INTEGER PRIMARY KEY` since they're fixed, migration-seeded enums the app never inserts
@@ -153,9 +160,13 @@ generalized to carry both accounts-receivable and accounts-payable activity.
 ```mermaid
 erDiagram
     business ||--o{ contact : "business_id"
-    ledger_account |o--o{ contact : "ledger_account_id"
+    contact |o--o| customer : "contact_id"
+    ledger_account |o--o{ customer : "ledger_account_id"
+    contact |o--o| vendor : "contact_id"
+    ledger_account |o--o{ vendor : "ledger_account_id"
     business ||--o{ service : "business_id"
     tax_rate |o--o{ service : "default_tax_rate_id"
+    ledger_account |o--o{ service : "default_ledger_account_id"
     business ||--o{ estimate : "business_id"
     contact ||--o{ estimate : "customer_id"
     estimate ||--o{ estimate_line_item : "estimate_id"
@@ -187,16 +198,24 @@ erDiagram
     contact {
         bigint id PK
         bigint business_id FK
-        int ledger_account_id FK
         varchar contact_number UK
-        boolean is_customer
-        boolean is_vendor
         varchar name
+    }
+    customer {
+        bigint id PK
+        bigint contact_id FK
+        int ledger_account_id FK
+    }
+    vendor {
+        bigint id PK
+        bigint contact_id FK
+        int ledger_account_id FK
     }
     service {
         bigint id PK
         bigint business_id FK
         bigint default_tax_rate_id FK
+        int default_ledger_account_id FK
         varchar service_code UK
         decimal retail_price
         decimal cost_price
@@ -268,9 +287,19 @@ erDiagram
 
 `ledger_account` is a stub here — full definition in diagram 1.
 
-- **`contact`** — generalized "customer": `is_customer` / `is_vendor` booleans rather than a
-  single type, since a party can be both. `ledger_account_id` optionally links to that party's
-  own AR/AP sub-ledger account, for callers that model customers as literal ledger accounts.
+- **`contact`** — generalized "customer": which role(s) a party plays is identified by row
+  existence in `customer`/`vendor` (0, 1, or both), not a boolean on `contact` itself - the same
+  row-identity pattern as `balance_sheet_category`/`income_statement_category` rather than a flag.
+- **`customer` / `vendor`** — one optional row per contact per role. `ledger_account_id` is that
+  role's own AR/AP sub-ledger account (`ledger_account.parent_account_id` rolls it up under a
+  business's single "Accounts Receivable"/"Accounts Payable" container account - see diagram 1).
+  A contact that's both a customer and a vendor (e.g. a supplier you also sell to) gets one row in
+  each table, with independent AR and AP sub-accounts. A sub-account leaves its own
+  `balance_sheet_category_id` unset by convention (not DB-enforced) - it's presentation-grouped
+  entirely through its container's category once rolled up, rather than duplicating it on every
+  child; `internal/reporting.BalanceSheet` sums a container and every descendant into one line,
+  driven purely by `parent_account_id` (not `is_container`, which is documentation/UI intent
+  rather than what the rollup actually keys on).
 - **`estimate`** — deliberately *not* unified with `invoice`. It has no ledger impact — nothing
   is owed until it converts — and its lifecycle genuinely differs: DRAFT → SENT → ACCEPTED /
   DECLINED / EXPIRED, with `expiration_date` rather than a payment `due_date`, and no
@@ -280,26 +309,36 @@ erDiagram
   ledger impact, same status lifecycle, same due-date/paid-amount shape), unlike estimate.
   `contact_id` resolves to a customer or vendor depending on type. `ledger_transaction_id` links
   back to the GL posting this invoice produced — required to be set as of CreateInvoice, since
-  every line item's `ledger_account_id` and the contact's own `ledger_account_id` are both
-  mandatory (see below).
+  every line item's `ledger_account_id` and the contact's own customer/vendor `ledger_account_id`
+  (whichever `invoice_type` selects) are both mandatory (see below).
 - **`invoice_line_item.ledger_account_id`** — which revenue (SALES) or expense (PURCHASE)
-  account this line posts to, picked per line at entry time rather than defaulted from
-  `service` or `business`, matching the existing `contact.ledger_account_id` pattern. Required on
-  every line, and the invoice's `contact` must have its own `ledger_account_id` (the AR/AP side)
-  too — an invoice posts atomically at creation, always. `UpdateInvoiceLineItems` regenerates the
-  linked ledger transaction's entries in place (same `ledger_transaction_id`, entries replaced)
-  when a posted invoice's lines change, rather than rejecting the edit.
+  account this line posts to, required on every line one way or another. A caller can set it
+  explicitly, or leave it unset and set `service_id` on a service that has its own
+  `default_ledger_account_id` - `resolveInvoiceLines` (`internal/server/trading_service.go`)
+  fills it in server-side in that case, same for `unit_price`/`is_taxable`/`tax_rate_id` from
+  the service's `retail_price`/`is_taxable`/`default_tax_rate_id`. An explicit value on the line
+  always wins over the service's default; `CreateInvoice`/`UpdateInvoiceLineItems` only reject a
+  line that ends up with neither. The invoice's contact must also have a `customer` (for SALES)
+  or `vendor` (for PURCHASE) row with its own `ledger_account_id` set — an invoice posts
+  atomically at creation, always. `UpdateInvoiceLineItems` regenerates the linked ledger
+  transaction's entries in place (same `ledger_transaction_id`, entries replaced) when a posted
+  invoice's lines change, rather than rejecting the edit.
 - **`payment`** — generalized via `payment_type` (RECEIVED / MADE). Applying it to an invoice is
   independent of the payment itself: zero, one, or several `payment_application` rows (each with
   its own `applied_amount`) let one deposit cover several invoices at once, rather than the
   one-payment-one-invoice limit a single nullable `invoice_id` would impose. `ledger_account_id`
-  is the cash/bank account a posted payment hit (the other side of the contact's AR/AP account);
-  `ledger_transaction_id` links back to that posting, same nullable-until-posted convention as
-  `invoice`.
+  is the cash/bank account a posted payment hit (the other side of the contact's customer/vendor
+  AR/AP account, selected by `payment_type`); `ledger_transaction_id` links back to that posting,
+  same nullable-until-posted convention as `invoice`.
 - **`payment_application`** — join table between `payment` and `invoice`; `applied_amount` is
   how much of the payment went to that invoice specifically. The sum across one payment's
   applications can't exceed its `amount` (a payment may be partially or fully unapplied, never
   over-applied).
+- **`service`** — the sales/purchase catalog. `default_tax_rate_id`/`default_ledger_account_id`
+  are the source `CreateInvoice`/`CreateEstimate`/`UpdateInvoiceLineItems`/`UpdateEstimateLineItems`
+  resolve a line's `ledger_account_id`/`unit_price`/`is_taxable`/`tax_rate_id` from when the line
+  sets `service_id` and leaves them unset - see the `invoice_line_item.ledger_account_id` bullet
+  above. Still overridable per line, never enforced to match.
 - **`tax_rate`** — a named rate (e.g. "Standard 20%") tied to its own liability account.
   `service.default_tax_rate_id` and each line item's `tax_rate_id` reference it (`ledger_account`
   has no default-tax-rate column — dropped as redundant with `service.default_tax_rate_id`, the
@@ -473,9 +512,13 @@ relationships — see note below.
 ## Patterns worth carrying forward
 
 - **Generalize with a discriminator** when two things are the *same kind* of event —
-  `contact.is_customer`/`is_vendor`, `invoice.invoice_type`, `payment.payment_type`. Keep tables
-  separate when they're fundamentally different events, even if the shape looks similar —
-  `estimate` vs `invoice`.
+  `invoice.invoice_type`, `payment.payment_type`. Keep tables separate when they're fundamentally
+  different events, even if the shape looks similar — `estimate` vs `invoice`.
+- **Row existence over a boolean flag** when the thing being flagged carries its own data, not
+  just a bit. `customer`/`vendor` (a contact's role, plus that role's own `ledger_account_id`) and
+  `income_statement_category`/`balance_sheet_category` (an account's classification, plus its
+  report-section metadata) both use this - a plain boolean (`contact.is_customer`, the old
+  `ledger_account.is_cost_of_goods_sold`) has nowhere to hang that extra data.
 - **FK naming tracks generalization.** A column stays role-specific (`estimate.customer_id`)
   until its table is actually generalized, at which point it becomes generic
   (`invoice.contact_id`).
@@ -486,9 +529,6 @@ relationships — see note below.
 ## Not yet built
 
 - No `purchase_order` — the AP-side equivalent of `estimate`.
-- `tax_rate` rows aren't auto-*assigned* — a line item still has to explicitly pick a
-  `tax_rate_id` (and, to post, a `ledger_account_id`); nothing infers either from
-  `service.default_tax_rate_id` yet.
 - Semantic search over `entity_context` (pgvector) — deferred until a real retrieval need exists.
 - Multi-currency — built once (`currency`, `exchange_rate`, per-entry FX), then removed while
   everything stays USD-only.
@@ -500,3 +540,6 @@ relationships — see note below.
 - Discounts (`estimate.discount_amount` / `invoice.discount_amount`) exist as columns but
   aren't exposed by the API yet — posting a discounted invoice would need an allocation
   decision (a contra-revenue account?) the schema doesn't have an opinion on yet.
+- No API surface to change an existing `customer`/`vendor` row's `ledger_account_id`, or to add a
+  role to a contact that doesn't already have one — only `CreateContact` provisions them, via its
+  `is_customer`/`is_vendor` intent flags.

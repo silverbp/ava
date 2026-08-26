@@ -87,6 +87,7 @@ func newServiceCreateCmd() *cobra.Command {
 	var code, name, description, unit, price, cost string
 	var taxable bool
 	var defaultTaxRateID int64
+	var defaultLedgerAccountID int32
 
 	cmd := &cobra.Command{
 		Use:  "create",
@@ -117,6 +118,9 @@ func newServiceCreateCmd() *cobra.Command {
 			if defaultTaxRateID != 0 {
 				req.DefaultTaxRateId = &defaultTaxRateID
 			}
+			if defaultLedgerAccountID != 0 {
+				req.DefaultLedgerAccountId = &defaultLedgerAccountID
+			}
 
 			resp, err := avav1.NewServiceCatalogServiceClient(conn).CreateService(cmd.Context(), req)
 			if err != nil {
@@ -133,6 +137,7 @@ func newServiceCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&cost, "cost", "", "cost price")
 	cmd.Flags().BoolVar(&taxable, "taxable", false, "taxable by default")
 	cmd.Flags().Int64Var(&defaultTaxRateID, "default-tax-rate-id", 0, "default tax_rate id")
+	cmd.Flags().Int32Var(&defaultLedgerAccountID, "default-ledger-account-id", 0, "default ledger_account id this service's lines normally post to")
 	_ = cmd.MarkFlagRequired("code")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("price")
@@ -147,6 +152,7 @@ func newServiceUpdateCmd() *cobra.Command {
 	var name, description, price, cost string
 	var taxable bool
 	var defaultTaxRateID int64
+	var defaultLedgerAccountID int32
 
 	cmd := &cobra.Command{
 		Use:  "update <id>",
@@ -181,6 +187,9 @@ func newServiceUpdateCmd() *cobra.Command {
 			if cmd.Flags().Changed("default-tax-rate-id") {
 				req.DefaultTaxRateId = &defaultTaxRateID
 			}
+			if cmd.Flags().Changed("default-ledger-account-id") {
+				req.DefaultLedgerAccountId = &defaultLedgerAccountID
+			}
 
 			resp, err := avav1.NewServiceCatalogServiceClient(conn).UpdateService(cmd.Context(), req)
 			if err != nil {
@@ -195,6 +204,7 @@ func newServiceUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&cost, "cost", "", "new cost price")
 	cmd.Flags().BoolVar(&taxable, "taxable", false, "taxable by default")
 	cmd.Flags().Int64Var(&defaultTaxRateID, "default-tax-rate-id", 0, "new default tax_rate id")
+	cmd.Flags().Int32Var(&defaultLedgerAccountID, "default-ledger-account-id", 0, "new default ledger_account id this service's lines normally post to")
 	resource.Doc{
 		Summary:  "Update a catalog service/product",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

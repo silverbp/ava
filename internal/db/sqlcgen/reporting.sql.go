@@ -18,6 +18,8 @@ SELECT
     la.code,
     la.name,
     la.account_type_id,
+    la.parent_account_id,
+    la.is_container,
     la.balance_sheet_category_id,
     la.income_statement_category_id,
     lat.normal_balance,
@@ -28,7 +30,7 @@ JOIN ledger_account_type lat ON lat.id = la.account_type_id
 LEFT JOIN ledger_entry le ON le.account_id = la.id AND le.deleted_at IS NULL
 LEFT JOIN ledger_transaction lt ON lt.id = le.ledger_transaction_id AND lt.deleted_at IS NULL
 WHERE la.business_id = $3
-GROUP BY la.id, la.code, la.name, la.account_type_id, la.balance_sheet_category_id, la.income_statement_category_id, lat.normal_balance
+GROUP BY la.id, la.code, la.name, la.account_type_id, la.parent_account_id, la.is_container, la.balance_sheet_category_id, la.income_statement_category_id, lat.normal_balance
 ORDER BY la.code
 `
 
@@ -43,6 +45,8 @@ type AccountBalancesAsOfRow struct {
 	Code                      string         `json:"code"`
 	Name                      string         `json:"name"`
 	AccountTypeID             int32          `json:"account_type_id"`
+	ParentAccountID           *int32         `json:"parent_account_id"`
+	IsContainer               bool           `json:"is_container"`
 	BalanceSheetCategoryID    *int32         `json:"balance_sheet_category_id"`
 	IncomeStatementCategoryID *int32         `json:"income_statement_category_id"`
 	NormalBalance             string         `json:"normal_balance"`
@@ -78,6 +82,8 @@ func (q *Queries) AccountBalancesAsOf(ctx context.Context, arg AccountBalancesAs
 			&i.Code,
 			&i.Name,
 			&i.AccountTypeID,
+			&i.ParentAccountID,
+			&i.IsContainer,
 			&i.BalanceSheetCategoryID,
 			&i.IncomeStatementCategoryID,
 			&i.NormalBalance,

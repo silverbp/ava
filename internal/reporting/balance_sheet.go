@@ -74,30 +74,36 @@ func BalanceSheet(ctx context.Context, q *sqlcgen.Queries, businessID int64, asO
 	}
 	uncategorized := &BalanceSheetSection{Title: uncategorizedSectionTitle, TotalAssets: decimal.Zero, TotalLiabilities: decimal.Zero}
 
+	byID, childrenOf, err := indexBalanceSheetRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	rolledUp := make(map[int32]decimal.Decimal, len(byID))
+	for id := range byID {
+		rollUpAccountBalance(id, byID, childrenOf, rolledUp)
+	}
+
+	// Iterate rows (not byID) to keep the SQL's ORDER BY code as the display order - map
+	// iteration order is random in Go.
 	for _, r := range rows {
-		if r.AccountTypeID == revenueTypeID || r.AccountTypeID == expensesTypeID {
-			// Not shown individually here - their net effect since the last close
-			// surfaces as the synthetic Current Period Earnings line below.
+		acct, ok := byID[r.AccountID]
+		if !ok || acct.row.ParentAccountID != nil {
+			// Not a balance-sheet account (REVENUE/EXPENSES, filtered out by
+			// indexBalanceSheetRows), or not printed on its own - its balance is already
+			// folded into an ancestor's rolled-up total (see rollUpAccountBalance), which is
+			// the only one of the two that ever prints as a line.
 			continue
 		}
-		debit, err := ledgermath.NumericToDecimal(r.TotalDebit)
-		if err != nil {
-			return nil, err
-		}
-		credit, err := ledgermath.NumericToDecimal(r.TotalCredit)
-		if err != nil {
-			return nil, err
-		}
-		if debit.IsZero() && credit.IsZero() {
+		net := rolledUp[r.AccountID]
+		if net.IsZero() {
 			continue
 		}
 
-		net := ledgermath.NetBalance(r.NormalBalance, debit, credit)
-		line := AccountLine{AccountID: r.AccountID, Code: r.Code, Name: r.Name, Amount: net}
+		line := AccountLine{AccountID: acct.row.AccountID, Code: acct.row.Code, Name: acct.row.Name, Amount: net}
 
 		section := uncategorized
-		if r.BalanceSheetCategoryID != nil {
-			if s, ok := sections[*r.BalanceSheetCategoryID]; ok {
+		if acct.row.BalanceSheetCategoryID != nil {
+			if s, ok := sections[*acct.row.BalanceSheetCategoryID]; ok {
 				section = s
 			}
 		}
@@ -105,7 +111,7 @@ func BalanceSheet(ctx context.Context, q *sqlcgen.Queries, businessID int64, asO
 		// A DEBIT-normal account (ASSETS) prints in the Asset column; every
 		// CREDIT-normal type (LIABILITIES, EQUITY, TAX_LIABILITY) prints in the
 		// Liability column - the same two-column split the source report uses.
-		if r.NormalBalance == "DEBIT" {
+		if acct.row.NormalBalance == "DEBIT" {
 			section.AssetLines = append(section.AssetLines, line)
 			section.TotalAssets = section.TotalAssets.Add(net)
 		} else {
@@ -162,6 +168,60 @@ func BalanceSheet(ctx context.Context, q *sqlcgen.Queries, businessID int64, asO
 	result.TotalNetAssets = result.TotalAssetsLessCurrentLiabilities.Sub(sections[longTermLiabilitiesCategoryID].TotalLiabilities)
 
 	return result, nil
+}
+
+type balanceSheetAccount struct {
+	row    sqlcgen.AccountBalancesAsOfRow
+	ownNet decimal.Decimal
+}
+
+// indexBalanceSheetRows filters rows down to balance-sheet accounts (excluding REVENUE/EXPENSES,
+// which never appear here - see BalanceSheet), computes each one's own net balance, and builds a
+// parent -> children index for rollUpAccountBalance.
+func indexBalanceSheetRows(rows []sqlcgen.AccountBalancesAsOfRow) (map[int32]*balanceSheetAccount, map[int32][]int32, error) {
+	byID := make(map[int32]*balanceSheetAccount, len(rows))
+	for _, r := range rows {
+		if r.AccountTypeID == revenueTypeID || r.AccountTypeID == expensesTypeID {
+			continue
+		}
+		debit, err := ledgermath.NumericToDecimal(r.TotalDebit)
+		if err != nil {
+			return nil, nil, err
+		}
+		credit, err := ledgermath.NumericToDecimal(r.TotalCredit)
+		if err != nil {
+			return nil, nil, err
+		}
+		byID[r.AccountID] = &balanceSheetAccount{row: r, ownNet: ledgermath.NetBalance(r.NormalBalance, debit, credit)}
+	}
+
+	childrenOf := make(map[int32][]int32)
+	for id, acct := range byID {
+		if acct.row.ParentAccountID != nil {
+			childrenOf[*acct.row.ParentAccountID] = append(childrenOf[*acct.row.ParentAccountID], id)
+		}
+	}
+	return byID, childrenOf, nil
+}
+
+// rollUpAccountBalance sums an account's own balance with every descendant's (walking
+// parent_account_id, e.g. every customer ledger_account rolling up into Accounts Receivable),
+// memoized in rolledUp so a container's total is computed once even if this is called for
+// several of its children.
+func rollUpAccountBalance(id int32, byID map[int32]*balanceSheetAccount, childrenOf map[int32][]int32, rolledUp map[int32]decimal.Decimal) decimal.Decimal {
+	if total, ok := rolledUp[id]; ok {
+		return total
+	}
+	acct, ok := byID[id]
+	if !ok {
+		return decimal.Zero
+	}
+	total := acct.ownNet
+	for _, childID := range childrenOf[id] {
+		total = total.Add(rollUpAccountBalance(childID, byID, childrenOf, rolledUp))
+	}
+	rolledUp[id] = total
+	return total
 }
 
 func currentPeriodEarnings(ctx context.Context, q *sqlcgen.Queries, businessID int64, start, end time.Time) (decimal.Decimal, error) {

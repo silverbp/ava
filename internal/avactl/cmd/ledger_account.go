@@ -27,13 +27,27 @@ var ledgerAccountNoun = resource.Noun{
 		{Header: "NAME", Value: func(v proto.Message) string { return v.(*avav1.LedgerAccount).GetName() }},
 		{Header: "TYPE", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.LedgerAccount).GetAccountTypeId()) }},
 		{Header: "SYSTEM", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.LedgerAccount).GetIsSystem()) }},
+		{Header: "PARENT", Value: func(v proto.Message) string {
+			a := v.(*avav1.LedgerAccount)
+			if a.ParentAccountId == nil {
+				return ""
+			}
+			return fmt.Sprintf("%d", a.GetParentAccountId())
+		}},
 		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.LedgerAccount).GetIsActive()) }},
 	},
 }
 
 func newLedgerAccountCmd() *cobra.Command {
 	root := newGroupCmd(ledgerAccountNoun, "Manage the chart of accounts")
-	root.AddCommand(newListCmd(ledgerAccountNoun, listLedgerAccounts))
+
+	var includeSubaccounts bool
+	listCmd := newListCmd(ledgerAccountNoun, func(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
+		return listLedgerAccounts(ctx, conn, businessID, includeSubaccounts)
+	})
+	listCmd.Flags().BoolVar(&includeSubaccounts, "all", false, "also include customer/vendor sub-accounts (any account with a parent_account_id) - excluded by default")
+	root.AddCommand(listCmd)
+
 	root.AddCommand(newGetCmd(ledgerAccountNoun, getLedgerAccount))
 	root.AddCommand(newLedgerAccountCreateCmd())
 	root.AddCommand(newLedgerAccountUpdateCmd())
@@ -53,14 +67,17 @@ func getLedgerAccount(ctx context.Context, conn *grpc.ClientConn, id string) (pr
 	return resp.GetAccount(), nil
 }
 
-func listLedgerAccounts(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
+func listLedgerAccounts(ctx context.Context, conn *grpc.ClientConn, businessID int64, includeSubaccounts bool) ([]proto.Message, error) {
 	resp, err := avav1.NewLedgerAccountServiceClient(conn).ListLedgerAccounts(ctx, &avav1.ListLedgerAccountsRequest{BusinessId: businessID})
 	if err != nil {
 		return nil, err
 	}
-	items := make([]proto.Message, len(resp.GetAccounts()))
-	for i, a := range resp.GetAccounts() {
-		items[i] = a
+	items := make([]proto.Message, 0, len(resp.GetAccounts()))
+	for _, a := range resp.GetAccounts() {
+		if !includeSubaccounts && a.ParentAccountId != nil {
+			continue
+		}
+		items = append(items, a)
 	}
 	return items, nil
 }
@@ -79,8 +96,8 @@ func deactivateLedgerAccount(ctx context.Context, conn *grpc.ClientConn, id stri
 
 func newLedgerAccountCreateCmd() *cobra.Command {
 	var code, name, description string
-	var accountTypeID, cashFlowCategoryID, balanceSheetCategoryID, incomeStatementCategoryID int32
-	var reconcilable bool
+	var accountTypeID, parentID, cashFlowCategoryID, balanceSheetCategoryID, incomeStatementCategoryID int32
+	var reconcilable, container bool
 
 	cmd := &cobra.Command{
 		Use:  "create",
@@ -98,9 +115,13 @@ func newLedgerAccountCreateCmd() *cobra.Command {
 				Code:           code,
 				Name:           name,
 				IsReconcilable: reconcilable,
+				IsContainer:    container,
 			}
 			if description != "" {
 				req.Description = &description
+			}
+			if parentID != 0 {
+				req.ParentAccountId = &parentID
 			}
 			if cashFlowCategoryID != 0 {
 				req.CashFlowCategoryId = &cashFlowCategoryID
@@ -123,10 +144,12 @@ func newLedgerAccountCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "account name (required)")
 	cmd.Flags().StringVar(&description, "description", "", "account description")
 	cmd.Flags().Int32Var(&accountTypeID, "account-type", 0, "ledger_account_type id: 1=ASSETS 2=LIABILITIES 3=EQUITY 4=REVENUE 5=EXPENSES 6=TAX_LIABILITY (required)")
+	cmd.Flags().Int32Var(&parentID, "parent", 0, "parent ledger account id (rolls this account up under a container, e.g. Accounts Receivable)")
 	cmd.Flags().Int32Var(&cashFlowCategoryID, "cash-flow-category", 0, "cash_flow_category id: 1=Operating 2=Investing 3=Financing")
 	cmd.Flags().Int32Var(&balanceSheetCategoryID, "balance-sheet-category", 0, "balance_sheet_category id (for ASSETS/LIABILITIES/EQUITY/TAX_LIABILITY accounts)")
 	cmd.Flags().Int32Var(&incomeStatementCategoryID, "income-statement-category", 0, "income_statement_category id: 1=Revenue 2=Cost of Goods Sold 3=Operating Expenses (for REVENUE/EXPENSES accounts)")
 	cmd.Flags().BoolVar(&reconcilable, "reconcilable", false, "mark this account eligible for bank-statement reconciliation")
+	cmd.Flags().BoolVar(&container, "container", false, "mark this account as a non-postable roll-up node (e.g. Accounts Receivable)")
 	_ = cmd.MarkFlagRequired("code")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("account-type")
@@ -140,7 +163,7 @@ func newLedgerAccountCreateCmd() *cobra.Command {
 func newLedgerAccountUpdateCmd() *cobra.Command {
 	var name, description string
 	var cashFlowCategoryID, balanceSheetCategoryID, incomeStatementCategoryID int32
-	var reconcilable bool
+	var reconcilable, container bool
 
 	cmd := &cobra.Command{
 		Use:  "update <id>",
@@ -166,6 +189,9 @@ func newLedgerAccountUpdateCmd() *cobra.Command {
 			if cmd.Flags().Changed("reconcilable") {
 				req.IsReconcilable = &reconcilable
 			}
+			if cmd.Flags().Changed("container") {
+				req.IsContainer = &container
+			}
 			if cmd.Flags().Changed("cash-flow-category") {
 				req.CashFlowCategoryId = &cashFlowCategoryID
 			}
@@ -189,6 +215,7 @@ func newLedgerAccountUpdateCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&balanceSheetCategoryID, "balance-sheet-category", 0, "new balance_sheet_category id")
 	cmd.Flags().Int32Var(&incomeStatementCategoryID, "income-statement-category", 0, "new income_statement_category id: 1=Revenue 2=Cost of Goods Sold 3=Operating Expenses")
 	cmd.Flags().BoolVar(&reconcilable, "reconcilable", false, "eligible for bank-statement reconciliation")
+	cmd.Flags().BoolVar(&container, "container", false, "a non-postable roll-up node")
 	resource.Doc{
 		Summary:  "Update a ledger account",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",
