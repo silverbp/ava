@@ -956,7 +956,7 @@ func taxBreakdown(ctx context.Context, q *sqlcgen.Queries, lines []taxBreakdownL
 		}
 		g, ok := groups[key]
 		if !ok {
-			label := "No Tax"
+			label := ""
 			if key != noTaxKey {
 				name, ok := rateNames[key]
 				if !ok {
@@ -994,6 +994,18 @@ func taxBreakdown(ctx context.Context, q *sqlcgen.Queries, lines []taxBreakdownL
 	rows := make([]pdf.TaxBreakdownRow, len(order))
 	for i, key := range order {
 		g := groups[key]
+		if key == noTaxKey {
+			// The label depends on the group's fully-aggregated tax, not
+			// just its first line — a line with no linked tax rate but a
+			// non-zero tax_amount (e.g. tax data migrated from another
+			// system without a matching tax rate) still needs to show its
+			// tax; labeling it "No Tax" would hide a real tax figure under
+			// a name that says there isn't one.
+			g.label = "No Tax"
+			if !g.tax.IsZero() {
+				g.label = "Tax (no rate)"
+			}
+		}
 		rows[i] = pdf.TaxBreakdownRow{Label: g.label, Net: g.net, Tax: g.tax, Total: g.total}
 	}
 	return rows, nil
