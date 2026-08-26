@@ -635,6 +635,11 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 	if len(req.GetLineItems()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
 	}
+	for _, li := range req.GetLineItems() {
+		if li.LedgerAccountId == nil {
+			return nil, status.Error(codes.InvalidArgument, "every line item must set ledger_account_id")
+		}
+	}
 	if req.GetInvoiceType() == "PURCHASE" && req.GetInvoiceNumber() == "" {
 		return nil, status.Error(codes.InvalidArgument, "invoice_number is required for PURCHASE invoices")
 	}
@@ -715,15 +720,13 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 			lineItems = append(lineItems, li)
 		}
 
-		txnID, err := maybePostInvoice(ctx, q, req.GetBusinessId(), invoice, lineItems, &u.ID)
+		txnID, err := postInvoiceLedger(ctx, q, req.GetBusinessId(), invoice, lineItems, &u.ID)
 		if err != nil {
 			return err
 		}
-		if txnID != nil {
-			invoice, err = q.SetInvoiceLedgerTransaction(ctx, sqlcgen.SetInvoiceLedgerTransactionParams{ID: invoice.ID, LedgerTransactionID: txnID})
-			if err != nil {
-				return err
-			}
+		invoice, err = q.SetInvoiceLedgerTransaction(ctx, sqlcgen.SetInvoiceLedgerTransactionParams{ID: invoice.ID, LedgerTransactionID: &txnID})
+		if err != nil {
+			return err
 		}
 		return nil
 	})
@@ -766,9 +769,10 @@ func (s *invoiceService) UpdateInvoiceStatus(ctx context.Context, req *avav1.Upd
 }
 
 // UpdateInvoiceLineItems replaces an invoice's entire line item set and
-// recomputes its totals — see the proto doc for why this is a full
-// replace rather than a per-line patch, and why posted invoices are
-// rejected outright.
+// recomputes its totals — see the proto doc for why this is a full replace
+// rather than a per-line patch. If the invoice is already posted to the
+// ledger, its entries are regenerated in place (repostInvoiceLedger) rather
+// than rejecting the edit.
 func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.UpdateInvoiceLineItemsRequest) (*avav1.UpdateInvoiceLineItemsResponse, error) {
 	u, ok := auth.UserFromContext(ctx)
 	if !ok {
@@ -787,8 +791,10 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 	if len(req.GetLineItems()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
 	}
-	if existing.LedgerTransactionID != nil {
-		return nil, status.Error(codes.FailedPrecondition, "invoice is posted to the ledger; line items can no longer be edited")
+	for _, li := range req.GetLineItems() {
+		if li.LedgerAccountId == nil {
+			return nil, status.Error(codes.InvalidArgument, "every line item must set ledger_account_id")
+		}
 	}
 
 	paidAmount, err := ledgermath.NumericToDecimal(existing.PaidAmount)
@@ -860,13 +866,17 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 			lineItems = append(lineItems, li)
 		}
 
-		txnID, err := maybePostInvoice(ctx, q, existing.BusinessID, invoice, lineItems, &u.ID)
-		if err != nil {
-			return err
-		}
-		if txnID != nil {
-			invoice, err = q.SetInvoiceLedgerTransaction(ctx, sqlcgen.SetInvoiceLedgerTransactionParams{ID: invoice.ID, LedgerTransactionID: txnID})
+		if existing.LedgerTransactionID == nil {
+			txnID, err := postInvoiceLedger(ctx, q, existing.BusinessID, invoice, lineItems, &u.ID)
 			if err != nil {
+				return err
+			}
+			invoice, err = q.SetInvoiceLedgerTransaction(ctx, sqlcgen.SetInvoiceLedgerTransactionParams{ID: invoice.ID, LedgerTransactionID: &txnID})
+			if err != nil {
+				return err
+			}
+		} else {
+			if err := repostInvoiceLedger(ctx, q, existing.BusinessID, *existing.LedgerTransactionID, invoice, lineItems); err != nil {
 				return err
 			}
 		}
@@ -1077,23 +1087,18 @@ func formatAddressLines(line1, line2, city, state, postal *string) []string {
 	return lines
 }
 
-// maybePostInvoice posts invoice to the ledger iff every line item has
-// ledger_account_id set; returns (nil, nil) — not an error — if any line
-// omits it, leaving the invoice an unposted document. See the InvoiceService
-// proto doc for the design rationale (per-line account selection).
-func maybePostInvoice(ctx context.Context, q *sqlcgen.Queries, businessID int64, invoice sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem, createdByUserID *int64) (*int64, error) {
-	for _, li := range lineItems {
-		if li.LedgerAccountID == nil {
-			return nil, nil
-		}
-	}
-
+// postInvoiceLedger posts an invoice to the ledger: creates a new
+// ledger_transaction and its balanced entries. CreateInvoice/
+// UpdateInvoiceLineItems require every line item's ledger_account_id up
+// front, so the nil checks here (and in writeInvoiceLedgerEntries) are a
+// safety net, not the primary enforcement.
+func postInvoiceLedger(ctx context.Context, q *sqlcgen.Queries, businessID int64, invoice sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem, createdByUserID *int64) (int64, error) {
 	contact, err := q.GetContact(ctx, invoice.ContactID)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if contact.LedgerAccountID == nil {
-		return nil, fmt.Errorf("cannot post invoice: contact %d has no ledger_account_id set", contact.ID)
+		return 0, fmt.Errorf("cannot post invoice: contact %d has no ledger_account_id set", contact.ID)
 	}
 
 	description := fmt.Sprintf("Invoice %s", invoice.InvoiceNumber)
@@ -1104,12 +1109,46 @@ func maybePostInvoice(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 		CreatedByUserID: createdByUserID,
 	})
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
+	if err := writeInvoiceLedgerEntries(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, invoice, lineItems); err != nil {
+		return 0, err
+	}
+	return txn.ID, nil
+}
 
+// repostInvoiceLedger regenerates an already-posted invoice's ledger entries
+// in place after its line items change, rather than rejecting the edit or
+// posting a reversal: the existing entries under ledgerTransactionID are
+// soft-deleted and replaced with entries built from the invoice's current
+// state, so the ledger transaction itself (and its id) stays put. The
+// ledger_entry period-lock trigger fires on both the soft-delete (an UPDATE
+// of deleted_at) and the inserts, so editing a transaction dated in a closed
+// period is still rejected.
+func repostInvoiceLedger(ctx context.Context, q *sqlcgen.Queries, businessID, ledgerTransactionID int64, invoice sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem) error {
+	contact, err := q.GetContact(ctx, invoice.ContactID)
+	if err != nil {
+		return err
+	}
+	if contact.LedgerAccountID == nil {
+		return fmt.Errorf("cannot repost invoice: contact %d has no ledger_account_id set", contact.ID)
+	}
+	if err := q.SoftDeleteLedgerEntriesByTransaction(ctx, ledgerTransactionID); err != nil {
+		return err
+	}
+	return writeInvoiceLedgerEntries(ctx, q, businessID, ledgerTransactionID, *contact.LedgerAccountID, invoice, lineItems)
+}
+
+// writeInvoiceLedgerEntries generates and inserts the balanced ledger_entry
+// rows for an invoice against an existing ledger transaction: an AR/AP leg
+// against the contact's own account, a revenue/expense leg per line, and
+// sales tax split out to each tax rate's own liability account. Shared by
+// postInvoiceLedger (new transaction) and repostInvoiceLedger (existing
+// transaction, entries replaced).
+func writeInvoiceLedgerEntries(ctx context.Context, q *sqlcgen.Queries, businessID, txnID int64, contactLedgerAccountID int32, invoice sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem) error {
 	totalAmount, err := ledgermath.NumericToDecimal(invoice.TotalAmount)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	isSales := invoice.InvoiceType == "SALES"
 
@@ -1119,12 +1158,12 @@ func maybePostInvoice(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 	// either side can never satisfy.
 	if !totalAmount.IsZero() {
 		if isSales {
-			if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, totalAmount, decimal.Zero); err != nil {
-				return nil, err
+			if err := createDecimalEntry(ctx, q, businessID, txnID, contactLedgerAccountID, totalAmount, decimal.Zero); err != nil {
+				return err
 			}
 		} else {
-			if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, decimal.Zero, totalAmount); err != nil {
-				return nil, err
+			if err := createDecimalEntry(ctx, q, businessID, txnID, contactLedgerAccountID, decimal.Zero, totalAmount); err != nil {
+				return err
 			}
 		}
 	}
@@ -1137,47 +1176,47 @@ func maybePostInvoice(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 	// paid to a vendor.
 	taxByLiabilityAccount := map[int32]decimal.Decimal{}
 	for _, li := range lineItems {
+		if li.LedgerAccountID == nil {
+			return fmt.Errorf("line %d is missing ledger_account_id", li.LineNumber)
+		}
 		lineSubtotal, err := ledgermath.NumericToDecimal(li.LineSubtotal)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		taxAmount, err := ledgermath.NumericToDecimal(li.TaxAmount)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if isSales {
 			if !lineSubtotal.IsZero() {
-				if err := createDecimalEntry(ctx, q, businessID, txn.ID, *li.LedgerAccountID, decimal.Zero, lineSubtotal); err != nil {
-					return nil, err
+				if err := createDecimalEntry(ctx, q, businessID, txnID, *li.LedgerAccountID, decimal.Zero, lineSubtotal); err != nil {
+					return err
 				}
 			}
 			if li.TaxRateID != nil && !taxAmount.IsZero() {
 				tr, err := q.GetTaxRate(ctx, *li.TaxRateID)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				taxByLiabilityAccount[tr.TaxLiabilityAccountID] = taxByLiabilityAccount[tr.TaxLiabilityAccountID].Add(taxAmount)
 			}
 		} else {
 			lineTotal := lineSubtotal.Add(taxAmount)
 			if !lineTotal.IsZero() {
-				if err := createDecimalEntry(ctx, q, businessID, txn.ID, *li.LedgerAccountID, lineTotal, decimal.Zero); err != nil {
-					return nil, err
+				if err := createDecimalEntry(ctx, q, businessID, txnID, *li.LedgerAccountID, lineTotal, decimal.Zero); err != nil {
+					return err
 				}
 			}
 		}
 	}
 	for accountID, amount := range taxByLiabilityAccount {
-		if err := createDecimalEntry(ctx, q, businessID, txn.ID, accountID, decimal.Zero, amount); err != nil {
-			return nil, err
+		if err := createDecimalEntry(ctx, q, businessID, txnID, accountID, decimal.Zero, amount); err != nil {
+			return err
 		}
 	}
 
-	if err := verifyTransactionBalances(ctx, q, txn.ID); err != nil {
-		return nil, err
-	}
-	return &txn.ID, nil
+	return verifyTransactionBalances(ctx, q, txnID)
 }
 
 func invoiceToProto(inv sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem) (*avav1.Invoice, error) {

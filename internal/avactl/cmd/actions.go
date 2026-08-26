@@ -18,9 +18,9 @@ import (
 
 // The four RPC-calling shapes every noun's verbs reduce to. A noun's own
 // file supplies one small closure per verb; newGetCmd/newListCmd/
-// newMutateCmd/newPdfCmd below wire it into a cobra.Command with
-// consistent dial/output/help handling, so every noun's get/list/etc.
-// behave and read identically.
+// newMutateCmd below wire it into a cobra.Command with consistent
+// dial/output/help handling, so every noun's get/list/etc. behave and read
+// identically.
 type getFunc func(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error)
 type listFunc func(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error)
 type mutateFunc func(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error)
@@ -42,7 +42,13 @@ func article(s string) string {
 	return "a"
 }
 
-func newGetCmd(n resource.Noun, fn getFunc) *cobra.Command {
+// newGetCmd builds a noun's `get <id>` command. pdfFn is optional (variadic
+// so nouns without a PDF rendering don't have to pass anything) — when
+// given, `-o pdf` calls it and writes the raw PDF bytes instead of calling
+// fn and formatting the result as table/json/yaml, the same output-format
+// switch newReportCustomerStatementCmd (and the other report commands) use
+// rather than a separate `pdf` subcommand.
+func newGetCmd(n resource.Noun, fn getFunc, pdfFn ...pdfFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "get <id>",
 		Args: cobra.ExactArgs(1),
@@ -52,6 +58,17 @@ func newGetCmd(n resource.Noun, fn getFunc) *cobra.Command {
 				return err
 			}
 			defer conn.Close()
+			if flagOutput == output.FormatPDF {
+				if len(pdfFn) == 0 {
+					return fmt.Errorf("pdf output is not supported for %s", n.Singular)
+				}
+				content, err := pdfFn[0](cmd.Context(), conn, args[0])
+				if err != nil {
+					return err
+				}
+				_, err = cmd.OutOrStdout().Write(content)
+				return err
+			}
 			obj, err := fn(cmd.Context(), conn, args[0])
 			if err != nil {
 				return err
@@ -59,9 +76,16 @@ func newGetCmd(n resource.Noun, fn getFunc) *cobra.Command {
 			return output.PrintOne(cmd.OutOrStdout(), flagOutput, obj, n.Columns)
 		},
 	}
+	examples := []resource.Example{{Cmd: fmt.Sprintf("avactl %s get 42", n.Singular)}}
+	detail := ""
+	if len(pdfFn) > 0 {
+		examples = append(examples, resource.Example{Cmd: fmt.Sprintf("avactl %s get 42 -o pdf > %s-42.pdf", n.Singular, n.Singular)})
+		detail = "Supports -o pdf to render as PDF, written to stdout instead of table/json/yaml."
+	}
 	resource.Doc{
 		Summary:  fmt.Sprintf("Get %s %s by id", article(n.Singular), n.Singular),
-		Examples: []resource.Example{{Cmd: fmt.Sprintf("avactl %s get 42", n.Singular)}},
+		Detail:   detail,
+		Examples: examples,
 	}.Apply(cmd)
 	return cmd
 }
@@ -112,32 +136,6 @@ func newMutateCmd(n resource.Noun, verb, summary string, fn mutateFunc) *cobra.C
 	resource.Doc{
 		Summary:  summary,
 		Examples: []resource.Example{{Cmd: fmt.Sprintf("avactl %s %s 42", n.Singular, verb)}},
-	}.Apply(cmd)
-	return cmd
-}
-
-func newPdfCmd(n resource.Noun, fn pdfFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:  "pdf <id>",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-			content, err := fn(cmd.Context(), conn, args[0])
-			if err != nil {
-				return err
-			}
-			_, err = cmd.OutOrStdout().Write(content)
-			return err
-		},
-	}
-	resource.Doc{
-		Summary:  fmt.Sprintf("Render %s %s as PDF, written to stdout", article(n.Singular), n.Singular),
-		Detail:   "Redirect stdout to a file to save it.",
-		Examples: []resource.Example{{Cmd: fmt.Sprintf("avactl %s pdf 42 > %s-42.pdf", n.Singular, n.Singular)}},
 	}.Apply(cmd)
 	return cmd
 }

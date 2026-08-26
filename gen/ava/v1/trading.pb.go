@@ -1348,15 +1348,18 @@ func (x *Invoice) GetLineItems() []*InvoiceLineItem {
 }
 
 type NewInvoiceLineItem struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	ServiceId       *int64                 `protobuf:"varint,1,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
-	LedgerAccountId *int32                 `protobuf:"varint,2,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
-	LineNumber      int32                  `protobuf:"varint,3,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
-	Description     string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	Quantity        *Decimal               `protobuf:"bytes,5,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	UnitPrice       *Decimal               `protobuf:"bytes,6,opt,name=unit_price,json=unitPrice,proto3" json:"unit_price,omitempty"`
-	IsTaxable       bool                   `protobuf:"varint,7,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
-	TaxRateId       *int64                 `protobuf:"varint,8,opt,name=tax_rate_id,json=taxRateId,proto3,oneof" json:"tax_rate_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ServiceId *int64                 `protobuf:"varint,1,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
+	// Required (kept proto3 `optional` for wire compatibility, not because
+	// it may be omitted) — CreateInvoice/UpdateInvoiceLineItems reject any
+	// line missing this.
+	LedgerAccountId *int32   `protobuf:"varint,2,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
+	LineNumber      int32    `protobuf:"varint,3,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
+	Description     string   `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Quantity        *Decimal `protobuf:"bytes,5,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	UnitPrice       *Decimal `protobuf:"bytes,6,opt,name=unit_price,json=unitPrice,proto3" json:"unit_price,omitempty"`
+	IsTaxable       bool     `protobuf:"varint,7,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
+	TaxRateId       *int64   `protobuf:"varint,8,opt,name=tax_rate_id,json=taxRateId,proto3,oneof" json:"tax_rate_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1894,10 +1897,11 @@ func (x *UpdateInvoiceStatusResponse) GetInvoice() *Invoice {
 
 // UpdateInvoiceLineItemsRequest replaces an invoice's entire line item set
 // (not a per-line patch) and recomputes subtotal/total_tax_amount/
-// total_amount/balance_due server-side, same as CreateInvoice. Rejected
-// once the invoice is posted to the ledger (ledger_transaction_id set) -
-// editing line items after posting would desync the GL entries from the
-// document, and there's no reversal/repost flow here.
+// total_amount/balance_due server-side, same as CreateInvoice. If the
+// invoice is already posted (ledger_transaction_id set), its linked ledger
+// transaction's entries are regenerated in place from the new line items
+// rather than rejecting the edit — the transaction id itself doesn't
+// change, only its entries.
 type UpdateInvoiceLineItemsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`

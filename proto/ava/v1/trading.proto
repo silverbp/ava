@@ -23,12 +23,13 @@ service EstimateService {
   rpc GetEstimatePdf(GetEstimatePdfRequest) returns (GetEstimatePdfResponse);
 }
 
-// InvoiceService. CreateInvoice optionally posts to the ledger: if every
-// line item sets ledger_account_id (the revenue/expense account it hits,
-// chosen per line rather than defaulted), and the contact has a
-// ledger_account_id (its AR/AP account), the invoice posts atomically
-// alongside being created. Omit ledger_account_id on every line to save it
-// as an unposted document instead.
+// InvoiceService. Every line item must set ledger_account_id (the
+// revenue/expense account it hits, chosen per line rather than defaulted),
+// and the invoice's contact must have its own ledger_account_id (its AR/AP
+// account) — CreateInvoice posts the invoice to the ledger atomically
+// alongside creating it. UpdateInvoiceLineItems regenerates the linked
+// ledger transaction's entries in place when an already-posted invoice's
+// lines change, rather than rejecting the edit.
 service InvoiceService {
   rpc GetInvoice(GetInvoiceRequest) returns (GetInvoiceResponse);
   rpc ListInvoices(ListInvoicesRequest) returns (ListInvoicesResponse);
@@ -197,6 +198,9 @@ message Invoice {
 
 message NewInvoiceLineItem {
   optional int64 service_id = 1;
+  // Required (kept proto3 `optional` for wire compatibility, not because
+  // it may be omitted) — CreateInvoice/UpdateInvoiceLineItems reject any
+  // line missing this.
   optional int32 ledger_account_id = 2;
   int32 line_number = 3;
   string description = 4;
@@ -256,10 +260,11 @@ message UpdateInvoiceStatusResponse {
 
 // UpdateInvoiceLineItemsRequest replaces an invoice's entire line item set
 // (not a per-line patch) and recomputes subtotal/total_tax_amount/
-// total_amount/balance_due server-side, same as CreateInvoice. Rejected
-// once the invoice is posted to the ledger (ledger_transaction_id set) -
-// editing line items after posting would desync the GL entries from the
-// document, and there's no reversal/repost flow here.
+// total_amount/balance_due server-side, same as CreateInvoice. If the
+// invoice is already posted (ledger_transaction_id set), its linked ledger
+// transaction's entries are regenerated in place from the new line items
+// rather than rejecting the edit — the transaction id itself doesn't
+// change, only its entries.
 message UpdateInvoiceLineItemsRequest {
   int64 id = 1;
   repeated NewInvoiceLineItem line_items = 2;

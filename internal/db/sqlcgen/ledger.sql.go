@@ -461,6 +461,16 @@ func (q *Queries) ListLedgerTransactions(ctx context.Context, arg ListLedgerTran
 	return items, nil
 }
 
+const softDeleteLedgerEntriesByTransaction = `-- name: SoftDeleteLedgerEntriesByTransaction :exec
+UPDATE ledger_entry SET deleted_at = NOW()
+WHERE ledger_transaction_id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteLedgerEntriesByTransaction(ctx context.Context, ledgerTransactionID int64) error {
+	_, err := q.db.Exec(ctx, softDeleteLedgerEntriesByTransaction, ledgerTransactionID)
+	return err
+}
+
 const updateLedgerAccount = `-- name: UpdateLedgerAccount :one
 UPDATE ledger_account SET
     name = COALESCE($1, name),

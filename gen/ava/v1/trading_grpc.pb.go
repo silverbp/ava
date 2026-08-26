@@ -334,12 +334,13 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// InvoiceService. CreateInvoice optionally posts to the ledger: if every
-// line item sets ledger_account_id (the revenue/expense account it hits,
-// chosen per line rather than defaulted), and the contact has a
-// ledger_account_id (its AR/AP account), the invoice posts atomically
-// alongside being created. Omit ledger_account_id on every line to save it
-// as an unposted document instead.
+// InvoiceService. Every line item must set ledger_account_id (the
+// revenue/expense account it hits, chosen per line rather than defaulted),
+// and the invoice's contact must have its own ledger_account_id (its AR/AP
+// account) — CreateInvoice posts the invoice to the ledger atomically
+// alongside creating it. UpdateInvoiceLineItems regenerates the linked
+// ledger transaction's entries in place when an already-posted invoice's
+// lines change, rather than rejecting the edit.
 type InvoiceServiceClient interface {
 	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
 	ListInvoices(ctx context.Context, in *ListInvoicesRequest, opts ...grpc.CallOption) (*ListInvoicesResponse, error)
@@ -421,12 +422,13 @@ func (c *invoiceServiceClient) GetInvoicePdf(ctx context.Context, in *GetInvoice
 // All implementations must embed UnimplementedInvoiceServiceServer
 // for forward compatibility.
 //
-// InvoiceService. CreateInvoice optionally posts to the ledger: if every
-// line item sets ledger_account_id (the revenue/expense account it hits,
-// chosen per line rather than defaulted), and the contact has a
-// ledger_account_id (its AR/AP account), the invoice posts atomically
-// alongside being created. Omit ledger_account_id on every line to save it
-// as an unposted document instead.
+// InvoiceService. Every line item must set ledger_account_id (the
+// revenue/expense account it hits, chosen per line rather than defaulted),
+// and the invoice's contact must have its own ledger_account_id (its AR/AP
+// account) — CreateInvoice posts the invoice to the ledger atomically
+// alongside creating it. UpdateInvoiceLineItems regenerates the linked
+// ledger transaction's entries in place when an already-posted invoice's
+// lines change, rather than rejecting the edit.
 type InvoiceServiceServer interface {
 	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
 	ListInvoices(context.Context, *ListInvoicesRequest) (*ListInvoicesResponse, error)

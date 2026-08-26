@@ -42,13 +42,12 @@ func newInvoiceCmd() *cobra.Command {
 	listCmd.Flags().BoolVar(&includeAll, "all", false, "also include paid and cancelled invoices")
 	root.AddCommand(listCmd)
 
-	root.AddCommand(newGetCmd(invoiceNoun, getInvoice))
+	root.AddCommand(newGetCmd(invoiceNoun, getInvoice, getInvoicePdf))
 	root.AddCommand(newInvoiceCreateCmd())
 	root.AddCommand(newInvoiceUpdateLinesCmd())
 	root.AddCommand(newMutateCmd(invoiceNoun, "send", "Mark an invoice SENT", sendInvoice))
 	root.AddCommand(newMutateCmd(invoiceNoun, "cancel", "Cancel an invoice", cancelInvoice))
 	root.AddCommand(newMutateCmd(invoiceNoun, "mark-overdue", "Mark an invoice OVERDUE", markInvoiceOverdue))
-	root.AddCommand(newPdfCmd(invoiceNoun, getInvoicePdf))
 	return root
 }
 
@@ -203,15 +202,15 @@ func newInvoiceCreateCmd() *cobra.Command {
 	cmd.Flags().Int64Var(&estimate, "estimate", 0, "estimate id this invoice converts from")
 	cmd.Flags().StringVar(&notes, "notes", "", "notes")
 	cmd.Flags().StringVar(&terms, "terms", "", "terms")
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...[,account=<id>][,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...,account=<id>[,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
 	_ = cmd.MarkFlagRequired("contact")
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("due")
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Create an invoice",
-		Detail: "Add account=<id> to every line (plus a contact with --ledger-account " +
-			"already set) to post the invoice to the ledger atomically.",
+		Detail: "account=<id> is required on every line, and the contact must already have " +
+			"--ledger-account set — the invoice posts to the ledger atomically as part of creation.",
 		Examples: []resource.Example{{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
 			`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`}},
 	}.Apply(cmd)
@@ -276,12 +275,13 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetInvoice(), invoiceNoun.Columns)
 		},
 	}
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...[,account=<id>][,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,qty=...,price=...,account=<id>[,taxable][,tax-rate=<id>][,service=<id>] (repeatable)")
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Replace an invoice's line items",
 		Detail: "Replaces the entire line item set - repeat --line once per line item, including ones you're " +
-			"keeping unchanged. Rejected once the invoice is posted to the ledger.",
+			"keeping unchanged. If the invoice is already posted to the ledger, its linked transaction's " +
+			"entries are regenerated in place from the new lines rather than rejecting the edit.",
 		Examples: []resource.Example{{Cmd: "avactl invoice update-lines 42 " +
 			`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`}},
 	}.Apply(cmd)

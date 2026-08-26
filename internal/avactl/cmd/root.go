@@ -53,7 +53,7 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().StringVar(&flagServer, "server", "", "override the current context's server address")
 	root.PersistentFlags().BoolVar(&flagInsecure, "insecure", false, "disable TLS when overriding --server (a local dev server has no certificate)")
 	root.PersistentFlags().Int64Var(&flagBusiness, "business", 0, "override the current context's business id")
-	root.PersistentFlags().StringVarP(&flagOutput, "output", "o", output.FormatTable, "output format: table|json|yaml")
+	root.PersistentFlags().StringVarP(&flagOutput, "output", "o", output.FormatTable, "output format: table|json|yaml|pdf (pdf only where supported - reports, and get on invoice/estimate)")
 
 	root.AddGroup(
 		&cobra.Group{ID: groupAccounting, Title: "Accounting Commands:"},

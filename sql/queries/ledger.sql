@@ -69,5 +69,9 @@ SELECT * FROM ledger_entry WHERE ledger_transaction_id = $1 AND deleted_at IS NU
 -- name: ListLedgerEntriesByTransactionIDs :many
 SELECT * FROM ledger_entry WHERE ledger_transaction_id = ANY(sqlc.arg('transaction_ids')::bigint[]) AND deleted_at IS NULL ORDER BY id;
 
+-- name: SoftDeleteLedgerEntriesByTransaction :exec
+UPDATE ledger_entry SET deleted_at = NOW()
+WHERE ledger_transaction_id = $1 AND deleted_at IS NULL;
+
 -- name: GetLedgerAccountType :one
 SELECT * FROM ledger_account_type WHERE id = $1;

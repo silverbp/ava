@@ -39,14 +39,13 @@ func newEstimateCmd() *cobra.Command {
 	listCmd.Flags().BoolVar(&includeAll, "all", false, "also include accepted, declined, and expired estimates")
 	root.AddCommand(listCmd)
 
-	root.AddCommand(newGetCmd(estimateNoun, getEstimate))
+	root.AddCommand(newGetCmd(estimateNoun, getEstimate, getEstimatePdf))
 	root.AddCommand(newEstimateCreateCmd())
 	root.AddCommand(newEstimateUpdateLinesCmd())
 	root.AddCommand(newMutateCmd(estimateNoun, "send", "Mark an estimate SENT", sendEstimate))
 	root.AddCommand(newMutateCmd(estimateNoun, "accept", "Mark an estimate ACCEPTED", acceptEstimate))
 	root.AddCommand(newMutateCmd(estimateNoun, "decline", "Mark an estimate DECLINED", declineEstimate))
 	root.AddCommand(newMutateCmd(estimateNoun, "expire", "Mark an estimate EXPIRED", expireEstimate))
-	root.AddCommand(newPdfCmd(estimateNoun, getEstimatePdf))
 	return root
 }
 

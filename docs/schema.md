@@ -278,13 +278,16 @@ erDiagram
   separate `bill` table — a sales invoice and a vendor bill are the *same kind* of event (real
   ledger impact, same status lifecycle, same due-date/paid-amount shape), unlike estimate.
   `contact_id` resolves to a customer or vendor depending on type. `ledger_transaction_id` links
-  back to the GL posting this invoice produced — set once posted, NULL for an unposted (e.g.
-  still-DRAFT, or not wired to accounts) invoice.
+  back to the GL posting this invoice produced — required to be set as of CreateInvoice, since
+  every line item's `ledger_account_id` and the contact's own `ledger_account_id` are both
+  mandatory (see below).
 - **`invoice_line_item.ledger_account_id`** — which revenue (SALES) or expense (PURCHASE)
   account this line posts to, picked per line at entry time rather than defaulted from
-  `service` or `business`, matching the existing `contact.ledger_account_id` pattern. An invoice
-  posts atomically at creation once every line has this set and its `contact` has its own
-  `ledger_account_id` (the AR/AP side); otherwise it stays an unposted document.
+  `service` or `business`, matching the existing `contact.ledger_account_id` pattern. Required on
+  every line, and the invoice's `contact` must have its own `ledger_account_id` (the AR/AP side)
+  too — an invoice posts atomically at creation, always. `UpdateInvoiceLineItems` regenerates the
+  linked ledger transaction's entries in place (same `ledger_transaction_id`, entries replaced)
+  when a posted invoice's lines change, rather than rejecting the edit.
 - **`payment`** — generalized via `payment_type` (RECEIVED / MADE). Applying it to an invoice is
   independent of the payment itself: zero, one, or several `payment_application` rows (each with
   its own `applied_amount`) let one deposit cover several invoices at once, rather than the
@@ -489,9 +492,6 @@ relationships — see note below.
   everything stays USD-only.
 - No fiscal-year-end setting on `business` and no scheduler — closes must be triggered
   explicitly; nothing auto-closes on a recurring date.
-- Invoice line items can't be edited/re-posted after creation — no `UpdateInvoice` RPC beyond
-  status transitions; correcting a posted invoice today means a genuine reversing entry (the
-  same pattern period close reversal uses), not editing the original.
 - PURCHASE-side tax is rolled into the expense line rather than split to a liability account
   (`tax_liability_account_id` models tax *collected*, which fits SALES, not tax paid to a
   vendor) — a deliberate simplification, not an oversight.
