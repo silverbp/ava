@@ -13,6 +13,7 @@ package pdf
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/go-pdf/fpdf"
 )
@@ -258,7 +259,7 @@ func (d *Document) Table(cols []TableColumn, rows [][]string, totalRow []string)
 	d.pdf.SetFont("Helvetica", "", 9)
 	for _, row := range rows {
 		for i, cell := range row {
-			text := cell
+			text := singleLine(cell)
 			if !cols[i].Right {
 				text = d.truncate(text, widths[i]-2)
 			}
@@ -270,7 +271,7 @@ func (d *Document) Table(cols []TableColumn, rows [][]string, totalRow []string)
 	if totalRow != nil {
 		d.pdf.SetFont("Helvetica", "B", 9)
 		for i, cell := range totalRow {
-			text := cell
+			text := singleLine(cell)
 			if !cols[i].Right {
 				text = d.truncate(text, widths[i]-2)
 			}
@@ -280,13 +281,33 @@ func (d *Document) Table(cols []TableColumn, rows [][]string, totalRow []string)
 	}
 }
 
+// singleLine collapses embedded line breaks to spaces — a table cell is
+// rendered with a single CellFormat call, which neither wraps nor advances
+// to a new line for an embedded "\n" (e.g. from a migrated line-item
+// description), so left uninterrupted it renders as an undefined-width
+// control character that can spill past the cell's border.
+func singleLine(text string) string {
+	text = strings.ReplaceAll(text, "\r\n", " ")
+	text = strings.ReplaceAll(text, "\n", " ")
+	text = strings.ReplaceAll(text, "\r", " ")
+	return text
+}
+
 // truncate shortens text with a trailing "..." if it's wider than maxWidth
 // under the document's current font — fpdf's CellFormat neither wraps nor
 // clips text that's too wide for its cell, so an over-long value (a long
 // line-item description, say) would otherwise spill visibly into the next
-// column instead of being confined to its own.
+// column instead of being confined to its own. text is plain (untranslated)
+// UTF-8 — width is measured against d.tr(candidate), the actual bytes that
+// will be rendered, since fpdf's core Helvetica font scores string width
+// per byte of the cp1252-translated form: measuring the raw multi-byte
+// UTF-8 encoding of an accented character or curly quote would score it as
+// several unrelated cp1252 glyphs instead of the one glyph it renders as.
+// Rune-slicing stays on the untranslated string because d.tr's output byte
+// values above 0x7F aren't valid UTF-8 on their own — slicing runes out of
+// it would corrupt the very characters this measurement fix is for.
 func (d *Document) truncate(text string, maxWidth float64) string {
-	if d.pdf.GetStringWidth(text) <= maxWidth {
+	if d.pdf.GetStringWidth(d.tr(text)) <= maxWidth {
 		return text
 	}
 	const ellipsis = "..."
@@ -294,7 +315,7 @@ func (d *Document) truncate(text string, maxWidth float64) string {
 	for len(runes) > 0 {
 		runes = runes[:len(runes)-1]
 		candidate := string(runes) + ellipsis
-		if d.pdf.GetStringWidth(candidate) <= maxWidth {
+		if d.pdf.GetStringWidth(d.tr(candidate)) <= maxWidth {
 			return candidate
 		}
 	}

@@ -55,7 +55,12 @@ func RenderInvoice(business, billTo Party, inv *avav1.Invoice, breakdown []TaxBr
 			li.GetDescription(),
 			li.GetQuantity().GetValue(),
 			formatMoneyString(li.GetUnitPrice().GetValue()),
-			formatMoneyString(li.GetLineTotal().GetValue()),
+			// LineTotal is tax-inclusive (LineSubtotal + TaxAmount); shown
+			// per-line without a tax figure next to it, that reads as if
+			// tax were silently baked in. LineSubtotal (qty * unit price)
+			// is what "Line Total" should show here — tax is rolled up
+			// separately in the breakdown table and summary below.
+			formatMoneyString(li.GetLineSubtotal().GetValue()),
 		})
 	}
 	d.Table(cols, rows, nil)
@@ -90,9 +95,14 @@ func RenderInvoice(business, billTo Party, inv *avav1.Invoice, breakdown []TaxBr
 
 // formatMoneyString reformats a Decimal proto's raw value as a two-decimal
 // money amount. The raw value carries whatever scale the stored NUMERIC
-// happened to have — an exact-zero total comes through as "0" rather than
-// "0.00" — which reads as inconsistent next to amounts that do carry cents.
+// happened to have, and an unset Decimal (e.g. a line item with no tax)
+// comes through as an empty string rather than "0" — both are treated as
+// zero so every amount renders as "0.00" instead of some inconsistent or
+// blank.
 func formatMoneyString(v string) string {
+	if v == "" {
+		v = "0"
+	}
 	dec, err := decimal.NewFromString(v)
 	if err != nil {
 		return v

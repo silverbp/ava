@@ -1101,14 +1101,19 @@ func maybePostInvoice(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 	}
 	isSales := invoice.InvoiceType == "SALES"
 
-	// AR/AP leg, against the contact's own ledger account.
-	if isSales {
-		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, totalAmount, decimal.Zero); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, decimal.Zero, totalAmount); err != nil {
-			return nil, err
+	// AR/AP leg, against the contact's own ledger account. Skipped when the
+	// invoice totals zero — ledger_entry's debit_or_credit check constraint
+	// requires exactly one side strictly positive, which a zero amount on
+	// either side can never satisfy.
+	if !totalAmount.IsZero() {
+		if isSales {
+			if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, totalAmount, decimal.Zero); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := createDecimalEntry(ctx, q, businessID, txn.ID, *contact.LedgerAccountID, decimal.Zero, totalAmount); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1130,8 +1135,10 @@ func maybePostInvoice(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 		}
 
 		if isSales {
-			if err := createDecimalEntry(ctx, q, businessID, txn.ID, *li.LedgerAccountID, decimal.Zero, lineSubtotal); err != nil {
-				return nil, err
+			if !lineSubtotal.IsZero() {
+				if err := createDecimalEntry(ctx, q, businessID, txn.ID, *li.LedgerAccountID, decimal.Zero, lineSubtotal); err != nil {
+					return nil, err
+				}
 			}
 			if li.TaxRateID != nil && !taxAmount.IsZero() {
 				tr, err := q.GetTaxRate(ctx, *li.TaxRateID)
@@ -1141,8 +1148,11 @@ func maybePostInvoice(ctx context.Context, q *sqlcgen.Queries, businessID int64,
 				taxByLiabilityAccount[tr.TaxLiabilityAccountID] = taxByLiabilityAccount[tr.TaxLiabilityAccountID].Add(taxAmount)
 			}
 		} else {
-			if err := createDecimalEntry(ctx, q, businessID, txn.ID, *li.LedgerAccountID, lineSubtotal.Add(taxAmount), decimal.Zero); err != nil {
-				return nil, err
+			lineTotal := lineSubtotal.Add(taxAmount)
+			if !lineTotal.IsZero() {
+				if err := createDecimalEntry(ctx, q, businessID, txn.ID, *li.LedgerAccountID, lineTotal, decimal.Zero); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

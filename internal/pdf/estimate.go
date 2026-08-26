@@ -36,7 +36,7 @@ func RenderEstimate(business, customer Party, est *avav1.Estimate, breakdown []T
 			li.GetDescription(),
 			li.GetQuantity().GetValue(),
 			formatMoneyString(li.GetUnitPrice().GetValue()),
-			formatMoneyString(li.GetLineTotal().GetValue()),
+			formatMoneyString(li.GetLineSubtotal().GetValue()),
 		})
 	}
 	d.Table(cols, rows, nil)
