@@ -4,6 +4,7 @@
 package server
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -16,6 +17,12 @@ import (
 	"github.com/silverbp/ava/internal/config"
 	"github.com/silverbp/ava/internal/db"
 )
+
+// logoPNG is the same app icon used by the Mac app (ava-mac), served at
+// /auth/logo.png so the login page carries the same branding.
+//
+//go:embed static/logo.png
+var logoPNG []byte
 
 // rpDisplayName is shown to the user by their browser/OS passkey UI.
 const rpDisplayName = "Ava"
@@ -32,6 +39,7 @@ func newAuthMux(store *db.Store, cfg config.Config) (http.Handler, error) {
 
 	h := &authHandlers{store: store, webauthn: w}
 	mux.HandleFunc("/auth/start", h.start)
+	mux.HandleFunc("/auth/logo.png", h.logo)
 	mux.HandleFunc("/auth/webauthn/register/begin", h.registerBegin)
 	mux.HandleFunc("/auth/webauthn/register/finish", h.registerFinish)
 	mux.HandleFunc("/auth/webauthn/login/begin", h.loginBegin)
@@ -60,6 +68,12 @@ func (h *authHandlers) start(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		slog.Error("rendering auth start page", "error", err)
 	}
+}
+
+func (h *authHandlers) logo(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+	_, _ = w.Write(logoPNG)
 }
 
 func (h *authHandlers) registerBegin(w http.ResponseWriter, r *http.Request) {
@@ -151,17 +165,53 @@ var authStartTemplate = template.Must(template.New("auth-start").Parse(`<!DOCTYP
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="dark">
 <title>Sign in to Ava</title>
 <style>
-  body { font-family: -apple-system, sans-serif; max-width: 420px; margin: 80px auto; padding: 0 20px; }
-  h1 { font-size: 20px; }
-  input { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
-  button { width: 100%; padding: 10px; margin: 6px 0; cursor: pointer; }
-  #error { color: #b00020; white-space: pre-wrap; }
-  #status { color: #444; }
+  :root {
+    --bg: #16171a;
+    --panel: #1e2024;
+    --border: #303339;
+    --text: #f2eee6;
+    --text-dim: #9a9ca3;
+    --accent: #e8a94a;
+    --accent-text: #16171a;
+    --danger: #e2665a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 380px;
+    margin: 80px auto;
+    padding: 0 20px;
+  }
+  .logo { display: block; width: 56px; height: 56px; margin: 0 auto 20px; border-radius: 14px; }
+  h1 { font-size: 20px; text-align: center; margin: 0 0 24px; font-weight: 600; }
+  p { color: var(--text-dim); font-size: 14px; line-height: 1.5; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  input {
+    width: 100%; padding: 10px 12px; margin: 8px 0;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 14px;
+  }
+  input::placeholder { color: var(--text-dim); }
+  input:focus { outline: none; border-color: var(--accent); }
+  button {
+    width: 100%; padding: 11px; margin: 6px 0; cursor: pointer;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 14px; font-weight: 500;
+  }
+  button:hover { border-color: var(--accent); }
+  #login-btn { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  #login-btn:hover { filter: brightness(1.08); }
+  #error { color: var(--danger); white-space: pre-wrap; font-size: 13px; }
+  #status { color: var(--text-dim); font-size: 13px; }
 </style>
 </head>
 <body>
+<img class="logo" src="/auth/logo.png" alt="Ava">
 <h1>Sign in to Ava</h1>
 <button id="login-btn">Sign in with a passkey</button>
 <hr>
