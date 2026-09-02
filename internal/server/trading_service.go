@@ -504,9 +504,13 @@ func (s *estimateService) UpdateEstimateStatus(ctx context.Context, req *avav1.U
 		return nil, err
 	}
 
-	updated, err := s.store.Queries.UpdateEstimateStatus(ctx, sqlcgen.UpdateEstimateStatusParams{ID: req.GetId(), Status: req.GetStatus()})
+	updated, err := s.store.Queries.UpdateEstimateStatus(ctx, sqlcgen.UpdateEstimateStatusParams{
+		ID:              req.GetId(),
+		Status:          req.GetStatus(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "estimate", req.GetId(), req.GetResourceVersion())
 	}
 	lineItems, err := s.store.Queries.ListEstimateLineItems(ctx, updated.ID)
 	if err != nil {
@@ -562,17 +566,21 @@ func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav
 			return err
 		}
 
-		if err := q.DeleteEstimateLineItems(ctx, req.GetId()); err != nil {
-			return err
-		}
-
+		// First write to the estimate row: checks the caller's resource_version
+		// and takes the row lock the line-item replace below runs under, so a
+		// stale caller fails here before touching anything.
 		estimate, err = q.UpdateEstimateTotals(ctx, sqlcgen.UpdateEstimateTotalsParams{
-			ID:             req.GetId(),
-			Subtotal:       subtotalNum,
-			TotalTaxAmount: totalTaxNum,
-			TotalAmount:    totalNum,
+			ID:              req.GetId(),
+			Subtotal:        subtotalNum,
+			TotalTaxAmount:  totalTaxNum,
+			TotalAmount:     totalNum,
+			ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 		})
 		if err != nil {
+			return translateUpdateError(err, "estimate", req.GetId(), req.GetResourceVersion())
+		}
+
+		if err := q.DeleteEstimateLineItems(ctx, req.GetId()); err != nil {
 			return err
 		}
 
@@ -689,6 +697,7 @@ func estimateToProto(e sqlcgen.Estimate, lineItems []sqlcgen.EstimateLineItem) (
 		Terms:           e.Terms,
 		CreatedByUserId: e.CreatedByUserID,
 		CreatedAt:       timestampProto(e.CreatedAt),
+		ResourceVersion: e.ResourceVersion,
 	}
 	for _, li := range lineItems {
 		pli, err := estimateLineItemToProto(li)
@@ -954,9 +963,13 @@ func (s *invoiceService) UpdateInvoiceStatus(ctx context.Context, req *avav1.Upd
 		return nil, err
 	}
 
-	updated, err := s.store.Queries.UpdateInvoiceStatus(ctx, sqlcgen.UpdateInvoiceStatusParams{ID: req.GetId(), Status: req.GetStatus()})
+	updated, err := s.store.Queries.UpdateInvoiceStatus(ctx, sqlcgen.UpdateInvoiceStatusParams{
+		ID:              req.GetId(),
+		Status:          req.GetStatus(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "invoice", req.GetId(), req.GetResourceVersion())
 	}
 	lineItems, err := s.store.Queries.ListInvoiceLineItems(ctx, updated.ID)
 	if err != nil {
@@ -1028,18 +1041,24 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 			return err
 		}
 
-		if err := q.DeleteInvoiceLineItems(ctx, req.GetId()); err != nil {
-			return err
-		}
-
+		// First write to the invoice row: checks the caller's resource_version
+		// and takes the row lock the line-item replace and ledger (re)post
+		// below run under, so a stale caller fails here before touching
+		// anything. SetInvoiceLedgerTransaction later in this transaction
+		// bumps the version again - the returned invoice carries the final one.
 		invoice, err = q.UpdateInvoiceTotals(ctx, sqlcgen.UpdateInvoiceTotalsParams{
-			ID:             req.GetId(),
-			Subtotal:       subtotalNum,
-			TotalTaxAmount: totalTaxNum,
-			TotalAmount:    totalNum,
-			BalanceDue:     balanceDueNum,
+			ID:              req.GetId(),
+			Subtotal:        subtotalNum,
+			TotalTaxAmount:  totalTaxNum,
+			TotalAmount:     totalNum,
+			BalanceDue:      balanceDueNum,
+			ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 		})
 		if err != nil {
+			return translateUpdateError(err, "invoice", req.GetId(), req.GetResourceVersion())
+		}
+
+		if err := q.DeleteInvoiceLineItems(ctx, req.GetId()); err != nil {
 			return err
 		}
 
@@ -1485,6 +1504,7 @@ func invoiceToProto(inv sqlcgen.Invoice, lineItems []sqlcgen.InvoiceLineItem) (*
 		LedgerTransactionId: inv.LedgerTransactionID,
 		CreatedByUserId:     inv.CreatedByUserID,
 		CreatedAt:           timestampProto(inv.CreatedAt),
+		ResourceVersion:     inv.ResourceVersion,
 	}
 	for _, li := range lineItems {
 		pli, err := invoiceLineItemToProto(li)

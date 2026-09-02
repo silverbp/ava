@@ -50,6 +50,8 @@ message LedgerAccount {
   google.protobuf.Timestamp updated_at = 16;
   optional int32 balance_sheet_category_id = 17;
   optional int32 income_statement_category_id = 19;
+  // See Business.resource_version.
+  int64 resource_version = 20;
 }
 
 message GetLedgerAccountRequest {
@@ -95,6 +97,10 @@ message UpdateLedgerAccountRequest {
   optional int32 cash_flow_category_id = 6;
   optional int32 balance_sheet_category_id = 7;
   optional int32 income_statement_category_id = 9;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 10;
 }
 
 message UpdateLedgerAccountResponse {
@@ -103,6 +109,10 @@ message UpdateLedgerAccountResponse {
 
 message DeactivateLedgerAccountRequest {
   int32 id = 1;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 2;
 }
 
 message DeactivateLedgerAccountResponse {

@@ -18,7 +18,7 @@ UPDATE invoice SET
     status = CASE WHEN balance_due - $1 <= 0 THEN 'PAID' ELSE status END,
     updated_at = NOW()
 WHERE id = $2 AND deleted_at IS NULL
-RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type ApplyPaymentToInvoiceParams struct {
@@ -51,6 +51,7 @@ func (q *Queries) ApplyPaymentToInvoice(ctx context.Context, arg ApplyPaymentToI
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -64,7 +65,7 @@ INSERT INTO estimate (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type CreateEstimateParams struct {
@@ -115,6 +116,7 @@ func (q *Queries) CreateEstimate(ctx context.Context, arg CreateEstimateParams) 
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -190,7 +192,7 @@ INSERT INTO invoice (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
-RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type CreateInvoiceParams struct {
@@ -250,6 +252,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -426,7 +429,7 @@ func (q *Queries) DeleteInvoiceLineItems(ctx context.Context, invoiceID int64) e
 }
 
 const getEstimate = `-- name: GetEstimate :one
-SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at FROM estimate WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM estimate WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetEstimate(ctx context.Context, id int64) (Estimate, error) {
@@ -449,13 +452,14 @@ func (q *Queries) GetEstimate(ctx context.Context, id int64) (Estimate, error) {
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getInvoice = `-- name: GetInvoice :one
-SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM invoice WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM invoice WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetInvoice(ctx context.Context, id int64) (Invoice, error) {
@@ -483,6 +487,7 @@ func (q *Queries) GetInvoice(ctx context.Context, id int64) (Invoice, error) {
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -558,7 +563,7 @@ func (q *Queries) ListEstimateLineItems(ctx context.Context, estimateID int64) (
 }
 
 const listEstimates = `-- name: ListEstimates :many
-SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at FROM estimate
+SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM estimate
 WHERE business_id = $1 AND deleted_at IS NULL
     AND ($2::bool OR status IN ('DRAFT', 'SENT'))
 ORDER BY estimate_date DESC
@@ -595,6 +600,7 @@ func (q *Queries) ListEstimates(ctx context.Context, arg ListEstimatesParams) ([
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 			&i.DeletedAt,
 		); err != nil {
 			return nil, err
@@ -650,7 +656,7 @@ func (q *Queries) ListInvoiceLineItems(ctx context.Context, invoiceID int64) ([]
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM invoice
+SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM invoice
 WHERE business_id = $1 AND deleted_at IS NULL
     AND ($2::bool OR status NOT IN ('PAID', 'CANCELLED'))
 ORDER BY invoice_date DESC
@@ -692,6 +698,7 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]I
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 			&i.DeletedAt,
 		); err != nil {
 			return nil, err
@@ -705,7 +712,7 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]I
 }
 
 const listInvoicesForContact = `-- name: ListInvoicesForContact :many
-SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM invoice
+SELECT id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM invoice
 WHERE contact_id = $1 AND deleted_at IS NULL
     AND invoice_date BETWEEN $2 AND $3
 ORDER BY invoice_date
@@ -748,6 +755,7 @@ func (q *Queries) ListInvoicesForContact(ctx context.Context, arg ListInvoicesFo
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 			&i.DeletedAt,
 		); err != nil {
 			return nil, err
@@ -884,7 +892,7 @@ func (q *Queries) ListPaymentsForContact(ctx context.Context, arg ListPaymentsFo
 const setInvoiceLedgerTransaction = `-- name: SetInvoiceLedgerTransaction :one
 UPDATE invoice SET ledger_transaction_id = $2, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type SetInvoiceLedgerTransactionParams struct {
@@ -917,6 +925,7 @@ func (q *Queries) SetInvoiceLedgerTransaction(ctx context.Context, arg SetInvoic
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -958,18 +967,20 @@ func (q *Queries) SetPaymentLedgerTransaction(ctx context.Context, arg SetPaymen
 }
 
 const updateEstimateStatus = `-- name: UpdateEstimateStatus :one
-UPDATE estimate SET status = $2, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at
+UPDATE estimate SET status = $1, updated_at = NOW()
+WHERE id = $2 AND deleted_at IS NULL
+    AND ($3::bigint IS NULL OR resource_version = $3)
+RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateEstimateStatusParams struct {
-	ID     int64  `json:"id"`
-	Status string `json:"status"`
+	Status          string `json:"status"`
+	ID              int64  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
 }
 
 func (q *Queries) UpdateEstimateStatus(ctx context.Context, arg UpdateEstimateStatusParams) (Estimate, error) {
-	row := q.db.QueryRow(ctx, updateEstimateStatus, arg.ID, arg.Status)
+	row := q.db.QueryRow(ctx, updateEstimateStatus, arg.Status, arg.ID, arg.ResourceVersion)
 	var i Estimate
 	err := row.Scan(
 		&i.ID,
@@ -988,30 +999,39 @@ func (q *Queries) UpdateEstimateStatus(ctx context.Context, arg UpdateEstimateSt
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const updateEstimateTotals = `-- name: UpdateEstimateTotals :one
-UPDATE estimate SET subtotal = $2, total_tax_amount = $3, total_amount = $4, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, deleted_at
+UPDATE estimate SET
+    subtotal = $1, total_tax_amount = $2,
+    total_amount = $3, updated_at = NOW()
+WHERE id = $4 AND deleted_at IS NULL
+    AND ($5::bigint IS NULL OR resource_version = $5)
+RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, discount_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateEstimateTotalsParams struct {
-	ID             int64          `json:"id"`
-	Subtotal       pgtype.Numeric `json:"subtotal"`
-	TotalTaxAmount pgtype.Numeric `json:"total_tax_amount"`
-	TotalAmount    pgtype.Numeric `json:"total_amount"`
+	Subtotal        pgtype.Numeric `json:"subtotal"`
+	TotalTaxAmount  pgtype.Numeric `json:"total_tax_amount"`
+	TotalAmount     pgtype.Numeric `json:"total_amount"`
+	ID              int64          `json:"id"`
+	ResourceVersion *int64         `json:"resource_version"`
 }
 
+// Carries the resource_version precondition for UpdateEstimateLineItems as a whole: it's
+// the first statement in that transaction to touch the estimate row, so it both checks
+// the version and takes the row lock everything after it (line-item replace) runs under.
 func (q *Queries) UpdateEstimateTotals(ctx context.Context, arg UpdateEstimateTotalsParams) (Estimate, error) {
 	row := q.db.QueryRow(ctx, updateEstimateTotals,
-		arg.ID,
 		arg.Subtotal,
 		arg.TotalTaxAmount,
 		arg.TotalAmount,
+		arg.ID,
+		arg.ResourceVersion,
 	)
 	var i Estimate
 	err := row.Scan(
@@ -1031,24 +1051,27 @@ func (q *Queries) UpdateEstimateTotals(ctx context.Context, arg UpdateEstimateTo
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const updateInvoiceStatus = `-- name: UpdateInvoiceStatus :one
-UPDATE invoice SET status = $2, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+UPDATE invoice SET status = $1, updated_at = NOW()
+WHERE id = $2 AND deleted_at IS NULL
+    AND ($3::bigint IS NULL OR resource_version = $3)
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateInvoiceStatusParams struct {
-	ID     int64  `json:"id"`
-	Status string `json:"status"`
+	Status          string `json:"status"`
+	ID              int64  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
 }
 
 func (q *Queries) UpdateInvoiceStatus(ctx context.Context, arg UpdateInvoiceStatusParams) (Invoice, error) {
-	row := q.db.QueryRow(ctx, updateInvoiceStatus, arg.ID, arg.Status)
+	row := q.db.QueryRow(ctx, updateInvoiceStatus, arg.Status, arg.ID, arg.ResourceVersion)
 	var i Invoice
 	err := row.Scan(
 		&i.ID,
@@ -1072,6 +1095,7 @@ func (q *Queries) UpdateInvoiceStatus(ctx context.Context, arg UpdateInvoiceStat
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -1079,26 +1103,34 @@ func (q *Queries) UpdateInvoiceStatus(ctx context.Context, arg UpdateInvoiceStat
 
 const updateInvoiceTotals = `-- name: UpdateInvoiceTotals :one
 UPDATE invoice SET
-    subtotal = $2, total_tax_amount = $3, total_amount = $4, balance_due = $5, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+    subtotal = $1, total_tax_amount = $2,
+    total_amount = $3, balance_due = $4, updated_at = NOW()
+WHERE id = $5 AND deleted_at IS NULL
+    AND ($6::bigint IS NULL OR resource_version = $6)
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, discount_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateInvoiceTotalsParams struct {
-	ID             int64          `json:"id"`
-	Subtotal       pgtype.Numeric `json:"subtotal"`
-	TotalTaxAmount pgtype.Numeric `json:"total_tax_amount"`
-	TotalAmount    pgtype.Numeric `json:"total_amount"`
-	BalanceDue     pgtype.Numeric `json:"balance_due"`
+	Subtotal        pgtype.Numeric `json:"subtotal"`
+	TotalTaxAmount  pgtype.Numeric `json:"total_tax_amount"`
+	TotalAmount     pgtype.Numeric `json:"total_amount"`
+	BalanceDue      pgtype.Numeric `json:"balance_due"`
+	ID              int64          `json:"id"`
+	ResourceVersion *int64         `json:"resource_version"`
 }
 
+// Same role as UpdateEstimateTotals: the version check + row lock for UpdateInvoiceLineItems.
+// SetInvoiceLedgerTransaction/ApplyPaymentToInvoice below stay unconditional - they run
+// either later in this same transaction (lock already held) or as a side effect of another
+// resource's write (a payment), where there's no client-held invoice version to check.
 func (q *Queries) UpdateInvoiceTotals(ctx context.Context, arg UpdateInvoiceTotalsParams) (Invoice, error) {
 	row := q.db.QueryRow(ctx, updateInvoiceTotals,
-		arg.ID,
 		arg.Subtotal,
 		arg.TotalTaxAmount,
 		arg.TotalAmount,
 		arg.BalanceDue,
+		arg.ID,
+		arg.ResourceVersion,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -1123,6 +1155,7 @@ func (q *Queries) UpdateInvoiceTotals(ctx context.Context, arg UpdateInvoiceTota
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err

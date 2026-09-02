@@ -90,6 +90,7 @@ type Business struct {
 	CreatedByUserID         *int64           `json:"created_by_user_id"`
 	CreatedAt               pgtype.Timestamp `json:"created_at"`
 	UpdatedAt               pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion         int64            `json:"resource_version"`
 	DeletedAt               pgtype.Timestamp `json:"deleted_at"`
 }
 
@@ -147,6 +148,7 @@ type Contact struct {
 	CreatedByUserID      *int64           `json:"created_by_user_id"`
 	CreatedAt            pgtype.Timestamp `json:"created_at"`
 	UpdatedAt            pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion      int64            `json:"resource_version"`
 	DeletedAt            pgtype.Timestamp `json:"deleted_at"`
 }
 
@@ -192,6 +194,7 @@ type Estimate struct {
 	CreatedByUserID *int64           `json:"created_by_user_id"`
 	CreatedAt       pgtype.Timestamp `json:"created_at"`
 	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion int64            `json:"resource_version"`
 	DeletedAt       pgtype.Timestamp `json:"deleted_at"`
 }
 
@@ -242,6 +245,7 @@ type Invoice struct {
 	CreatedByUserID     *int64           `json:"created_by_user_id"`
 	CreatedAt           pgtype.Timestamp `json:"created_at"`
 	UpdatedAt           pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion     int64            `json:"resource_version"`
 	DeletedAt           pgtype.Timestamp `json:"deleted_at"`
 }
 
@@ -284,6 +288,7 @@ type LedgerAccount struct {
 	CreatedByUserID           *int64           `json:"created_by_user_id"`
 	CreatedAt                 pgtype.Timestamp `json:"created_at"`
 	UpdatedAt                 pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion           int64            `json:"resource_version"`
 }
 
 type LedgerAccountType struct {
@@ -382,6 +387,7 @@ type Service struct {
 	CreatedByUserID        *int64           `json:"created_by_user_id"`
 	CreatedAt              pgtype.Timestamp `json:"created_at"`
 	UpdatedAt              pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion        int64            `json:"resource_version"`
 	DeletedAt              pgtype.Timestamp `json:"deleted_at"`
 }
 
@@ -395,6 +401,7 @@ type TaxRate struct {
 	CreatedByUserID       *int64           `json:"created_by_user_id"`
 	CreatedAt             pgtype.Timestamp `json:"created_at"`
 	UpdatedAt             pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion       int64            `json:"resource_version"`
 }
 
 type UserSession struct {

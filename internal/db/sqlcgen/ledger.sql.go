@@ -20,7 +20,7 @@ INSERT INTO ledger_account (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 )
-RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at
+RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at, resource_version
 `
 
 type CreateLedgerAccountParams struct {
@@ -77,6 +77,7 @@ func (q *Queries) CreateLedgerAccount(ctx context.Context, arg CreateLedgerAccou
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
@@ -167,11 +168,17 @@ func (q *Queries) CreateLedgerTransaction(ctx context.Context, arg CreateLedgerT
 const deactivateLedgerAccount = `-- name: DeactivateLedgerAccount :one
 UPDATE ledger_account SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1
-RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at
+    AND ($2::bigint IS NULL OR resource_version = $2)
+RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at, resource_version
 `
 
-func (q *Queries) DeactivateLedgerAccount(ctx context.Context, id int32) (LedgerAccount, error) {
-	row := q.db.QueryRow(ctx, deactivateLedgerAccount, id)
+type DeactivateLedgerAccountParams struct {
+	ID              int32  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
+}
+
+func (q *Queries) DeactivateLedgerAccount(ctx context.Context, arg DeactivateLedgerAccountParams) (LedgerAccount, error) {
+	row := q.db.QueryRow(ctx, deactivateLedgerAccount, arg.ID, arg.ResourceVersion)
 	var i LedgerAccount
 	err := row.Scan(
 		&i.ID,
@@ -192,12 +199,13 @@ func (q *Queries) DeactivateLedgerAccount(ctx context.Context, id int32) (Ledger
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
 
 const getLedgerAccount = `-- name: GetLedgerAccount :one
-SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE id = $1
+SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at, resource_version FROM ledger_account WHERE id = $1
 `
 
 func (q *Queries) GetLedgerAccount(ctx context.Context, id int32) (LedgerAccount, error) {
@@ -222,12 +230,13 @@ func (q *Queries) GetLedgerAccount(ctx context.Context, id int32) (LedgerAccount
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
 
 const getLedgerAccountByCode = `-- name: GetLedgerAccountByCode :one
-SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE business_id = $1 AND code = $2
+SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at, resource_version FROM ledger_account WHERE business_id = $1 AND code = $2
 `
 
 type GetLedgerAccountByCodeParams struct {
@@ -257,6 +266,7 @@ func (q *Queries) GetLedgerAccountByCode(ctx context.Context, arg GetLedgerAccou
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
@@ -301,7 +311,7 @@ func (q *Queries) GetLedgerTransaction(ctx context.Context, id int64) (LedgerTra
 }
 
 const listLedgerAccounts = `-- name: ListLedgerAccounts :many
-SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at FROM ledger_account WHERE business_id = $1 ORDER BY code
+SELECT id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at, resource_version FROM ledger_account WHERE business_id = $1 ORDER BY code
 `
 
 func (q *Queries) ListLedgerAccounts(ctx context.Context, businessID int64) ([]LedgerAccount, error) {
@@ -332,6 +342,7 @@ func (q *Queries) ListLedgerAccounts(ctx context.Context, businessID int64) ([]L
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -477,7 +488,8 @@ UPDATE ledger_account SET
     income_statement_category_id = COALESCE($7, income_statement_category_id),
     updated_at = NOW()
 WHERE id = $8
-RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at
+    AND ($9::bigint IS NULL OR resource_version = $9)
+RETURNING id, business_id, account_type_id, code, name, description, parent_account_id, is_system, is_reconcilable, is_container, display_sequence, cash_flow_category_id, balance_sheet_category_id, income_statement_category_id, is_active, created_by_user_id, created_at, updated_at, resource_version
 `
 
 type UpdateLedgerAccountParams struct {
@@ -489,6 +501,7 @@ type UpdateLedgerAccountParams struct {
 	BalanceSheetCategoryID    *int32  `json:"balance_sheet_category_id"`
 	IncomeStatementCategoryID *int32  `json:"income_statement_category_id"`
 	ID                        int32   `json:"id"`
+	ResourceVersion           *int64  `json:"resource_version"`
 }
 
 func (q *Queries) UpdateLedgerAccount(ctx context.Context, arg UpdateLedgerAccountParams) (LedgerAccount, error) {
@@ -501,6 +514,7 @@ func (q *Queries) UpdateLedgerAccount(ctx context.Context, arg UpdateLedgerAccou
 		arg.BalanceSheetCategoryID,
 		arg.IncomeStatementCategoryID,
 		arg.ID,
+		arg.ResourceVersion,
 	)
 	var i LedgerAccount
 	err := row.Scan(
@@ -522,6 +536,7 @@ func (q *Queries) UpdateLedgerAccount(ctx context.Context, arg UpdateLedgerAccou
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }

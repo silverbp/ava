@@ -160,9 +160,10 @@ func (s *contactService) UpdateContact(ctx context.Context, req *avav1.UpdateCon
 		BillingState:        req.BillingState,
 		BillingPostalCode:   req.BillingPostalCode,
 		BillingCountry:      req.BillingCountry,
+		ResourceVersion:     expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "contact", req.GetId(), req.GetResourceVersion())
 	}
 	pb, err := contactToProto(ctx, s.store.Queries, updated)
 	if err != nil {
@@ -182,9 +183,12 @@ func (s *contactService) DeactivateContact(ctx context.Context, req *avav1.Deact
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
 		return nil, err
 	}
-	deactivated, err := s.store.Queries.DeactivateContact(ctx, req.GetId())
+	deactivated, err := s.store.Queries.DeactivateContact(ctx, sqlcgen.DeactivateContactParams{
+		ID:              req.GetId(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "contact", req.GetId(), req.GetResourceVersion())
 	}
 	pb, err := contactToProto(ctx, s.store.Queries, deactivated)
 	if err != nil {
@@ -246,6 +250,7 @@ func contactToProto(ctx context.Context, q *sqlcgen.Queries, c sqlcgen.Contact) 
 		BillingCountry:      c.BillingCountry,
 		Customer:            customer,
 		Vendor:              vendor,
+		ResourceVersion:     c.ResourceVersion,
 	}, nil
 }
 
@@ -374,9 +379,10 @@ func (s *serviceCatalogService) UpdateService(ctx context.Context, req *avav1.Up
 		IsTaxable:              req.IsTaxable,
 		DefaultTaxRateID:       req.DefaultTaxRateId,
 		DefaultLedgerAccountID: req.DefaultLedgerAccountId,
+		ResourceVersion:        expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "service", req.GetId(), req.GetResourceVersion())
 	}
 	pb, err := serviceToProto(updated)
 	if err != nil {
@@ -396,9 +402,12 @@ func (s *serviceCatalogService) DeactivateService(ctx context.Context, req *avav
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
 		return nil, err
 	}
-	deactivated, err := s.store.Queries.DeactivateService(ctx, req.GetId())
+	deactivated, err := s.store.Queries.DeactivateService(ctx, sqlcgen.DeactivateServiceParams{
+		ID:              req.GetId(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "service", req.GetId(), req.GetResourceVersion())
 	}
 	pb, err := serviceToProto(deactivated)
 	if err != nil {
@@ -432,6 +441,7 @@ func serviceToProto(svc sqlcgen.Service) (*avav1.Service, error) {
 		CreatedByUserId:        svc.CreatedByUserID,
 		CreatedAt:              timestampProto(svc.CreatedAt),
 		UpdatedAt:              timestampProto(svc.UpdatedAt),
+		ResourceVersion:        svc.ResourceVersion,
 	}, nil
 }
 
@@ -535,12 +545,13 @@ func (s *taxRateService) UpdateTaxRate(ctx context.Context, req *avav1.UpdateTax
 	}
 
 	updated, err := s.store.Queries.UpdateTaxRate(ctx, sqlcgen.UpdateTaxRateParams{
-		ID:   req.GetId(),
-		Name: req.Name,
-		Rate: rate,
+		ID:              req.GetId(),
+		Name:            req.Name,
+		Rate:            rate,
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "tax rate", req.GetId(), req.GetResourceVersion())
 	}
 	pb, err := taxRateToProto(updated)
 	if err != nil {
@@ -560,9 +571,12 @@ func (s *taxRateService) DeactivateTaxRate(ctx context.Context, req *avav1.Deact
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "ADMIN"); err != nil {
 		return nil, err
 	}
-	deactivated, err := s.store.Queries.DeactivateTaxRate(ctx, req.GetId())
+	deactivated, err := s.store.Queries.DeactivateTaxRate(ctx, sqlcgen.DeactivateTaxRateParams{
+		ID:              req.GetId(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "tax rate", req.GetId(), req.GetResourceVersion())
 	}
 	pb, err := taxRateToProto(deactivated)
 	if err != nil {
@@ -586,5 +600,6 @@ func taxRateToProto(tr sqlcgen.TaxRate) (*avav1.TaxRate, error) {
 		CreatedByUserId:       tr.CreatedByUserID,
 		CreatedAt:             timestampProto(tr.CreatedAt),
 		UpdatedAt:             timestampProto(tr.UpdatedAt),
+		ResourceVersion:       tr.ResourceVersion,
 	}, nil
 }

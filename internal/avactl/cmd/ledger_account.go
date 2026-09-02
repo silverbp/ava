@@ -51,7 +51,7 @@ func newLedgerAccountCmd() *cobra.Command {
 	root.AddCommand(newGetCmd(ledgerAccountNoun, getLedgerAccount))
 	root.AddCommand(newLedgerAccountCreateCmd())
 	root.AddCommand(newLedgerAccountUpdateCmd())
-	root.AddCommand(newMutateCmd(ledgerAccountNoun, "deactivate", "Deactivate a ledger account", deactivateLedgerAccount))
+	root.AddCommand(newVersionedMutateCmd(ledgerAccountNoun, "deactivate", "Deactivate a ledger account", deactivateLedgerAccount))
 	return root
 }
 
@@ -82,12 +82,12 @@ func listLedgerAccounts(ctx context.Context, conn *grpc.ClientConn, businessID i
 	return items, nil
 }
 
-func deactivateLedgerAccount(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
+func deactivateLedgerAccount(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid ledger-account id %q: %w", id, err)
 	}
-	resp, err := avav1.NewLedgerAccountServiceClient(conn).DeactivateLedgerAccount(ctx, &avav1.DeactivateLedgerAccountRequest{Id: int32(n)})
+	resp, err := avav1.NewLedgerAccountServiceClient(conn).DeactivateLedgerAccount(ctx, &avav1.DeactivateLedgerAccountRequest{Id: int32(n), ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +161,7 @@ func newLedgerAccountCreateCmd() *cobra.Command {
 }
 
 func newLedgerAccountUpdateCmd() *cobra.Command {
+	var resourceVersion int64
 	var name, description string
 	var cashFlowCategoryID, balanceSheetCategoryID, incomeStatementCategoryID int32
 	var reconcilable, container bool
@@ -179,7 +180,7 @@ func newLedgerAccountUpdateCmd() *cobra.Command {
 			}
 			defer conn.Close()
 
-			req := &avav1.UpdateLedgerAccountRequest{Id: int32(id)}
+			req := &avav1.UpdateLedgerAccountRequest{Id: int32(id), ResourceVersion: resourceVersion}
 			if cmd.Flags().Changed("name") {
 				req.Name = &name
 			}
@@ -216,6 +217,7 @@ func newLedgerAccountUpdateCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&incomeStatementCategoryID, "income-statement-category", 0, "new income_statement_category id: 1=Revenue 2=Cost of Goods Sold 3=Operating Expenses")
 	cmd.Flags().BoolVar(&reconcilable, "reconcilable", false, "eligible for bank-statement reconciliation")
 	cmd.Flags().BoolVar(&container, "container", false, "a non-postable roll-up node")
+	addResourceVersionFlag(cmd, &resourceVersion)
 	resource.Doc{
 		Summary:  "Update a ledger account",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

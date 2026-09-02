@@ -45,9 +45,9 @@ func newInvoiceCmd() *cobra.Command {
 	root.AddCommand(newGetCmd(invoiceNoun, getInvoice, getInvoicePdf))
 	root.AddCommand(newInvoiceCreateCmd())
 	root.AddCommand(newInvoiceUpdateLinesCmd())
-	root.AddCommand(newMutateCmd(invoiceNoun, "send", "Mark an invoice SENT", sendInvoice))
-	root.AddCommand(newMutateCmd(invoiceNoun, "cancel", "Cancel an invoice", cancelInvoice))
-	root.AddCommand(newMutateCmd(invoiceNoun, "mark-overdue", "Mark an invoice OVERDUE", markInvoiceOverdue))
+	root.AddCommand(newVersionedMutateCmd(invoiceNoun, "send", "Mark an invoice SENT", sendInvoice))
+	root.AddCommand(newVersionedMutateCmd(invoiceNoun, "cancel", "Cancel an invoice", cancelInvoice))
+	root.AddCommand(newVersionedMutateCmd(invoiceNoun, "mark-overdue", "Mark an invoice OVERDUE", markInvoiceOverdue))
 	return root
 }
 
@@ -87,28 +87,28 @@ func getInvoicePdf(ctx context.Context, conn *grpc.ClientConn, id string) ([]byt
 	return resp.GetContent(), nil
 }
 
-func setInvoiceStatus(ctx context.Context, conn *grpc.ClientConn, id, status string) (proto.Message, error) {
+func setInvoiceStatus(ctx context.Context, conn *grpc.ClientConn, id, status string, resourceVersion int64) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid invoice id %q: %w", id, err)
 	}
-	resp, err := avav1.NewInvoiceServiceClient(conn).UpdateInvoiceStatus(ctx, &avav1.UpdateInvoiceStatusRequest{Id: n, Status: status})
+	resp, err := avav1.NewInvoiceServiceClient(conn).UpdateInvoiceStatus(ctx, &avav1.UpdateInvoiceStatusRequest{Id: n, Status: status, ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
 	return resp.GetInvoice(), nil
 }
 
-func sendInvoice(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	return setInvoiceStatus(ctx, conn, id, "SENT")
+func sendInvoice(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	return setInvoiceStatus(ctx, conn, id, "SENT", resourceVersion)
 }
 
-func cancelInvoice(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	return setInvoiceStatus(ctx, conn, id, "CANCELLED")
+func cancelInvoice(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	return setInvoiceStatus(ctx, conn, id, "CANCELLED", resourceVersion)
 }
 
-func markInvoiceOverdue(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	return setInvoiceStatus(ctx, conn, id, "OVERDUE")
+func markInvoiceOverdue(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	return setInvoiceStatus(ctx, conn, id, "OVERDUE", resourceVersion)
 }
 
 func newInvoiceCreateCmd() *cobra.Command {
@@ -231,6 +231,7 @@ func newInvoiceCreateCmd() *cobra.Command {
 
 func newInvoiceUpdateLinesCmd() *cobra.Command {
 	var rawLines []string
+	var resourceVersion int64
 
 	cmd := &cobra.Command{
 		Use:  "update-lines <id>",
@@ -278,8 +279,9 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 			defer conn.Close()
 
 			resp, err := avav1.NewInvoiceServiceClient(conn).UpdateInvoiceLineItems(cmd.Context(), &avav1.UpdateInvoiceLineItemsRequest{
-				Id:        id,
-				LineItems: lineItems,
+				Id:              id,
+				LineItems:       lineItems,
+				ResourceVersion: resourceVersion,
 			})
 			if err != nil {
 				return err
@@ -288,6 +290,7 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the service when omitted")
+	addResourceVersionFlag(cmd, &resourceVersion)
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Replace an invoice's line items",

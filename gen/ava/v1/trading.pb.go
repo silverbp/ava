@@ -175,6 +175,8 @@ type Estimate struct {
 	CreatedByUserId *int64                 `protobuf:"varint,13,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	LineItems       []*EstimateLineItem    `protobuf:"bytes,15,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
+	// See Business.resource_version.
+	ResourceVersion int64 `protobuf:"varint,16,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -312,6 +314,13 @@ func (x *Estimate) GetLineItems() []*EstimateLineItem {
 		return x.LineItems
 	}
 	return nil
+}
+
+func (x *Estimate) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 // unit_price/is_taxable/tax_rate_id may all be left unset when service_id is set - the server
@@ -732,11 +741,15 @@ func (x *CreateEstimateResponse) GetEstimate() *Estimate {
 }
 
 type UpdateEstimateStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Id     int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,3,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateEstimateStatusRequest) Reset() {
@@ -781,6 +794,13 @@ func (x *UpdateEstimateStatusRequest) GetStatus() string {
 		return x.Status
 	}
 	return ""
+}
+
+func (x *UpdateEstimateStatusRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type UpdateEstimateStatusResponse struct {
@@ -831,11 +851,15 @@ func (x *UpdateEstimateStatusResponse) GetEstimate() *Estimate {
 // set (not a per-line patch) and recomputes subtotal/total_tax_amount/
 // total_amount server-side, same as CreateEstimate.
 type UpdateEstimateLineItemsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	LineItems     []*NewEstimateLineItem `protobuf:"bytes,2,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	LineItems []*NewEstimateLineItem `protobuf:"bytes,2,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,3,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateEstimateLineItemsRequest) Reset() {
@@ -880,6 +904,13 @@ func (x *UpdateEstimateLineItemsRequest) GetLineItems() []*NewEstimateLineItem {
 		return x.LineItems
 	}
 	return nil
+}
+
+func (x *UpdateEstimateLineItemsRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type UpdateEstimateLineItemsResponse struct {
@@ -1176,8 +1207,10 @@ type Invoice struct {
 	CreatedByUserId     *int64                 `protobuf:"varint,18,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
 	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	LineItems           []*InvoiceLineItem     `protobuf:"bytes,20,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// See Business.resource_version.
+	ResourceVersion int64 `protobuf:"varint,21,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Invoice) Reset() {
@@ -1348,6 +1381,13 @@ func (x *Invoice) GetLineItems() []*InvoiceLineItem {
 		return x.LineItems
 	}
 	return nil
+}
+
+func (x *Invoice) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 // ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when service_id is
@@ -1651,11 +1691,16 @@ type CreateInvoiceRequest struct {
 	// Required for PURCHASE (typically the vendor's own document number);
 	// ignored for SALES, which auto-numbers from the business's
 	// invoice_number_prefix/next_invoice_number.
-	InvoiceNumber *string               `protobuf:"bytes,5,opt,name=invoice_number,json=invoiceNumber,proto3,oneof" json:"invoice_number,omitempty"`
-	InvoiceDate   *date.Date            `protobuf:"bytes,6,opt,name=invoice_date,json=invoiceDate,proto3" json:"invoice_date,omitempty"`
-	DueDate       *date.Date            `protobuf:"bytes,7,opt,name=due_date,json=dueDate,proto3" json:"due_date,omitempty"`
-	Notes         *string               `protobuf:"bytes,8,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
-	Terms         *string               `protobuf:"bytes,9,opt,name=terms,proto3,oneof" json:"terms,omitempty"`
+	InvoiceNumber *string    `protobuf:"bytes,5,opt,name=invoice_number,json=invoiceNumber,proto3,oneof" json:"invoice_number,omitempty"`
+	InvoiceDate   *date.Date `protobuf:"bytes,6,opt,name=invoice_date,json=invoiceDate,proto3" json:"invoice_date,omitempty"`
+	DueDate       *date.Date `protobuf:"bytes,7,opt,name=due_date,json=dueDate,proto3" json:"due_date,omitempty"`
+	Notes         *string    `protobuf:"bytes,8,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
+	Terms         *string    `protobuf:"bytes,9,opt,name=terms,proto3,oneof" json:"terms,omitempty"`
+	// May be left empty when estimate_id is set - the invoice is then built from that
+	// estimate's own line items (service_id/description/quantity/unit_price/is_taxable/
+	// tax_rate_id carried over as-is; ledger_account_id resolved fresh via each line's
+	// service.default_ledger_account_id, same as any other line that sets service_id without
+	// an explicit ledger_account_id - see NewInvoiceLineItem). Required otherwise.
 	LineItems     []*NewInvoiceLineItem `protobuf:"bytes,10,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1806,11 +1851,15 @@ func (x *CreateInvoiceResponse) GetInvoice() *Invoice {
 }
 
 type UpdateInvoiceStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Id     int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,3,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateInvoiceStatusRequest) Reset() {
@@ -1855,6 +1904,13 @@ func (x *UpdateInvoiceStatusRequest) GetStatus() string {
 		return x.Status
 	}
 	return ""
+}
+
+func (x *UpdateInvoiceStatusRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type UpdateInvoiceStatusResponse struct {
@@ -1909,11 +1965,15 @@ func (x *UpdateInvoiceStatusResponse) GetInvoice() *Invoice {
 // rather than rejecting the edit — the transaction id itself doesn't
 // change, only its entries.
 type UpdateInvoiceLineItemsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	LineItems     []*NewInvoiceLineItem  `protobuf:"bytes,2,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	LineItems []*NewInvoiceLineItem  `protobuf:"bytes,2,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,3,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateInvoiceLineItemsRequest) Reset() {
@@ -1958,6 +2018,13 @@ func (x *UpdateInvoiceLineItemsRequest) GetLineItems() []*NewInvoiceLineItem {
 		return x.LineItems
 	}
 	return nil
+}
+
+func (x *UpdateInvoiceLineItemsRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type UpdateInvoiceLineItemsResponse struct {
@@ -2755,7 +2822,7 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
 	"line_total\x18\f \x01(\v2\x0f.ava.v1.DecimalR\tlineTotalB\r\n" +
 	"\v_service_idB\x0e\n" +
-	"\f_tax_rate_id\"\xb4\x05\n" +
+	"\f_tax_rate_id\"\xdf\x05\n" +
 	"\bEstimate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2776,7 +2843,8 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x127\n" +
 	"\n" +
-	"line_items\x18\x0f \x03(\v2\x18.ava.v1.EstimateLineItemR\tlineItemsB\b\n" +
+	"line_items\x18\x0f \x03(\v2\x18.ava.v1.EstimateLineItemR\tlineItems\x12)\n" +
+	"\x10resource_version\x18\x10 \x01(\x03R\x0fresourceVersionB\b\n" +
 	"\x06_notesB\b\n" +
 	"\x06_termsB\x15\n" +
 	"\x13_created_by_user_id\"\xd0\x02\n" +
@@ -2820,16 +2888,18 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x06_notesB\b\n" +
 	"\x06_terms\"F\n" +
 	"\x16CreateEstimateResponse\x12,\n" +
-	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"E\n" +
+	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"p\n" +
 	"\x1bUpdateEstimateStatusRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"L\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12)\n" +
+	"\x10resource_version\x18\x03 \x01(\x03R\x0fresourceVersion\"L\n" +
 	"\x1cUpdateEstimateStatusResponse\x12,\n" +
-	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"l\n" +
+	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"\x97\x01\n" +
 	"\x1eUpdateEstimateLineItemsRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12:\n" +
 	"\n" +
-	"line_items\x18\x02 \x03(\v2\x1b.ava.v1.NewEstimateLineItemR\tlineItems\"O\n" +
+	"line_items\x18\x02 \x03(\v2\x1b.ava.v1.NewEstimateLineItemR\tlineItems\x12)\n" +
+	"\x10resource_version\x18\x03 \x01(\x03R\x0fresourceVersion\"O\n" +
 	"\x1fUpdateEstimateLineItemsResponse\x12,\n" +
 	"\bestimate\x18\x01 \x01(\v2\x10.ava.v1.EstimateR\bestimate\"'\n" +
 	"\x15GetEstimatePdfRequest\x12\x0e\n" +
@@ -2860,7 +2930,7 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"line_total\x18\r \x01(\v2\x0f.ava.v1.DecimalR\tlineTotalB\r\n" +
 	"\v_service_idB\x14\n" +
 	"\x12_ledger_account_idB\x0e\n" +
-	"\f_tax_rate_id\"\xae\a\n" +
+	"\f_tax_rate_id\"\xd9\a\n" +
 	"\aInvoice\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2889,7 +2959,8 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x126\n" +
 	"\n" +
-	"line_items\x18\x14 \x03(\v2\x17.ava.v1.InvoiceLineItemR\tlineItemsB\x0e\n" +
+	"line_items\x18\x14 \x03(\v2\x17.ava.v1.InvoiceLineItemR\tlineItems\x12)\n" +
+	"\x10resource_version\x18\x15 \x01(\x03R\x0fresourceVersionB\x0e\n" +
 	"\f_estimate_idB\b\n" +
 	"\x06_notesB\b\n" +
 	"\x06_termsB\x18\n" +
@@ -2944,16 +3015,18 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x06_notesB\b\n" +
 	"\x06_terms\"B\n" +
 	"\x15CreateInvoiceResponse\x12)\n" +
-	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"D\n" +
+	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"o\n" +
 	"\x1aUpdateInvoiceStatusRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"H\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12)\n" +
+	"\x10resource_version\x18\x03 \x01(\x03R\x0fresourceVersion\"H\n" +
 	"\x1bUpdateInvoiceStatusResponse\x12)\n" +
-	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"j\n" +
+	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"\x95\x01\n" +
 	"\x1dUpdateInvoiceLineItemsRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x129\n" +
 	"\n" +
-	"line_items\x18\x02 \x03(\v2\x1a.ava.v1.NewInvoiceLineItemR\tlineItems\"K\n" +
+	"line_items\x18\x02 \x03(\v2\x1a.ava.v1.NewInvoiceLineItemR\tlineItems\x12)\n" +
+	"\x10resource_version\x18\x03 \x01(\x03R\x0fresourceVersion\"K\n" +
 	"\x1eUpdateInvoiceLineItemsResponse\x12)\n" +
 	"\ainvoice\x18\x01 \x01(\v2\x0f.ava.v1.InvoiceR\ainvoice\"\xd5\x01\n" +
 	"\x12PaymentApplication\x12\x0e\n" +

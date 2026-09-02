@@ -48,8 +48,20 @@ type Business struct {
 	CreatedByUserId         *int64                 `protobuf:"varint,19,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
 	CreatedAt               *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt               *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Kubernetes-style resourceVersion: a per-row counter the database bumps on every
+	// committed write to this row (any write - an UpdateBusiness, a DeactivateBusiness, or an
+	// internal side effect like claiming the next invoice number). Every mutable resource
+	// (Business, LedgerAccount, Contact, Service, TaxRate, Estimate, Invoice) carries one.
+	//
+	// Send it back on that resource's Update*/Deactivate* request to make the write
+	// conditional: if the row's current resource_version no longer matches, the write is
+	// rejected with ABORTED and nothing changes - re-read, reapply your edit to the fresh
+	// copy, and retry. Leaving it unset (0) writes unconditionally, same as omitting
+	// resourceVersion in k8s. Never compare versions across resources or do arithmetic on
+	// them; only equality against a value you read from the same row is meaningful.
+	ResourceVersion int64 `protobuf:"varint,22,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Business) Reset() {
@@ -227,6 +239,13 @@ func (x *Business) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Business) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type GetBusinessRequest struct {
@@ -610,20 +629,24 @@ func (x *CreateBusinessResponse) GetBusiness() *Business {
 }
 
 type UpdateBusinessRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	TaxId         *string                `protobuf:"bytes,3,opt,name=tax_id,json=taxId,proto3,oneof" json:"tax_id,omitempty"`
-	AddressLine1  *string                `protobuf:"bytes,4,opt,name=address_line1,json=addressLine1,proto3,oneof" json:"address_line1,omitempty"`
-	AddressLine2  *string                `protobuf:"bytes,5,opt,name=address_line2,json=addressLine2,proto3,oneof" json:"address_line2,omitempty"`
-	City          *string                `protobuf:"bytes,6,opt,name=city,proto3,oneof" json:"city,omitempty"`
-	State         *string                `protobuf:"bytes,7,opt,name=state,proto3,oneof" json:"state,omitempty"`
-	PostalCode    *string                `protobuf:"bytes,8,opt,name=postal_code,json=postalCode,proto3,oneof" json:"postal_code,omitempty"`
-	Country       *string                `protobuf:"bytes,9,opt,name=country,proto3,oneof" json:"country,omitempty"`
-	Phone         *string                `protobuf:"bytes,10,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
-	Email         *string                `protobuf:"bytes,11,opt,name=email,proto3,oneof" json:"email,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name         *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	TaxId        *string                `protobuf:"bytes,3,opt,name=tax_id,json=taxId,proto3,oneof" json:"tax_id,omitempty"`
+	AddressLine1 *string                `protobuf:"bytes,4,opt,name=address_line1,json=addressLine1,proto3,oneof" json:"address_line1,omitempty"`
+	AddressLine2 *string                `protobuf:"bytes,5,opt,name=address_line2,json=addressLine2,proto3,oneof" json:"address_line2,omitempty"`
+	City         *string                `protobuf:"bytes,6,opt,name=city,proto3,oneof" json:"city,omitempty"`
+	State        *string                `protobuf:"bytes,7,opt,name=state,proto3,oneof" json:"state,omitempty"`
+	PostalCode   *string                `protobuf:"bytes,8,opt,name=postal_code,json=postalCode,proto3,oneof" json:"postal_code,omitempty"`
+	Country      *string                `protobuf:"bytes,9,opt,name=country,proto3,oneof" json:"country,omitempty"`
+	Phone        *string                `protobuf:"bytes,10,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
+	Email        *string                `protobuf:"bytes,11,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,12,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateBusinessRequest) Reset() {
@@ -733,6 +756,13 @@ func (x *UpdateBusinessRequest) GetEmail() string {
 	return ""
 }
 
+func (x *UpdateBusinessRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
+}
+
 type UpdateBusinessResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Business      *Business              `protobuf:"bytes,1,opt,name=business,proto3" json:"business,omitempty"`
@@ -778,10 +808,14 @@ func (x *UpdateBusinessResponse) GetBusiness() *Business {
 }
 
 type DeactivateBusinessRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeactivateBusinessRequest) Reset() {
@@ -817,6 +851,13 @@ func (*DeactivateBusinessRequest) Descriptor() ([]byte, []int) {
 func (x *DeactivateBusinessRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
+	}
+	return 0
+}
+
+func (x *DeactivateBusinessRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
 	}
 	return 0
 }
@@ -1367,7 +1408,7 @@ var File_ava_v1_business_proto protoreflect.FileDescriptor
 
 const file_ava_v1_business_proto_rawDesc = "" +
 	"\n" +
-	"\x15ava/v1/business.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\a\n" +
+	"\x15ava/v1/business.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8d\b\n" +
 	"\bBusiness\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -1394,7 +1435,8 @@ const file_ava_v1_business_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\t\n" +
+	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12)\n" +
+	"\x10resource_version\x18\x16 \x01(\x03R\x0fresourceVersionB\t\n" +
 	"\a_tax_idB\x10\n" +
 	"\x0e_address_line1B\x10\n" +
 	"\x0e_address_line2B\a\n" +
@@ -1441,7 +1483,7 @@ const file_ava_v1_business_proto_rawDesc = "" +
 	"\x06_phoneB\b\n" +
 	"\x06_email\"F\n" +
 	"\x16CreateBusinessResponse\x12,\n" +
-	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness\"\xda\x03\n" +
+	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness\"\x85\x04\n" +
 	"\x15UpdateBusinessRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1a\n" +
@@ -1455,7 +1497,8 @@ const file_ava_v1_business_proto_rawDesc = "" +
 	"\acountry\x18\t \x01(\tH\aR\acountry\x88\x01\x01\x12\x19\n" +
 	"\x05phone\x18\n" +
 	" \x01(\tH\bR\x05phone\x88\x01\x01\x12\x19\n" +
-	"\x05email\x18\v \x01(\tH\tR\x05email\x88\x01\x01B\a\n" +
+	"\x05email\x18\v \x01(\tH\tR\x05email\x88\x01\x01\x12)\n" +
+	"\x10resource_version\x18\f \x01(\x03R\x0fresourceVersionB\a\n" +
 	"\x05_nameB\t\n" +
 	"\a_tax_idB\x10\n" +
 	"\x0e_address_line1B\x10\n" +
@@ -1468,9 +1511,10 @@ const file_ava_v1_business_proto_rawDesc = "" +
 	"\x06_phoneB\b\n" +
 	"\x06_email\"F\n" +
 	"\x16UpdateBusinessResponse\x12,\n" +
-	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness\"+\n" +
+	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness\"V\n" +
 	"\x19DeactivateBusinessRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"J\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12)\n" +
+	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"J\n" +
 	"\x1aDeactivateBusinessResponse\x12,\n" +
 	"\bbusiness\x18\x01 \x01(\v2\x10.ava.v1.BusinessR\bbusiness\"\xcb\x03\n" +
 	"\x0eBusinessInvite\x12\x0e\n" +

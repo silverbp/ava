@@ -9,10 +9,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
 	typepb "google.golang.org/genproto/googleapis/type/date"
 
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
 )
+
+// addResourceVersionFlag registers the optimistic-concurrency flag every
+// update/deactivate/status verb takes - the same wording everywhere, so
+// `--help` reads identically across nouns. 0 (the default) sends no
+// precondition; see Business.resource_version in proto/ava/v1/business.proto.
+func addResourceVersionFlag(cmd *cobra.Command, dst *int64) {
+	cmd.Flags().Int64Var(dst, "resource-version", 0,
+		"only apply if the resource is still at this resource_version (from `get -o json`); fails with ABORTED if someone else changed it first")
+}
 
 // parseDateFlag parses a YYYY-MM-DD flag value into a google.type.Date.
 func parseDateFlag(s string) (*typepb.Date, error) {

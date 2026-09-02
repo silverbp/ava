@@ -43,7 +43,7 @@ func newServiceCmd() *cobra.Command {
 	root.AddCommand(newGetCmd(serviceNoun, getService))
 	root.AddCommand(newServiceCreateCmd())
 	root.AddCommand(newServiceUpdateCmd())
-	root.AddCommand(newMutateCmd(serviceNoun, "deactivate", "Deactivate a service", deactivateService))
+	root.AddCommand(newVersionedMutateCmd(serviceNoun, "deactivate", "Deactivate a service", deactivateService))
 	return root
 }
 
@@ -71,12 +71,12 @@ func listServices(ctx context.Context, conn *grpc.ClientConn, businessID int64, 
 	return items, nil
 }
 
-func deactivateService(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
+func deactivateService(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service id %q: %w", id, err)
 	}
-	resp, err := avav1.NewServiceCatalogServiceClient(conn).DeactivateService(ctx, &avav1.DeactivateServiceRequest{Id: n})
+	resp, err := avav1.NewServiceCatalogServiceClient(conn).DeactivateService(ctx, &avav1.DeactivateServiceRequest{Id: n, ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +149,7 @@ func newServiceCreateCmd() *cobra.Command {
 }
 
 func newServiceUpdateCmd() *cobra.Command {
+	var resourceVersion int64
 	var name, description, price, cost string
 	var taxable bool
 	var defaultTaxRateID int64
@@ -168,7 +169,7 @@ func newServiceUpdateCmd() *cobra.Command {
 			}
 			defer conn.Close()
 
-			req := &avav1.UpdateServiceRequest{Id: id}
+			req := &avav1.UpdateServiceRequest{Id: id, ResourceVersion: resourceVersion}
 			if cmd.Flags().Changed("name") {
 				req.Name = &name
 			}
@@ -205,6 +206,7 @@ func newServiceUpdateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&taxable, "taxable", false, "taxable by default")
 	cmd.Flags().Int64Var(&defaultTaxRateID, "default-tax-rate-id", 0, "new default tax_rate id")
 	cmd.Flags().Int32Var(&defaultLedgerAccountID, "default-ledger-account-id", 0, "new default ledger_account id this service's lines normally post to")
+	addResourceVersionFlag(cmd, &resourceVersion)
 	resource.Doc{
 		Summary:  "Update a catalog service/product",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

@@ -83,6 +83,8 @@ message Estimate {
   optional int64 created_by_user_id = 13;
   google.protobuf.Timestamp created_at = 14;
   repeated EstimateLineItem line_items = 15;
+  // See Business.resource_version.
+  int64 resource_version = 16;
 }
 
 // unit_price/is_taxable/tax_rate_id may all be left unset when service_id is set - the server
@@ -134,6 +136,10 @@ message CreateEstimateResponse {
 message UpdateEstimateStatusRequest {
   int64 id = 1;
   string status = 2;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 3;
 }
 
 message UpdateEstimateStatusResponse {
@@ -146,6 +152,10 @@ message UpdateEstimateStatusResponse {
 message UpdateEstimateLineItemsRequest {
   int64 id = 1;
   repeated NewEstimateLineItem line_items = 2;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 3;
 }
 
 message UpdateEstimateLineItemsResponse {
@@ -197,6 +207,8 @@ message Invoice {
   optional int64 created_by_user_id = 18;
   google.protobuf.Timestamp created_at = 19;
   repeated InvoiceLineItem line_items = 20;
+  // See Business.resource_version.
+  int64 resource_version = 21;
 }
 
 // ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when service_id is
@@ -263,6 +275,10 @@ message CreateInvoiceResponse {
 message UpdateInvoiceStatusRequest {
   int64 id = 1;
   string status = 2;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 3;
 }
 
 message UpdateInvoiceStatusResponse {
@@ -279,6 +295,10 @@ message UpdateInvoiceStatusResponse {
 message UpdateInvoiceLineItemsRequest {
   int64 id = 1;
   repeated NewInvoiceLineItem line_items = 2;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 3;
 }
 
 message UpdateInvoiceLineItemsResponse {

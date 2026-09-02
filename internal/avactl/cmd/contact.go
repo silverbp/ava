@@ -44,7 +44,7 @@ func newContactCmd() *cobra.Command {
 	root.AddCommand(newGetCmd(contactNoun, getContact))
 	root.AddCommand(newContactCreateCmd())
 	root.AddCommand(newContactUpdateCmd())
-	root.AddCommand(newMutateCmd(contactNoun, "deactivate", "Deactivate a contact", deactivateContact))
+	root.AddCommand(newVersionedMutateCmd(contactNoun, "deactivate", "Deactivate a contact", deactivateContact))
 	return root
 }
 
@@ -72,12 +72,12 @@ func listContacts(ctx context.Context, conn *grpc.ClientConn, businessID int64, 
 	return items, nil
 }
 
-func deactivateContact(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
+func deactivateContact(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid contact id %q: %w", id, err)
 	}
-	resp, err := avav1.NewContactServiceClient(conn).DeactivateContact(ctx, &avav1.DeactivateContactRequest{Id: n})
+	resp, err := avav1.NewContactServiceClient(conn).DeactivateContact(ctx, &avav1.DeactivateContactRequest{Id: n, ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +178,7 @@ func newContactCreateCmd() *cobra.Command {
 }
 
 func newContactUpdateCmd() *cobra.Command {
+	var resourceVersion int64
 	var name, email, phone string
 	var paymentTerms int32
 	var creditLimit string
@@ -197,7 +198,7 @@ func newContactUpdateCmd() *cobra.Command {
 			}
 			defer conn.Close()
 
-			req := &avav1.UpdateContactRequest{Id: id}
+			req := &avav1.UpdateContactRequest{Id: id, ResourceVersion: resourceVersion}
 			if cmd.Flags().Changed("name") {
 				req.Name = &name
 			}
@@ -250,6 +251,7 @@ func newContactUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&state, "state", "", "new billing state/province")
 	cmd.Flags().StringVar(&postal, "postal-code", "", "new billing postal code")
 	cmd.Flags().StringVar(&country, "country", "", "new billing country")
+	addResourceVersionFlag(cmd, &resourceVersion)
 	resource.Doc{
 		Summary:  "Update a contact",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

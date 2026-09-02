@@ -204,8 +204,10 @@ type Contact struct {
 	BillingCountry      *string                `protobuf:"bytes,21,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
 	Customer            *Customer              `protobuf:"bytes,22,opt,name=customer,proto3,oneof" json:"customer,omitempty"`
 	Vendor              *Vendor                `protobuf:"bytes,23,opt,name=vendor,proto3,oneof" json:"vendor,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// See Business.resource_version.
+	ResourceVersion int64 `protobuf:"varint,24,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Contact) Reset() {
@@ -376,6 +378,13 @@ func (x *Contact) GetVendor() *Vendor {
 		return x.Vendor
 	}
 	return nil
+}
+
+func (x *Contact) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type GetContactRequest struct {
@@ -797,8 +806,12 @@ type UpdateContactRequest struct {
 	BillingState        *string                `protobuf:"bytes,11,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
 	BillingPostalCode   *string                `protobuf:"bytes,12,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
 	BillingCountry      *string                `protobuf:"bytes,13,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,14,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateContactRequest) Reset() {
@@ -915,6 +928,13 @@ func (x *UpdateContactRequest) GetBillingCountry() string {
 	return ""
 }
 
+func (x *UpdateContactRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
+}
+
 type UpdateContactResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Contact       *Contact               `protobuf:"bytes,1,opt,name=contact,proto3" json:"contact,omitempty"`
@@ -960,10 +980,14 @@ func (x *UpdateContactResponse) GetContact() *Contact {
 }
 
 type DeactivateContactRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeactivateContactRequest) Reset() {
@@ -999,6 +1023,13 @@ func (*DeactivateContactRequest) Descriptor() ([]byte, []int) {
 func (x *DeactivateContactRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
+	}
+	return 0
+}
+
+func (x *DeactivateContactRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
 	}
 	return 0
 }
@@ -1070,8 +1101,10 @@ type Service struct {
 	CreatedByUserId        *int64                 `protobuf:"varint,12,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
 	CreatedAt              *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt              *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// See Business.resource_version.
+	ResourceVersion int64 `protobuf:"varint,17,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Service) Reset() {
@@ -1207,6 +1240,13 @@ func (x *Service) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Service) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type GetServiceRequest struct {
@@ -1565,8 +1605,12 @@ type UpdateServiceRequest struct {
 	IsTaxable              *bool                  `protobuf:"varint,6,opt,name=is_taxable,json=isTaxable,proto3,oneof" json:"is_taxable,omitempty"`
 	DefaultTaxRateId       *int64                 `protobuf:"varint,8,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
 	DefaultLedgerAccountId *int32                 `protobuf:"varint,9,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,10,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateServiceRequest) Reset() {
@@ -1655,6 +1699,13 @@ func (x *UpdateServiceRequest) GetDefaultLedgerAccountId() int32 {
 	return 0
 }
 
+func (x *UpdateServiceRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
+}
+
 type UpdateServiceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Service       *Service               `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
@@ -1700,10 +1751,14 @@ func (x *UpdateServiceResponse) GetService() *Service {
 }
 
 type DeactivateServiceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeactivateServiceRequest) Reset() {
@@ -1739,6 +1794,13 @@ func (*DeactivateServiceRequest) Descriptor() ([]byte, []int) {
 func (x *DeactivateServiceRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
+	}
+	return 0
+}
+
+func (x *DeactivateServiceRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
 	}
 	return 0
 }
@@ -1798,8 +1860,10 @@ type TaxRate struct {
 	CreatedByUserId       *int64                 `protobuf:"varint,7,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
 	CreatedAt             *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt             *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// See Business.resource_version.
+	ResourceVersion int64 `protobuf:"varint,10,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TaxRate) Reset() {
@@ -1893,6 +1957,13 @@ func (x *TaxRate) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *TaxRate) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type GetTaxRateRequest struct {
@@ -2184,12 +2255,16 @@ func (x *CreateTaxRateResponse) GetTaxRate() *TaxRate {
 }
 
 type UpdateTaxRateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Rate          *Decimal               `protobuf:"bytes,3,opt,name=rate,proto3,oneof" json:"rate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name  *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Rate  *Decimal               `protobuf:"bytes,3,opt,name=rate,proto3,oneof" json:"rate,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,4,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateTaxRateRequest) Reset() {
@@ -2243,6 +2318,13 @@ func (x *UpdateTaxRateRequest) GetRate() *Decimal {
 	return nil
 }
 
+func (x *UpdateTaxRateRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
+}
+
 type UpdateTaxRateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TaxRate       *TaxRate               `protobuf:"bytes,1,opt,name=tax_rate,json=taxRate,proto3" json:"tax_rate,omitempty"`
@@ -2288,10 +2370,14 @@ func (x *UpdateTaxRateResponse) GetTaxRate() *TaxRate {
 }
 
 type DeactivateTaxRateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeactivateTaxRateRequest) Reset() {
@@ -2327,6 +2413,13 @@ func (*DeactivateTaxRateRequest) Descriptor() ([]byte, []int) {
 func (x *DeactivateTaxRateRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
+	}
+	return 0
+}
+
+func (x *DeactivateTaxRateRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
 	}
 	return 0
 }
@@ -2399,7 +2492,7 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x14\n" +
-	"\x12_ledger_account_id\"\xf8\b\n" +
+	"\x12_ledger_account_id\"\xa3\t\n" +
 	"\aContact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2425,7 +2518,8 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x0fbilling_country\x18\x15 \x01(\tH\tR\x0ebillingCountry\x88\x01\x01\x121\n" +
 	"\bcustomer\x18\x16 \x01(\v2\x10.ava.v1.CustomerH\n" +
 	"R\bcustomer\x88\x01\x01\x12+\n" +
-	"\x06vendor\x18\x17 \x01(\v2\x0e.ava.v1.VendorH\vR\x06vendor\x88\x01\x01B\b\n" +
+	"\x06vendor\x18\x17 \x01(\v2\x0e.ava.v1.VendorH\vR\x06vendor\x88\x01\x01\x12)\n" +
+	"\x10resource_version\x18\x18 \x01(\x03R\x0fresourceVersionB\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x15\n" +
 	"\x13_payment_terms_daysB\x15\n" +
@@ -2483,7 +2577,7 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x14_billing_postal_codeB\x12\n" +
 	"\x10_billing_countryJ\x04\b\x02\x10\x03R\x11ledger_account_id\"B\n" +
 	"\x15CreateContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\xe9\x05\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\x94\x06\n" +
 	"\x14UpdateContactRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x19\n" +
@@ -2498,7 +2592,8 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\rbilling_state\x18\v \x01(\tH\bR\fbillingState\x88\x01\x01\x123\n" +
 	"\x13billing_postal_code\x18\f \x01(\tH\tR\x11billingPostalCode\x88\x01\x01\x12,\n" +
 	"\x0fbilling_country\x18\r \x01(\tH\n" +
-	"R\x0ebillingCountry\x88\x01\x01B\a\n" +
+	"R\x0ebillingCountry\x88\x01\x01\x12)\n" +
+	"\x10resource_version\x18\x0e \x01(\x03R\x0fresourceVersionB\a\n" +
 	"\x05_nameB\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x15\n" +
@@ -2511,11 +2606,12 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x14_billing_postal_codeB\x12\n" +
 	"\x10_billing_countryJ\x04\b\x05\x10\x06R\x11ledger_account_id\"B\n" +
 	"\x15UpdateContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"*\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"U\n" +
 	"\x18DeactivateContactRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"F\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12)\n" +
+	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"F\n" +
 	"\x19DeactivateContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\xf1\x05\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\x9c\x06\n" +
 	"\aService\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2536,7 +2632,8 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
+	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12)\n" +
+	"\x10resource_version\x18\x11 \x01(\x03R\x0fresourceVersionB\x0e\n" +
 	"\f_descriptionB\x16\n" +
 	"\x14_default_tax_rate_idB\x1c\n" +
 	"\x1a_default_ledger_account_idB\x15\n" +
@@ -2574,7 +2671,7 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x1a_default_ledger_account_idJ\x04\b\t\x10\n" +
 	"R\x10default_tax_rate\"B\n" +
 	"\x15CreateServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\x82\x04\n" +
+	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\xad\x04\n" +
 	"\x14UpdateServiceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -2585,7 +2682,9 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
 	"is_taxable\x18\x06 \x01(\bH\x04R\tisTaxable\x88\x01\x01\x122\n" +
 	"\x13default_tax_rate_id\x18\b \x01(\x03H\x05R\x10defaultTaxRateId\x88\x01\x01\x12>\n" +
-	"\x19default_ledger_account_id\x18\t \x01(\x05H\x06R\x16defaultLedgerAccountId\x88\x01\x01B\a\n" +
+	"\x19default_ledger_account_id\x18\t \x01(\x05H\x06R\x16defaultLedgerAccountId\x88\x01\x01\x12)\n" +
+	"\x10resource_version\x18\n" +
+	" \x01(\x03R\x0fresourceVersionB\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x0f\n" +
 	"\r_retail_priceB\r\n" +
@@ -2594,11 +2693,12 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x14_default_tax_rate_idB\x1c\n" +
 	"\x1a_default_ledger_account_idJ\x04\b\a\x10\bR\x10default_tax_rate\"B\n" +
 	"\x15UpdateServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"*\n" +
+	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"U\n" +
 	"\x18DeactivateServiceRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"F\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12)\n" +
+	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"F\n" +
 	"\x19DeactivateServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\x88\x03\n" +
+	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\xb3\x03\n" +
 	"\aTaxRate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2611,7 +2711,9 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x15\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12)\n" +
+	"\x10resource_version\x18\n" +
+	" \x01(\x03R\x0fresourceVersionB\x15\n" +
 	"\x13_created_by_user_id\"#\n" +
 	"\x11GetTaxRateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"@\n" +
@@ -2629,17 +2731,19 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x04rate\x18\x03 \x01(\v2\x0f.ava.v1.DecimalR\x04rate\x127\n" +
 	"\x18tax_liability_account_id\x18\x04 \x01(\x05R\x15taxLiabilityAccountId\"C\n" +
 	"\x15CreateTaxRateResponse\x12*\n" +
-	"\btax_rate\x18\x01 \x01(\v2\x0f.ava.v1.TaxRateR\ataxRate\"{\n" +
+	"\btax_rate\x18\x01 \x01(\v2\x0f.ava.v1.TaxRateR\ataxRate\"\xa6\x01\n" +
 	"\x14UpdateTaxRateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12(\n" +
-	"\x04rate\x18\x03 \x01(\v2\x0f.ava.v1.DecimalH\x01R\x04rate\x88\x01\x01B\a\n" +
+	"\x04rate\x18\x03 \x01(\v2\x0f.ava.v1.DecimalH\x01R\x04rate\x88\x01\x01\x12)\n" +
+	"\x10resource_version\x18\x04 \x01(\x03R\x0fresourceVersionB\a\n" +
 	"\x05_nameB\a\n" +
 	"\x05_rate\"C\n" +
 	"\x15UpdateTaxRateResponse\x12*\n" +
-	"\btax_rate\x18\x01 \x01(\v2\x0f.ava.v1.TaxRateR\ataxRate\"*\n" +
+	"\btax_rate\x18\x01 \x01(\v2\x0f.ava.v1.TaxRateR\ataxRate\"U\n" +
 	"\x18DeactivateTaxRateRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"G\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12)\n" +
+	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"G\n" +
 	"\x19DeactivateTaxRateResponse\x12*\n" +
 	"\btax_rate\x18\x01 \x01(\v2\x0f.ava.v1.TaxRateR\ataxRate2\x96\x03\n" +
 	"\x0eContactService\x12C\n" +

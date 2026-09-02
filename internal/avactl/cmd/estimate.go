@@ -42,10 +42,10 @@ func newEstimateCmd() *cobra.Command {
 	root.AddCommand(newGetCmd(estimateNoun, getEstimate, getEstimatePdf))
 	root.AddCommand(newEstimateCreateCmd())
 	root.AddCommand(newEstimateUpdateLinesCmd())
-	root.AddCommand(newMutateCmd(estimateNoun, "send", "Mark an estimate SENT", sendEstimate))
-	root.AddCommand(newMutateCmd(estimateNoun, "accept", "Mark an estimate ACCEPTED", acceptEstimate))
-	root.AddCommand(newMutateCmd(estimateNoun, "decline", "Mark an estimate DECLINED", declineEstimate))
-	root.AddCommand(newMutateCmd(estimateNoun, "expire", "Mark an estimate EXPIRED", expireEstimate))
+	root.AddCommand(newVersionedMutateCmd(estimateNoun, "send", "Mark an estimate SENT", sendEstimate))
+	root.AddCommand(newVersionedMutateCmd(estimateNoun, "accept", "Mark an estimate ACCEPTED", acceptEstimate))
+	root.AddCommand(newVersionedMutateCmd(estimateNoun, "decline", "Mark an estimate DECLINED", declineEstimate))
+	root.AddCommand(newVersionedMutateCmd(estimateNoun, "expire", "Mark an estimate EXPIRED", expireEstimate))
 	return root
 }
 
@@ -85,32 +85,32 @@ func listEstimates(ctx context.Context, conn *grpc.ClientConn, businessID int64,
 	return items, nil
 }
 
-func setEstimateStatus(ctx context.Context, conn *grpc.ClientConn, id, status string) (proto.Message, error) {
+func setEstimateStatus(ctx context.Context, conn *grpc.ClientConn, id, status string, resourceVersion int64) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid estimate id %q: %w", id, err)
 	}
-	resp, err := avav1.NewEstimateServiceClient(conn).UpdateEstimateStatus(ctx, &avav1.UpdateEstimateStatusRequest{Id: n, Status: status})
+	resp, err := avav1.NewEstimateServiceClient(conn).UpdateEstimateStatus(ctx, &avav1.UpdateEstimateStatusRequest{Id: n, Status: status, ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
 	return resp.GetEstimate(), nil
 }
 
-func sendEstimate(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	return setEstimateStatus(ctx, conn, id, "SENT")
+func sendEstimate(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	return setEstimateStatus(ctx, conn, id, "SENT", resourceVersion)
 }
 
-func acceptEstimate(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	return setEstimateStatus(ctx, conn, id, "ACCEPTED")
+func acceptEstimate(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	return setEstimateStatus(ctx, conn, id, "ACCEPTED", resourceVersion)
 }
 
-func declineEstimate(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	return setEstimateStatus(ctx, conn, id, "DECLINED")
+func declineEstimate(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	return setEstimateStatus(ctx, conn, id, "DECLINED", resourceVersion)
 }
 
-func expireEstimate(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	return setEstimateStatus(ctx, conn, id, "EXPIRED")
+func expireEstimate(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	return setEstimateStatus(ctx, conn, id, "EXPIRED", resourceVersion)
 }
 
 func newEstimateCreateCmd() *cobra.Command {
@@ -207,6 +207,7 @@ func newEstimateCreateCmd() *cobra.Command {
 
 func newEstimateUpdateLinesCmd() *cobra.Command {
 	var rawLines []string
+	var resourceVersion int64
 
 	cmd := &cobra.Command{
 		Use:  "update-lines <id>",
@@ -249,8 +250,9 @@ func newEstimateUpdateLinesCmd() *cobra.Command {
 			defer conn.Close()
 
 			resp, err := avav1.NewEstimateServiceClient(conn).UpdateEstimateLineItems(cmd.Context(), &avav1.UpdateEstimateLineItemsRequest{
-				Id:        id,
-				LineItems: lineItems,
+				Id:              id,
+				LineItems:       lineItems,
+				ResourceVersion: resourceVersion,
 			})
 			if err != nil {
 				return err
@@ -259,6 +261,7 @@ func newEstimateUpdateLinesCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - price/taxable/tax-rate default from the service when omitted")
+	addResourceVersionFlag(cmd, &resourceVersion)
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Replace an estimate's line items",

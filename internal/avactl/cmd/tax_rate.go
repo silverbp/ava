@@ -36,7 +36,7 @@ func newTaxRateCmd() *cobra.Command {
 	root.AddCommand(newGetCmd(taxRateNoun, getTaxRate))
 	root.AddCommand(newTaxRateCreateCmd())
 	root.AddCommand(newTaxRateUpdateCmd())
-	root.AddCommand(newMutateCmd(taxRateNoun, "deactivate", "Deactivate a tax rate", deactivateTaxRate))
+	root.AddCommand(newVersionedMutateCmd(taxRateNoun, "deactivate", "Deactivate a tax rate", deactivateTaxRate))
 	return root
 }
 
@@ -64,12 +64,12 @@ func listTaxRates(ctx context.Context, conn *grpc.ClientConn, businessID int64) 
 	return items, nil
 }
 
-func deactivateTaxRate(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
+func deactivateTaxRate(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tax-rate id %q: %w", id, err)
 	}
-	resp, err := avav1.NewTaxRateServiceClient(conn).DeactivateTaxRate(ctx, &avav1.DeactivateTaxRateRequest{Id: n})
+	resp, err := avav1.NewTaxRateServiceClient(conn).DeactivateTaxRate(ctx, &avav1.DeactivateTaxRateRequest{Id: n, ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +116,7 @@ func newTaxRateCreateCmd() *cobra.Command {
 }
 
 func newTaxRateUpdateCmd() *cobra.Command {
+	var resourceVersion int64
 	var name, rate string
 
 	cmd := &cobra.Command{
@@ -132,7 +133,7 @@ func newTaxRateUpdateCmd() *cobra.Command {
 			}
 			defer conn.Close()
 
-			req := &avav1.UpdateTaxRateRequest{Id: id}
+			req := &avav1.UpdateTaxRateRequest{Id: id, ResourceVersion: resourceVersion}
 			if cmd.Flags().Changed("name") {
 				req.Name = &name
 			}
@@ -148,6 +149,7 @@ func newTaxRateUpdateCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&name, "name", "", "new name")
 	cmd.Flags().StringVar(&rate, "rate", "", "new rate as a decimal fraction")
+	addResourceVersionFlag(cmd, &resourceVersion)
 	resource.Doc{
 		Summary:  "Update a tax rate's name or rate",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

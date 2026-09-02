@@ -27,11 +27,13 @@ UPDATE business SET
     email = COALESCE(sqlc.narg('email'), email),
     updated_at = NOW()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: DeactivateBusiness :one
 UPDATE business SET is_active = FALSE, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: ListBusinessesForUser :many

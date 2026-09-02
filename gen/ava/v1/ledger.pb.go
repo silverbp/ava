@@ -45,8 +45,10 @@ type LedgerAccount struct {
 	UpdatedAt                 *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	BalanceSheetCategoryId    *int32                 `protobuf:"varint,17,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
 	IncomeStatementCategoryId *int32                 `protobuf:"varint,19,opt,name=income_statement_category_id,json=incomeStatementCategoryId,proto3,oneof" json:"income_statement_category_id,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// See Business.resource_version.
+	ResourceVersion int64 `protobuf:"varint,20,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *LedgerAccount) Reset() {
@@ -194,6 +196,13 @@ func (x *LedgerAccount) GetBalanceSheetCategoryId() int32 {
 func (x *LedgerAccount) GetIncomeStatementCategoryId() int32 {
 	if x != nil && x.IncomeStatementCategoryId != nil {
 		return *x.IncomeStatementCategoryId
+	}
+	return 0
+}
+
+func (x *LedgerAccount) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
 	}
 	return 0
 }
@@ -552,8 +561,12 @@ type UpdateLedgerAccountRequest struct {
 	CashFlowCategoryId        *int32                 `protobuf:"varint,6,opt,name=cash_flow_category_id,json=cashFlowCategoryId,proto3,oneof" json:"cash_flow_category_id,omitempty"`
 	BalanceSheetCategoryId    *int32                 `protobuf:"varint,7,opt,name=balance_sheet_category_id,json=balanceSheetCategoryId,proto3,oneof" json:"balance_sheet_category_id,omitempty"`
 	IncomeStatementCategoryId *int32                 `protobuf:"varint,9,opt,name=income_statement_category_id,json=incomeStatementCategoryId,proto3,oneof" json:"income_statement_category_id,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,10,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateLedgerAccountRequest) Reset() {
@@ -642,6 +655,13 @@ func (x *UpdateLedgerAccountRequest) GetIncomeStatementCategoryId() int32 {
 	return 0
 }
 
+func (x *UpdateLedgerAccountRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
+}
+
 type UpdateLedgerAccountResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Account       *LedgerAccount         `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`
@@ -687,10 +707,14 @@ func (x *UpdateLedgerAccountResponse) GetAccount() *LedgerAccount {
 }
 
 type DeactivateLedgerAccountRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeactivateLedgerAccountRequest) Reset() {
@@ -726,6 +750,13 @@ func (*DeactivateLedgerAccountRequest) Descriptor() ([]byte, []int) {
 func (x *DeactivateLedgerAccountRequest) GetId() int32 {
 	if x != nil {
 		return x.Id
+	}
+	return 0
+}
+
+func (x *DeactivateLedgerAccountRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
 	}
 	return 0
 }
@@ -1352,7 +1383,7 @@ var File_ava_v1_ledger_proto protoreflect.FileDescriptor
 
 const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\n" +
-	"\x13ava/v1/ledger.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\xea\x06\n" +
+	"\x13ava/v1/ledger.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\x95\a\n" +
 	"\rLedgerAccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -1374,7 +1405,8 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12>\n" +
 	"\x19balance_sheet_category_id\x18\x11 \x01(\x05H\x04R\x16balanceSheetCategoryId\x88\x01\x01\x12D\n" +
-	"\x1cincome_statement_category_id\x18\x13 \x01(\x05H\x05R\x19incomeStatementCategoryId\x88\x01\x01B\x14\n" +
+	"\x1cincome_statement_category_id\x18\x13 \x01(\x05H\x05R\x19incomeStatementCategoryId\x88\x01\x01\x12)\n" +
+	"\x10resource_version\x18\x14 \x01(\x03R\x0fresourceVersionB\x14\n" +
 	"\x12_parent_account_idB\x0e\n" +
 	"\f_descriptionB\x18\n" +
 	"\x16_cash_flow_category_idB\x15\n" +
@@ -1410,7 +1442,7 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\x1a_balance_sheet_category_idB\x1f\n" +
 	"\x1d_income_statement_category_id\"N\n" +
 	"\x1bCreateLedgerAccountResponse\x12/\n" +
-	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"\x97\x04\n" +
+	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"\xc2\x04\n" +
 	"\x1aUpdateLedgerAccountRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -1419,7 +1451,9 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\fis_container\x18\x05 \x01(\bH\x03R\visContainer\x88\x01\x01\x126\n" +
 	"\x15cash_flow_category_id\x18\x06 \x01(\x05H\x04R\x12cashFlowCategoryId\x88\x01\x01\x12>\n" +
 	"\x19balance_sheet_category_id\x18\a \x01(\x05H\x05R\x16balanceSheetCategoryId\x88\x01\x01\x12D\n" +
-	"\x1cincome_statement_category_id\x18\t \x01(\x05H\x06R\x19incomeStatementCategoryId\x88\x01\x01B\a\n" +
+	"\x1cincome_statement_category_id\x18\t \x01(\x05H\x06R\x19incomeStatementCategoryId\x88\x01\x01\x12)\n" +
+	"\x10resource_version\x18\n" +
+	" \x01(\x03R\x0fresourceVersionB\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x12\n" +
 	"\x10_is_reconcilableB\x0f\n" +
@@ -1428,9 +1462,10 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\x1a_balance_sheet_category_idB\x1f\n" +
 	"\x1d_income_statement_category_id\"N\n" +
 	"\x1bUpdateLedgerAccountResponse\x12/\n" +
-	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"0\n" +
+	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"[\n" +
 	"\x1eDeactivateLedgerAccountRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\"R\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\x12)\n" +
+	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"R\n" +
 	"\x1fDeactivateLedgerAccountResponse\x12/\n" +
 	"\aaccount\x18\x01 \x01(\v2\x15.ava.v1.LedgerAccountR\aaccount\"\x91\x02\n" +
 	"\vLedgerEntry\x12\x0e\n" +

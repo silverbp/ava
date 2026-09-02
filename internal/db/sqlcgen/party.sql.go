@@ -21,7 +21,7 @@ INSERT INTO contact (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
-RETURNING id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type CreateContactParams struct {
@@ -86,6 +86,7 @@ func (q *Queries) CreateContact(ctx context.Context, arg CreateContactParams) (C
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -121,7 +122,7 @@ INSERT INTO service (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type CreateServiceParams struct {
@@ -169,6 +170,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -180,7 +182,7 @@ INSERT INTO tax_rate (
 ) VALUES (
     $1, $2, $3, $4, $5
 )
-RETURNING id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at
+RETURNING id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version
 `
 
 type CreateTaxRateParams struct {
@@ -210,6 +212,7 @@ func (q *Queries) CreateTaxRate(ctx context.Context, arg CreateTaxRateParams) (T
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
@@ -240,11 +243,17 @@ func (q *Queries) CreateVendor(ctx context.Context, arg CreateVendorParams) (Ven
 const deactivateContact = `-- name: DeactivateContact :one
 UPDATE contact SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, deleted_at
+    AND ($2::bigint IS NULL OR resource_version = $2)
+RETURNING id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
-func (q *Queries) DeactivateContact(ctx context.Context, id int64) (Contact, error) {
-	row := q.db.QueryRow(ctx, deactivateContact, id)
+type DeactivateContactParams struct {
+	ID              int64  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
+}
+
+func (q *Queries) DeactivateContact(ctx context.Context, arg DeactivateContactParams) (Contact, error) {
+	row := q.db.QueryRow(ctx, deactivateContact, arg.ID, arg.ResourceVersion)
 	var i Contact
 	err := row.Scan(
 		&i.ID,
@@ -271,6 +280,7 @@ func (q *Queries) DeactivateContact(ctx context.Context, id int64) (Contact, err
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -279,11 +289,17 @@ func (q *Queries) DeactivateContact(ctx context.Context, id int64) (Contact, err
 const deactivateService = `-- name: DeactivateService :one
 UPDATE service SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, deleted_at
+    AND ($2::bigint IS NULL OR resource_version = $2)
+RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
-func (q *Queries) DeactivateService(ctx context.Context, id int64) (Service, error) {
-	row := q.db.QueryRow(ctx, deactivateService, id)
+type DeactivateServiceParams struct {
+	ID              int64  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
+}
+
+func (q *Queries) DeactivateService(ctx context.Context, arg DeactivateServiceParams) (Service, error) {
+	row := q.db.QueryRow(ctx, deactivateService, arg.ID, arg.ResourceVersion)
 	var i Service
 	err := row.Scan(
 		&i.ID,
@@ -301,6 +317,7 @@ func (q *Queries) DeactivateService(ctx context.Context, id int64) (Service, err
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -309,11 +326,17 @@ func (q *Queries) DeactivateService(ctx context.Context, id int64) (Service, err
 const deactivateTaxRate = `-- name: DeactivateTaxRate :one
 UPDATE tax_rate SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1
-RETURNING id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at
+    AND ($2::bigint IS NULL OR resource_version = $2)
+RETURNING id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version
 `
 
-func (q *Queries) DeactivateTaxRate(ctx context.Context, id int64) (TaxRate, error) {
-	row := q.db.QueryRow(ctx, deactivateTaxRate, id)
+type DeactivateTaxRateParams struct {
+	ID              int64  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
+}
+
+func (q *Queries) DeactivateTaxRate(ctx context.Context, arg DeactivateTaxRateParams) (TaxRate, error) {
+	row := q.db.QueryRow(ctx, deactivateTaxRate, arg.ID, arg.ResourceVersion)
 	var i TaxRate
 	err := row.Scan(
 		&i.ID,
@@ -325,12 +348,13 @@ func (q *Queries) DeactivateTaxRate(ctx context.Context, id int64) (TaxRate, err
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
 
 const getContact = `-- name: GetContact :one
-SELECT id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM contact WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM contact WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetContact(ctx context.Context, id int64) (Contact, error) {
@@ -361,6 +385,7 @@ func (q *Queries) GetContact(ctx context.Context, id int64) (Contact, error) {
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -384,7 +409,7 @@ func (q *Queries) GetCustomerByContactID(ctx context.Context, contactID int64) (
 }
 
 const getService = `-- name: GetService :one
-SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM service WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM service WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetService(ctx context.Context, id int64) (Service, error) {
@@ -406,13 +431,14 @@ func (q *Queries) GetService(ctx context.Context, id int64) (Service, error) {
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getTaxRate = `-- name: GetTaxRate :one
-SELECT id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at FROM tax_rate WHERE id = $1
+SELECT id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version FROM tax_rate WHERE id = $1
 `
 
 func (q *Queries) GetTaxRate(ctx context.Context, id int64) (TaxRate, error) {
@@ -428,6 +454,7 @@ func (q *Queries) GetTaxRate(ctx context.Context, id int64) (TaxRate, error) {
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
@@ -450,7 +477,7 @@ func (q *Queries) GetVendorByContactID(ctx context.Context, contactID int64) (Ve
 }
 
 const listContacts = `-- name: ListContacts :many
-SELECT id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM contact
+SELECT id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM contact
 WHERE business_id = $1 AND deleted_at IS NULL
     AND (is_active OR $2::bool)
 ORDER BY name
@@ -495,6 +522,7 @@ func (q *Queries) ListContacts(ctx context.Context, arg ListContactsParams) ([]C
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 			&i.DeletedAt,
 		); err != nil {
 			return nil, err
@@ -508,7 +536,7 @@ func (q *Queries) ListContacts(ctx context.Context, arg ListContactsParams) ([]C
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM service
+SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM service
 WHERE business_id = $1 AND deleted_at IS NULL
     AND (is_active OR $2::bool)
 ORDER BY service_code
@@ -544,6 +572,7 @@ func (q *Queries) ListServices(ctx context.Context, arg ListServicesParams) ([]S
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 			&i.DeletedAt,
 		); err != nil {
 			return nil, err
@@ -557,7 +586,7 @@ func (q *Queries) ListServices(ctx context.Context, arg ListServicesParams) ([]S
 }
 
 const listTaxRates = `-- name: ListTaxRates :many
-SELECT id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at FROM tax_rate WHERE business_id = $1 ORDER BY name
+SELECT id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version FROM tax_rate WHERE business_id = $1 ORDER BY name
 `
 
 func (q *Queries) ListTaxRates(ctx context.Context, businessID int64) ([]TaxRate, error) {
@@ -579,6 +608,7 @@ func (q *Queries) ListTaxRates(ctx context.Context, businessID int64) ([]TaxRate
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -605,7 +635,8 @@ UPDATE contact SET
     billing_country = COALESCE($11, billing_country),
     updated_at = NOW()
 WHERE id = $12 AND deleted_at IS NULL
-RETURNING id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, deleted_at
+    AND ($13::bigint IS NULL OR resource_version = $13)
+RETURNING id, business_id, contact_number, name, email, phone, billing_address_line1, billing_address_line2, billing_city, billing_state, billing_postal_code, billing_country, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, payment_terms_days, credit_limit, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateContactParams struct {
@@ -621,6 +652,7 @@ type UpdateContactParams struct {
 	BillingPostalCode   *string        `json:"billing_postal_code"`
 	BillingCountry      *string        `json:"billing_country"`
 	ID                  int64          `json:"id"`
+	ResourceVersion     *int64         `json:"resource_version"`
 }
 
 func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (Contact, error) {
@@ -637,6 +669,7 @@ func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (C
 		arg.BillingPostalCode,
 		arg.BillingCountry,
 		arg.ID,
+		arg.ResourceVersion,
 	)
 	var i Contact
 	err := row.Scan(
@@ -664,6 +697,7 @@ func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (C
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -680,7 +714,8 @@ UPDATE service SET
     default_ledger_account_id = COALESCE($7, default_ledger_account_id),
     updated_at = NOW()
 WHERE id = $8 AND deleted_at IS NULL
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, deleted_at
+    AND ($9::bigint IS NULL OR resource_version = $9)
+RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateServiceParams struct {
@@ -692,6 +727,7 @@ type UpdateServiceParams struct {
 	DefaultTaxRateID       *int64         `json:"default_tax_rate_id"`
 	DefaultLedgerAccountID *int32         `json:"default_ledger_account_id"`
 	ID                     int64          `json:"id"`
+	ResourceVersion        *int64         `json:"resource_version"`
 }
 
 func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error) {
@@ -704,6 +740,7 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		arg.DefaultTaxRateID,
 		arg.DefaultLedgerAccountID,
 		arg.ID,
+		arg.ResourceVersion,
 	)
 	var i Service
 	err := row.Scan(
@@ -722,6 +759,7 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -733,17 +771,24 @@ UPDATE tax_rate SET
     rate = COALESCE($2, rate),
     updated_at = NOW()
 WHERE id = $3
-RETURNING id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at
+    AND ($4::bigint IS NULL OR resource_version = $4)
+RETURNING id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version
 `
 
 type UpdateTaxRateParams struct {
-	Name *string        `json:"name"`
-	Rate pgtype.Numeric `json:"rate"`
-	ID   int64          `json:"id"`
+	Name            *string        `json:"name"`
+	Rate            pgtype.Numeric `json:"rate"`
+	ID              int64          `json:"id"`
+	ResourceVersion *int64         `json:"resource_version"`
 }
 
 func (q *Queries) UpdateTaxRate(ctx context.Context, arg UpdateTaxRateParams) (TaxRate, error) {
-	row := q.db.QueryRow(ctx, updateTaxRate, arg.Name, arg.Rate, arg.ID)
+	row := q.db.QueryRow(ctx, updateTaxRate,
+		arg.Name,
+		arg.Rate,
+		arg.ID,
+		arg.ResourceVersion,
+	)
 	var i TaxRate
 	err := row.Scan(
 		&i.ID,
@@ -755,6 +800,7 @@ func (q *Queries) UpdateTaxRate(ctx context.Context, arg UpdateTaxRateParams) (T
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }

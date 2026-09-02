@@ -119,9 +119,10 @@ func (s *ledgerAccountService) UpdateLedgerAccount(ctx context.Context, req *ava
 		CashFlowCategoryID:        req.CashFlowCategoryId,
 		BalanceSheetCategoryID:    req.BalanceSheetCategoryId,
 		IncomeStatementCategoryID: req.IncomeStatementCategoryId,
+		ResourceVersion:           expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "ledger account", int64(req.GetId()), req.GetResourceVersion())
 	}
 	return &avav1.UpdateLedgerAccountResponse{Account: ledgerAccountToProto(updated)}, nil
 }
@@ -141,9 +142,12 @@ func (s *ledgerAccountService) DeactivateLedgerAccount(ctx context.Context, req 
 		return nil, status.Error(codes.FailedPrecondition, "system ledger accounts cannot be deactivated")
 	}
 
-	deactivated, err := s.store.Queries.DeactivateLedgerAccount(ctx, req.GetId())
+	deactivated, err := s.store.Queries.DeactivateLedgerAccount(ctx, sqlcgen.DeactivateLedgerAccountParams{
+		ID:              req.GetId(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateUpdateError(err, "ledger account", int64(req.GetId()), req.GetResourceVersion())
 	}
 	return &avav1.DeactivateLedgerAccountResponse{Account: ledgerAccountToProto(deactivated)}, nil
 }
@@ -361,6 +365,7 @@ func ledgerAccountToProto(a sqlcgen.LedgerAccount) *avav1.LedgerAccount {
 		CreatedByUserId:           a.CreatedByUserID,
 		CreatedAt:                 timestampProto(a.CreatedAt),
 		UpdatedAt:                 timestampProto(a.UpdatedAt),
+		ResourceVersion:           a.ResourceVersion,
 	}
 }
 

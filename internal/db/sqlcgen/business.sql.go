@@ -57,7 +57,7 @@ INSERT INTO business (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type CreateBusinessParams struct {
@@ -119,6 +119,7 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -127,11 +128,17 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 const deactivateBusiness = `-- name: DeactivateBusiness :one
 UPDATE business SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, deleted_at
+    AND ($2::bigint IS NULL OR resource_version = $2)
+RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
-func (q *Queries) DeactivateBusiness(ctx context.Context, id int64) (Business, error) {
-	row := q.db.QueryRow(ctx, deactivateBusiness, id)
+type DeactivateBusinessParams struct {
+	ID              int64  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
+}
+
+func (q *Queries) DeactivateBusiness(ctx context.Context, arg DeactivateBusinessParams) (Business, error) {
+	row := q.db.QueryRow(ctx, deactivateBusiness, arg.ID, arg.ResourceVersion)
 	var i Business
 	err := row.Scan(
 		&i.ID,
@@ -161,13 +168,14 @@ func (q *Queries) DeactivateBusiness(ctx context.Context, id int64) (Business, e
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getBusiness = `-- name: GetBusiness :one
-SELECT id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, deleted_at FROM business WHERE id = $1 AND deleted_at IS NULL
+SELECT id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM business WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetBusiness(ctx context.Context, id int64) (Business, error) {
@@ -201,13 +209,14 @@ func (q *Queries) GetBusiness(ctx context.Context, id int64) (Business, error) {
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const listBusinessesForUser = `-- name: ListBusinessesForUser :many
-SELECT b.id, b.name, b.tax_id, b.address_line1, b.address_line2, b.city, b.state, b.postal_code, b.country, b.phone, b.email, b.website_url, b.logo_url, b.default_payment_terms_days, b.default_tax_rate, b.default_invoice_terms, b.default_estimate_terms, b.invoice_number_prefix, b.estimate_number_prefix, b.next_invoice_number, b.next_estimate_number, b.timezone, b.currency_code, b.is_active, b.created_by_user_id, b.created_at, b.updated_at, b.deleted_at, bu.role AS membership_role
+SELECT b.id, b.name, b.tax_id, b.address_line1, b.address_line2, b.city, b.state, b.postal_code, b.country, b.phone, b.email, b.website_url, b.logo_url, b.default_payment_terms_days, b.default_tax_rate, b.default_invoice_terms, b.default_estimate_terms, b.invoice_number_prefix, b.estimate_number_prefix, b.next_invoice_number, b.next_estimate_number, b.timezone, b.currency_code, b.is_active, b.created_by_user_id, b.created_at, b.updated_at, b.resource_version, b.deleted_at, bu.role AS membership_role
 FROM business b
 JOIN business_user bu ON bu.business_id = b.id
 WHERE bu.user_id = $1 AND b.deleted_at IS NULL
@@ -242,6 +251,7 @@ type ListBusinessesForUserRow struct {
 	CreatedByUserID         *int64           `json:"created_by_user_id"`
 	CreatedAt               pgtype.Timestamp `json:"created_at"`
 	UpdatedAt               pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion         int64            `json:"resource_version"`
 	DeletedAt               pgtype.Timestamp `json:"deleted_at"`
 	MembershipRole          string           `json:"membership_role"`
 }
@@ -283,6 +293,7 @@ func (q *Queries) ListBusinessesForUser(ctx context.Context, userID int64) ([]Li
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResourceVersion,
 			&i.DeletedAt,
 			&i.MembershipRole,
 		); err != nil {
@@ -310,21 +321,23 @@ UPDATE business SET
     email = COALESCE($10, email),
     updated_at = NOW()
 WHERE id = $11 AND deleted_at IS NULL
-RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, deleted_at
+    AND ($12::bigint IS NULL OR resource_version = $12)
+RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateBusinessParams struct {
-	Name         *string `json:"name"`
-	TaxID        *string `json:"tax_id"`
-	AddressLine1 *string `json:"address_line1"`
-	AddressLine2 *string `json:"address_line2"`
-	City         *string `json:"city"`
-	State        *string `json:"state"`
-	PostalCode   *string `json:"postal_code"`
-	Country      *string `json:"country"`
-	Phone        *string `json:"phone"`
-	Email        *string `json:"email"`
-	ID           int64   `json:"id"`
+	Name            *string `json:"name"`
+	TaxID           *string `json:"tax_id"`
+	AddressLine1    *string `json:"address_line1"`
+	AddressLine2    *string `json:"address_line2"`
+	City            *string `json:"city"`
+	State           *string `json:"state"`
+	PostalCode      *string `json:"postal_code"`
+	Country         *string `json:"country"`
+	Phone           *string `json:"phone"`
+	Email           *string `json:"email"`
+	ID              int64   `json:"id"`
+	ResourceVersion *int64  `json:"resource_version"`
 }
 
 func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) (Business, error) {
@@ -340,6 +353,7 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 		arg.Phone,
 		arg.Email,
 		arg.ID,
+		arg.ResourceVersion,
 	)
 	var i Business
 	err := row.Scan(
@@ -370,6 +384,7 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResourceVersion,
 		&i.DeletedAt,
 	)
 	return i, err

@@ -530,6 +530,23 @@ relationships — see note below.
 - **Snapshot, don't reference, at the point of sale.** Line items store their own `unit_price`
   and `tax_rate` rather than only a pointer to `service` / `tax_rate`, so a later catalog or
   rate change never silently rewrites a historical document.
+- **Optimistic concurrency via `resource_version`** (Kubernetes' `resourceVersion`, as a
+  per-row `BIGINT`). Every mutable resource (`business`, `ledger_account`, `contact`, `service`,
+  `tax_rate`, `estimate`, `invoice`) carries one; the `bump_resource_version` trigger increments
+  it on *every* UPDATE to the row - user edits, soft-deletes, and internal side effects like
+  `ConsumeNextInvoiceNumber` or `ApplyPaymentToInvoice` alike - so it can't be set from outside
+  and strictly tracks committed writes. The API returns it on every read and takes it back as an
+  optional precondition on every `Update*`/`Deactivate*` RPC: the query adds
+  `AND resource_version = $expected`, so the check is atomic with the write (no read-then-write
+  window), and a stale caller gets `ABORTED` with nothing changed - re-read, reapply, retry.
+  Unset (0) is unconditional, as in k8s. For multi-statement updates (`UpdateInvoiceLineItems`,
+  `UpdateEstimateLineItems`) only the *first* statement to touch the parent row carries the
+  check; it also takes the row lock everything after it runs under, so the rest of the
+  transaction stays unconditional. One consequence to know about: `business.next_invoice_number`
+  lives on the business row, so creating an invoice bumps the *business's* version - a
+  conditional `UpdateBusiness` racing an invoice creation will conflict even though the fields
+  it edits didn't change. That's the row-granularity model working as designed, not a bug; if it
+  ever chafes, move the counters to their own table rather than exempting them from the trigger.
 
 ## Not yet built
 

@@ -36,11 +36,13 @@ UPDATE contact SET
     billing_country = COALESCE(sqlc.narg('billing_country'), billing_country),
     updated_at = NOW()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: DeactivateContact :one
 UPDATE contact SET is_active = FALSE, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: CreateCustomer :one
@@ -86,11 +88,13 @@ UPDATE service SET
     default_ledger_account_id = COALESCE(sqlc.narg('default_ledger_account_id'), default_ledger_account_id),
     updated_at = NOW()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: DeactivateService :one
 UPDATE service SET is_active = FALSE, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: CreateTaxRate :one
@@ -113,9 +117,11 @@ UPDATE tax_rate SET
     rate = COALESCE(sqlc.narg('rate'), rate),
     updated_at = NOW()
 WHERE id = sqlc.arg('id')
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: DeactivateTaxRate :one
 UPDATE tax_rate SET is_active = FALSE, updated_at = NOW()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;

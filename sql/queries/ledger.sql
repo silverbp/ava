@@ -31,11 +31,13 @@ UPDATE ledger_account SET
     income_statement_category_id = COALESCE(sqlc.narg('income_statement_category_id'), income_statement_category_id),
     updated_at = NOW()
 WHERE id = sqlc.arg('id')
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: DeactivateLedgerAccount :one
 UPDATE ledger_account SET is_active = FALSE, updated_at = NOW()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: CreateLedgerTransaction :one

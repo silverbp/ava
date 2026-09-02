@@ -24,6 +24,11 @@ import (
 type getFunc func(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error)
 type listFunc func(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error)
 type mutateFunc func(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error)
+
+// versionedMutateFunc is mutateFunc for verbs whose RPC takes a
+// resource_version precondition (every Update*/Deactivate* on a versioned
+// resource - see addResourceVersionFlag); 0 means unconditional.
+type versionedMutateFunc func(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error)
 type pdfFunc func(ctx context.Context, conn *grpc.ClientConn, id string) ([]byte, error)
 
 // newGroupCmd builds a noun's parent command (e.g. `avactl invoice`).
@@ -137,5 +142,17 @@ func newMutateCmd(n resource.Noun, verb, summary string, fn mutateFunc) *cobra.C
 		Summary:  summary,
 		Examples: []resource.Example{{Cmd: fmt.Sprintf("avactl %s %s 42", n.Singular, verb)}},
 	}.Apply(cmd)
+	return cmd
+}
+
+// newVersionedMutateCmd is newMutateCmd plus --resource-version, for verbs
+// backed by an RPC that accepts the optimistic-concurrency precondition.
+func newVersionedMutateCmd(n resource.Noun, verb, summary string, fn versionedMutateFunc) *cobra.Command {
+	var resourceVersion int64
+	cmd := newMutateCmd(n, verb, summary, func(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
+		return fn(ctx, conn, id, resourceVersion)
+	})
+	addResourceVersionFlag(cmd, &resourceVersion)
+	cmd.Example += fmt.Sprintf("\n  avactl %s %s 42 --resource-version 3", n.Singular, verb)
 	return cmd
 }

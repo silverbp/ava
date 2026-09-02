@@ -79,6 +79,8 @@ message Contact {
   optional string billing_country = 21;
   optional Customer customer = 22;
   optional Vendor vendor = 23;
+  // See Business.resource_version.
+  int64 resource_version = 24;
 }
 
 message GetContactRequest {
@@ -146,6 +148,10 @@ message UpdateContactRequest {
   optional string billing_state = 11;
   optional string billing_postal_code = 12;
   optional string billing_country = 13;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 14;
 }
 
 message UpdateContactResponse {
@@ -154,6 +160,10 @@ message UpdateContactResponse {
 
 message DeactivateContactRequest {
   int64 id = 1;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 2;
 }
 
 message DeactivateContactResponse {
@@ -185,6 +195,8 @@ message Service {
   optional int64 created_by_user_id = 12;
   google.protobuf.Timestamp created_at = 13;
   google.protobuf.Timestamp updated_at = 14;
+  // See Business.resource_version.
+  int64 resource_version = 17;
 }
 
 message GetServiceRequest {
@@ -238,6 +250,10 @@ message UpdateServiceRequest {
   optional bool is_taxable = 6;
   optional int64 default_tax_rate_id = 8;
   optional int32 default_ledger_account_id = 9;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 10;
 }
 
 message UpdateServiceResponse {
@@ -246,6 +262,10 @@ message UpdateServiceResponse {
 
 message DeactivateServiceRequest {
   int64 id = 1;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 2;
 }
 
 message DeactivateServiceResponse {
@@ -262,6 +282,8 @@ message TaxRate {
   optional int64 created_by_user_id = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
+  // See Business.resource_version.
+  int64 resource_version = 10;
 }
 
 message GetTaxRateRequest {
@@ -295,6 +317,10 @@ message UpdateTaxRateRequest {
   int64 id = 1;
   optional string name = 2;
   optional Decimal rate = 3;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 4;
 }
 
 message UpdateTaxRateResponse {
@@ -303,6 +329,10 @@ message UpdateTaxRateResponse {
 
 message DeactivateTaxRateRequest {
   int64 id = 1;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 2;
 }
 
 message DeactivateTaxRateResponse {

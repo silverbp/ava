@@ -32,8 +32,9 @@ WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL
 ORDER BY estimate_date DESC;
 
 -- name: UpdateEstimateStatus :one
-UPDATE estimate SET status = $2, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
+UPDATE estimate SET status = sqlc.arg('status'), updated_at = NOW()
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: DeleteEstimateLineItems :exec
@@ -41,8 +42,14 @@ UPDATE estimate_line_item SET deleted_at = NOW()
 WHERE estimate_id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateEstimateTotals :one
-UPDATE estimate SET subtotal = $2, total_tax_amount = $3, total_amount = $4, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
+-- Carries the resource_version precondition for UpdateEstimateLineItems as a whole: it's
+-- the first statement in that transaction to touch the estimate row, so it both checks
+-- the version and takes the row lock everything after it (line-item replace) runs under.
+UPDATE estimate SET
+    subtotal = sqlc.arg('subtotal'), total_tax_amount = sqlc.arg('total_tax_amount'),
+    total_amount = sqlc.arg('total_amount'), updated_at = NOW()
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: CreateInvoice :one
@@ -77,8 +84,9 @@ WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL
 ORDER BY invoice_date DESC;
 
 -- name: UpdateInvoiceStatus :one
-UPDATE invoice SET status = $2, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
+UPDATE invoice SET status = sqlc.arg('status'), updated_at = NOW()
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: DeleteInvoiceLineItems :exec
@@ -86,9 +94,15 @@ UPDATE invoice_line_item SET deleted_at = NOW()
 WHERE invoice_id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateInvoiceTotals :one
+-- Same role as UpdateEstimateTotals: the version check + row lock for UpdateInvoiceLineItems.
+-- SetInvoiceLedgerTransaction/ApplyPaymentToInvoice below stay unconditional - they run
+-- either later in this same transaction (lock already held) or as a side effect of another
+-- resource's write (a payment), where there's no client-held invoice version to check.
 UPDATE invoice SET
-    subtotal = $2, total_tax_amount = $3, total_amount = $4, balance_due = $5, updated_at = NOW()
-WHERE id = $1 AND deleted_at IS NULL
+    subtotal = sqlc.arg('subtotal'), total_tax_amount = sqlc.arg('total_tax_amount'),
+    total_amount = sqlc.arg('total_amount'), balance_due = sqlc.arg('balance_due'), updated_at = NOW()
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
 -- name: SetInvoiceLedgerTransaction :one

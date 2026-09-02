@@ -51,7 +51,7 @@ func newBusinessCmd() *cobra.Command {
 	root.AddCommand(newGetCmd(businessNoun, getBusiness))
 	root.AddCommand(newBusinessCreateCmd())
 	root.AddCommand(newBusinessUpdateCmd())
-	root.AddCommand(newMutateCmd(businessNoun, "deactivate", "Deactivate a business", deactivateBusiness))
+	root.AddCommand(newVersionedMutateCmd(businessNoun, "deactivate", "Deactivate a business", deactivateBusiness))
 	root.AddCommand(newBusinessInviteCmd())
 	return root
 }
@@ -83,12 +83,12 @@ func listMyBusinesses(ctx context.Context, conn *grpc.ClientConn, _ int64) ([]pr
 	return items, nil
 }
 
-func deactivateBusiness(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
+func deactivateBusiness(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid business id %q: %w", id, err)
 	}
-	resp, err := avav1.NewBusinessServiceClient(conn).DeactivateBusiness(ctx, &avav1.DeactivateBusinessRequest{Id: n})
+	resp, err := avav1.NewBusinessServiceClient(conn).DeactivateBusiness(ctx, &avav1.DeactivateBusinessRequest{Id: n, ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +164,7 @@ func newBusinessCreateCmd() *cobra.Command {
 }
 
 func newBusinessUpdateCmd() *cobra.Command {
+	var resourceVersion int64
 	var name, taxID, addr1, addr2, city, state, postal, country, phone, email string
 
 	cmd := &cobra.Command{
@@ -180,7 +181,7 @@ func newBusinessUpdateCmd() *cobra.Command {
 			}
 			defer conn.Close()
 
-			req := &avav1.UpdateBusinessRequest{Id: id}
+			req := &avav1.UpdateBusinessRequest{Id: id, ResourceVersion: resourceVersion}
 			if cmd.Flags().Changed("name") {
 				req.Name = &name
 			}
@@ -229,6 +230,7 @@ func newBusinessUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&country, "country", "", "new country")
 	cmd.Flags().StringVar(&phone, "phone", "", "new phone number")
 	cmd.Flags().StringVar(&email, "email", "", "new email address")
+	addResourceVersionFlag(cmd, &resourceVersion)
 	resource.Doc{
 		Summary:  "Update a business's profile",
 		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",

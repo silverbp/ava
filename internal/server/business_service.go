@@ -93,6 +93,7 @@ func (s *businessService) ListMyBusinesses(ctx context.Context, _ *avav1.ListMyB
 			CreatedByUserID:         row.CreatedByUserID,
 			CreatedAt:               row.CreatedAt,
 			UpdatedAt:               row.UpdatedAt,
+			ResourceVersion:         row.ResourceVersion,
 			DeletedAt:               row.DeletedAt,
 		})
 		if err != nil {
@@ -164,23 +165,21 @@ func (s *businessService) UpdateBusiness(ctx context.Context, req *avav1.UpdateB
 	}
 
 	updated, err := s.store.Queries.UpdateBusiness(ctx, sqlcgen.UpdateBusinessParams{
-		ID:           req.GetId(),
-		Name:         req.Name,
-		TaxID:        req.TaxId,
-		AddressLine1: req.AddressLine1,
-		AddressLine2: req.AddressLine2,
-		City:         req.City,
-		State:        req.State,
-		PostalCode:   req.PostalCode,
-		Country:      req.Country,
-		Phone:        req.Phone,
-		Email:        req.Email,
+		ID:              req.GetId(),
+		Name:            req.Name,
+		TaxID:           req.TaxId,
+		AddressLine1:    req.AddressLine1,
+		AddressLine2:    req.AddressLine2,
+		City:            req.City,
+		State:           req.State,
+		PostalCode:      req.PostalCode,
+		Country:         req.Country,
+		Phone:           req.Phone,
+		Email:           req.Email,
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "business %d not found", req.GetId())
-		}
-		return nil, status.Errorf(codes.Internal, "updating business: %v", err)
+		return nil, translateUpdateError(err, "business", req.GetId(), req.GetResourceVersion())
 	}
 
 	pb, err := businessToProto(updated)
@@ -195,12 +194,12 @@ func (s *businessService) DeactivateBusiness(ctx context.Context, req *avav1.Dea
 		return nil, err
 	}
 
-	deactivated, err := s.store.Queries.DeactivateBusiness(ctx, req.GetId())
+	deactivated, err := s.store.Queries.DeactivateBusiness(ctx, sqlcgen.DeactivateBusinessParams{
+		ID:              req.GetId(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "business %d not found", req.GetId())
-		}
-		return nil, status.Errorf(codes.Internal, "deactivating business: %v", err)
+		return nil, translateUpdateError(err, "business", req.GetId(), req.GetResourceVersion())
 	}
 
 	pb, err := businessToProto(deactivated)
@@ -394,6 +393,7 @@ func businessToProto(b sqlcgen.Business) (*avav1.Business, error) {
 		CreatedByUserId:         b.CreatedByUserID,
 		CreatedAt:               timestampProto(b.CreatedAt),
 		UpdatedAt:               timestampProto(b.UpdatedAt),
+		ResourceVersion:         b.ResourceVersion,
 	}, nil
 }
 
