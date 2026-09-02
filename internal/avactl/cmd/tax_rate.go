@@ -27,6 +27,7 @@ var taxRateNoun = resource.Noun{
 		{Header: "RATE", Value: func(v proto.Message) string { return v.(*avav1.TaxRate).GetRate().GetValue() }},
 		{Header: "LIABILITY_ACCOUNT", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.TaxRate).GetTaxLiabilityAccountId()) }},
 		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.TaxRate).GetIsActive()) }},
+		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.TaxRate).GetResourceVersion()) }},
 	},
 }
 

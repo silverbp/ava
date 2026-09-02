@@ -28,6 +28,7 @@ var contactNoun = resource.Noun{
 		{Header: "CUSTOMER", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetCustomer() != nil) }},
 		{Header: "VENDOR", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetVendor() != nil) }},
 		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Contact).GetIsActive()) }},
+		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Contact).GetResourceVersion()) }},
 	},
 }
 

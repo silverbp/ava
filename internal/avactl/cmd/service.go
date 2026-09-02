@@ -27,6 +27,7 @@ var serviceNoun = resource.Noun{
 		{Header: "NAME", Value: func(v proto.Message) string { return v.(*avav1.Service).GetName() }},
 		{Header: "PRICE", Value: func(v proto.Message) string { return v.(*avav1.Service).GetRetailPrice().GetValue() }},
 		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Service).GetIsActive()) }},
+		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Service).GetResourceVersion()) }},
 	},
 }
 

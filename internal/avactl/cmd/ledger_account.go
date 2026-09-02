@@ -35,6 +35,7 @@ var ledgerAccountNoun = resource.Noun{
 			return fmt.Sprintf("%d", a.GetParentAccountId())
 		}},
 		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.LedgerAccount).GetIsActive()) }},
+		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.LedgerAccount).GetResourceVersion()) }},
 	},
 }
 

@@ -26,6 +26,7 @@ var estimateNoun = resource.Noun{
 		{Header: "NUMBER", Value: func(v proto.Message) string { return v.(*avav1.Estimate).GetEstimateNumber() }},
 		{Header: "STATUS", Value: func(v proto.Message) string { return v.(*avav1.Estimate).GetStatus() }},
 		{Header: "TOTAL", Value: func(v proto.Message) string { return v.(*avav1.Estimate).GetTotalAmount().GetValue() }},
+		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Estimate).GetResourceVersion()) }},
 	},
 }
 

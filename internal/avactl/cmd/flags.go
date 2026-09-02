@@ -21,7 +21,7 @@ import (
 // precondition; see Business.resource_version in proto/ava/v1/business.proto.
 func addResourceVersionFlag(cmd *cobra.Command, dst *int64) {
 	cmd.Flags().Int64Var(dst, "resource-version", 0,
-		"only apply if the resource is still at this resource_version (from `get -o json`); fails with ABORTED if someone else changed it first")
+		"only apply if the resource is still at this resource_version (the VERSION column of get/list); omit to write unconditionally")
 }
 
 // parseDateFlag parses a YYYY-MM-DD flag value into a google.type.Date.

@@ -26,6 +26,7 @@ var businessNoun = resource.Noun{
 		{Header: "NAME", Value: func(v proto.Message) string { return v.(*avav1.Business).GetName() }},
 		{Header: "CURRENCY", Value: func(v proto.Message) string { return v.(*avav1.Business).GetCurrencyCode() }},
 		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Business).GetIsActive()) }},
+		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Business).GetResourceVersion()) }},
 	},
 }
 

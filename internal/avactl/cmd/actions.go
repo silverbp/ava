@@ -153,6 +153,6 @@ func newVersionedMutateCmd(n resource.Noun, verb, summary string, fn versionedMu
 		return fn(ctx, conn, id, resourceVersion)
 	})
 	addResourceVersionFlag(cmd, &resourceVersion)
-	cmd.Example += fmt.Sprintf("\n  avactl %s %s 42 --resource-version 3", n.Singular, verb)
+	cmd.Example += fmt.Sprintf("\n  # only if nobody has changed it since you read version 3\n  avactl %s %s 42 --resource-version 3", n.Singular, verb)
 	return cmd
 }
