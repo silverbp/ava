@@ -1078,19 +1078,27 @@ func (x *DeactivateContactResponse) GetContact() *Contact {
 	return nil
 }
 
-type Service struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	BusinessId    int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	ServiceCode   string                 `protobuf:"bytes,3,opt,name=service_code,json=serviceCode,proto3" json:"service_code,omitempty"`
-	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,5,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	UnitOfMeasure string                 `protobuf:"bytes,6,opt,name=unit_of_measure,json=unitOfMeasure,proto3" json:"unit_of_measure,omitempty"`
-	CostPrice     *Decimal               `protobuf:"bytes,7,opt,name=cost_price,json=costPrice,proto3" json:"cost_price,omitempty"`
-	RetailPrice   *Decimal               `protobuf:"bytes,8,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
-	IsTaxable     bool                   `protobuf:"varint,9,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
+type Item struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BusinessId int64                  `protobuf:"varint,2,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	ItemCode   string                 `protobuf:"bytes,3,opt,name=item_code,json=itemCode,proto3" json:"item_code,omitempty"`
+	// How the business treats this item - one of the schema's string enums
+	// (same convention as Invoice.invoice_type), not a proto enum:
+	//   SERVICE       - labour/time, nothing physical
+	//   NON_INVENTORY - a physical product whose stock isn't tracked
+	//   INVENTORY     - a physical product whose on-hand quantity is tracked
+	// Only the classification exists so far; INVENTORY carries no quantity or
+	// COGS behaviour yet. More modes are expected.
+	ItemType      string   `protobuf:"bytes,18,opt,name=item_type,json=itemType,proto3" json:"item_type,omitempty"`
+	Name          string   `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string  `protobuf:"bytes,5,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	UnitOfMeasure string   `protobuf:"bytes,6,opt,name=unit_of_measure,json=unitOfMeasure,proto3" json:"unit_of_measure,omitempty"`
+	CostPrice     *Decimal `protobuf:"bytes,7,opt,name=cost_price,json=costPrice,proto3" json:"cost_price,omitempty"`
+	RetailPrice   *Decimal `protobuf:"bytes,8,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
+	IsTaxable     bool     `protobuf:"varint,9,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
 	// References tax_rate.id - unlike invoice_line_item/estimate_line_item,
-	// a service is catalog data, not a historical transaction, so there's no
+	// an item is catalog data, not a historical transaction, so there's no
 	// need to also snapshot a decimal rate alongside the reference.
 	DefaultTaxRateId *int64 `protobuf:"varint,15,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
 	// Which revenue/expense ledger_account a line normally posts to - a
@@ -1107,20 +1115,20 @@ type Service struct {
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *Service) Reset() {
-	*x = Service{}
+func (x *Item) Reset() {
+	*x = Item{}
 	mi := &file_ava_v1_party_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Service) String() string {
+func (x *Item) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Service) ProtoMessage() {}
+func (*Item) ProtoMessage() {}
 
-func (x *Service) ProtoReflect() protoreflect.Message {
+func (x *Item) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1132,144 +1140,151 @@ func (x *Service) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Service.ProtoReflect.Descriptor instead.
-func (*Service) Descriptor() ([]byte, []int) {
+// Deprecated: Use Item.ProtoReflect.Descriptor instead.
+func (*Item) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *Service) GetId() int64 {
+func (x *Item) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *Service) GetBusinessId() int64 {
+func (x *Item) GetBusinessId() int64 {
 	if x != nil {
 		return x.BusinessId
 	}
 	return 0
 }
 
-func (x *Service) GetServiceCode() string {
+func (x *Item) GetItemCode() string {
 	if x != nil {
-		return x.ServiceCode
+		return x.ItemCode
 	}
 	return ""
 }
 
-func (x *Service) GetName() string {
+func (x *Item) GetItemType() string {
+	if x != nil {
+		return x.ItemType
+	}
+	return ""
+}
+
+func (x *Item) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *Service) GetDescription() string {
+func (x *Item) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
 	}
 	return ""
 }
 
-func (x *Service) GetUnitOfMeasure() string {
+func (x *Item) GetUnitOfMeasure() string {
 	if x != nil {
 		return x.UnitOfMeasure
 	}
 	return ""
 }
 
-func (x *Service) GetCostPrice() *Decimal {
+func (x *Item) GetCostPrice() *Decimal {
 	if x != nil {
 		return x.CostPrice
 	}
 	return nil
 }
 
-func (x *Service) GetRetailPrice() *Decimal {
+func (x *Item) GetRetailPrice() *Decimal {
 	if x != nil {
 		return x.RetailPrice
 	}
 	return nil
 }
 
-func (x *Service) GetIsTaxable() bool {
+func (x *Item) GetIsTaxable() bool {
 	if x != nil {
 		return x.IsTaxable
 	}
 	return false
 }
 
-func (x *Service) GetDefaultTaxRateId() int64 {
+func (x *Item) GetDefaultTaxRateId() int64 {
 	if x != nil && x.DefaultTaxRateId != nil {
 		return *x.DefaultTaxRateId
 	}
 	return 0
 }
 
-func (x *Service) GetDefaultLedgerAccountId() int32 {
+func (x *Item) GetDefaultLedgerAccountId() int32 {
 	if x != nil && x.DefaultLedgerAccountId != nil {
 		return *x.DefaultLedgerAccountId
 	}
 	return 0
 }
 
-func (x *Service) GetIsActive() bool {
+func (x *Item) GetIsActive() bool {
 	if x != nil {
 		return x.IsActive
 	}
 	return false
 }
 
-func (x *Service) GetCreatedByUserId() int64 {
+func (x *Item) GetCreatedByUserId() int64 {
 	if x != nil && x.CreatedByUserId != nil {
 		return *x.CreatedByUserId
 	}
 	return 0
 }
 
-func (x *Service) GetCreatedAt() *timestamppb.Timestamp {
+func (x *Item) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return nil
 }
 
-func (x *Service) GetUpdatedAt() *timestamppb.Timestamp {
+func (x *Item) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
 	}
 	return nil
 }
 
-func (x *Service) GetResourceVersion() int64 {
+func (x *Item) GetResourceVersion() int64 {
 	if x != nil {
 		return x.ResourceVersion
 	}
 	return 0
 }
 
-type GetServiceRequest struct {
+type GetItemRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetServiceRequest) Reset() {
-	*x = GetServiceRequest{}
+func (x *GetItemRequest) Reset() {
+	*x = GetItemRequest{}
 	mi := &file_ava_v1_party_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetServiceRequest) String() string {
+func (x *GetItemRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetServiceRequest) ProtoMessage() {}
+func (*GetItemRequest) ProtoMessage() {}
 
-func (x *GetServiceRequest) ProtoReflect() protoreflect.Message {
+func (x *GetItemRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1281,39 +1296,39 @@ func (x *GetServiceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetServiceRequest.ProtoReflect.Descriptor instead.
-func (*GetServiceRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetItemRequest.ProtoReflect.Descriptor instead.
+func (*GetItemRequest) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *GetServiceRequest) GetId() int64 {
+func (x *GetItemRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-type GetServiceResponse struct {
+type GetItemResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       *Service               `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Item          *Item                  `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetServiceResponse) Reset() {
-	*x = GetServiceResponse{}
+func (x *GetItemResponse) Reset() {
+	*x = GetItemResponse{}
 	mi := &file_ava_v1_party_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetServiceResponse) String() string {
+func (x *GetItemResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetServiceResponse) ProtoMessage() {}
+func (*GetItemResponse) ProtoMessage() {}
 
-func (x *GetServiceResponse) ProtoReflect() protoreflect.Message {
+func (x *GetItemResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1325,42 +1340,42 @@ func (x *GetServiceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetServiceResponse.ProtoReflect.Descriptor instead.
-func (*GetServiceResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetItemResponse.ProtoReflect.Descriptor instead.
+func (*GetItemResponse) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *GetServiceResponse) GetService() *Service {
+func (x *GetItemResponse) GetItem() *Item {
 	if x != nil {
-		return x.Service
+		return x.Item
 	}
 	return nil
 }
 
-type ListServicesRequest struct {
+type ListItemsRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	// By default only active services are returned; set to also include
+	// By default only active items are returned; set to also include
 	// inactive (deactivated) ones.
 	IncludeInactive bool `protobuf:"varint,2,opt,name=include_inactive,json=includeInactive,proto3" json:"include_inactive,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *ListServicesRequest) Reset() {
-	*x = ListServicesRequest{}
+func (x *ListItemsRequest) Reset() {
+	*x = ListItemsRequest{}
 	mi := &file_ava_v1_party_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListServicesRequest) String() string {
+func (x *ListItemsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListServicesRequest) ProtoMessage() {}
+func (*ListItemsRequest) ProtoMessage() {}
 
-func (x *ListServicesRequest) ProtoReflect() protoreflect.Message {
+func (x *ListItemsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1372,46 +1387,46 @@ func (x *ListServicesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListServicesRequest.ProtoReflect.Descriptor instead.
-func (*ListServicesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListItemsRequest.ProtoReflect.Descriptor instead.
+func (*ListItemsRequest) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *ListServicesRequest) GetBusinessId() int64 {
+func (x *ListItemsRequest) GetBusinessId() int64 {
 	if x != nil {
 		return x.BusinessId
 	}
 	return 0
 }
 
-func (x *ListServicesRequest) GetIncludeInactive() bool {
+func (x *ListItemsRequest) GetIncludeInactive() bool {
 	if x != nil {
 		return x.IncludeInactive
 	}
 	return false
 }
 
-type ListServicesResponse struct {
+type ListItemsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Services      []*Service             `protobuf:"bytes,1,rep,name=services,proto3" json:"services,omitempty"`
+	Items         []*Item                `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListServicesResponse) Reset() {
-	*x = ListServicesResponse{}
+func (x *ListItemsResponse) Reset() {
+	*x = ListItemsResponse{}
 	mi := &file_ava_v1_party_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListServicesResponse) String() string {
+func (x *ListItemsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListServicesResponse) ProtoMessage() {}
+func (*ListItemsResponse) ProtoMessage() {}
 
-func (x *ListServicesResponse) ProtoReflect() protoreflect.Message {
+func (x *ListItemsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1423,48 +1438,50 @@ func (x *ListServicesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListServicesResponse.ProtoReflect.Descriptor instead.
-func (*ListServicesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListItemsResponse.ProtoReflect.Descriptor instead.
+func (*ListItemsResponse) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *ListServicesResponse) GetServices() []*Service {
+func (x *ListItemsResponse) GetItems() []*Item {
 	if x != nil {
-		return x.Services
+		return x.Items
 	}
 	return nil
 }
 
-type CreateServiceRequest struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId             int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	ServiceCode            string                 `protobuf:"bytes,2,opt,name=service_code,json=serviceCode,proto3" json:"service_code,omitempty"`
-	Name                   string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description            *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	UnitOfMeasure          *string                `protobuf:"bytes,5,opt,name=unit_of_measure,json=unitOfMeasure,proto3,oneof" json:"unit_of_measure,omitempty"`
-	CostPrice              *Decimal               `protobuf:"bytes,6,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
-	RetailPrice            *Decimal               `protobuf:"bytes,7,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
-	IsTaxable              bool                   `protobuf:"varint,8,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
-	DefaultTaxRateId       *int64                 `protobuf:"varint,10,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
-	DefaultLedgerAccountId *int32                 `protobuf:"varint,11,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
+type CreateItemRequest struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	ItemCode   string                 `protobuf:"bytes,2,opt,name=item_code,json=itemCode,proto3" json:"item_code,omitempty"`
+	// See Item.item_type. Defaults to SERVICE when unset.
+	ItemType               *string  `protobuf:"bytes,12,opt,name=item_type,json=itemType,proto3,oneof" json:"item_type,omitempty"`
+	Name                   string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description            *string  `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	UnitOfMeasure          *string  `protobuf:"bytes,5,opt,name=unit_of_measure,json=unitOfMeasure,proto3,oneof" json:"unit_of_measure,omitempty"`
+	CostPrice              *Decimal `protobuf:"bytes,6,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
+	RetailPrice            *Decimal `protobuf:"bytes,7,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
+	IsTaxable              bool     `protobuf:"varint,8,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
+	DefaultTaxRateId       *int64   `protobuf:"varint,10,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
+	DefaultLedgerAccountId *int32   `protobuf:"varint,11,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
 
-func (x *CreateServiceRequest) Reset() {
-	*x = CreateServiceRequest{}
+func (x *CreateItemRequest) Reset() {
+	*x = CreateItemRequest{}
 	mi := &file_ava_v1_party_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateServiceRequest) String() string {
+func (x *CreateItemRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateServiceRequest) ProtoMessage() {}
+func (*CreateItemRequest) ProtoMessage() {}
 
-func (x *CreateServiceRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateItemRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1476,102 +1493,109 @@ func (x *CreateServiceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateServiceRequest.ProtoReflect.Descriptor instead.
-func (*CreateServiceRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateItemRequest.ProtoReflect.Descriptor instead.
+func (*CreateItemRequest) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *CreateServiceRequest) GetBusinessId() int64 {
+func (x *CreateItemRequest) GetBusinessId() int64 {
 	if x != nil {
 		return x.BusinessId
 	}
 	return 0
 }
 
-func (x *CreateServiceRequest) GetServiceCode() string {
+func (x *CreateItemRequest) GetItemCode() string {
 	if x != nil {
-		return x.ServiceCode
+		return x.ItemCode
 	}
 	return ""
 }
 
-func (x *CreateServiceRequest) GetName() string {
+func (x *CreateItemRequest) GetItemType() string {
+	if x != nil && x.ItemType != nil {
+		return *x.ItemType
+	}
+	return ""
+}
+
+func (x *CreateItemRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *CreateServiceRequest) GetDescription() string {
+func (x *CreateItemRequest) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
 	}
 	return ""
 }
 
-func (x *CreateServiceRequest) GetUnitOfMeasure() string {
+func (x *CreateItemRequest) GetUnitOfMeasure() string {
 	if x != nil && x.UnitOfMeasure != nil {
 		return *x.UnitOfMeasure
 	}
 	return ""
 }
 
-func (x *CreateServiceRequest) GetCostPrice() *Decimal {
+func (x *CreateItemRequest) GetCostPrice() *Decimal {
 	if x != nil {
 		return x.CostPrice
 	}
 	return nil
 }
 
-func (x *CreateServiceRequest) GetRetailPrice() *Decimal {
+func (x *CreateItemRequest) GetRetailPrice() *Decimal {
 	if x != nil {
 		return x.RetailPrice
 	}
 	return nil
 }
 
-func (x *CreateServiceRequest) GetIsTaxable() bool {
+func (x *CreateItemRequest) GetIsTaxable() bool {
 	if x != nil {
 		return x.IsTaxable
 	}
 	return false
 }
 
-func (x *CreateServiceRequest) GetDefaultTaxRateId() int64 {
+func (x *CreateItemRequest) GetDefaultTaxRateId() int64 {
 	if x != nil && x.DefaultTaxRateId != nil {
 		return *x.DefaultTaxRateId
 	}
 	return 0
 }
 
-func (x *CreateServiceRequest) GetDefaultLedgerAccountId() int32 {
+func (x *CreateItemRequest) GetDefaultLedgerAccountId() int32 {
 	if x != nil && x.DefaultLedgerAccountId != nil {
 		return *x.DefaultLedgerAccountId
 	}
 	return 0
 }
 
-type CreateServiceResponse struct {
+type CreateItemResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       *Service               `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Item          *Item                  `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CreateServiceResponse) Reset() {
-	*x = CreateServiceResponse{}
+func (x *CreateItemResponse) Reset() {
+	*x = CreateItemResponse{}
 	mi := &file_ava_v1_party_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateServiceResponse) String() string {
+func (x *CreateItemResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateServiceResponse) ProtoMessage() {}
+func (*CreateItemResponse) ProtoMessage() {}
 
-func (x *CreateServiceResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateItemResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1583,19 +1607,19 @@ func (x *CreateServiceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateServiceResponse.ProtoReflect.Descriptor instead.
-func (*CreateServiceResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateItemResponse.ProtoReflect.Descriptor instead.
+func (*CreateItemResponse) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *CreateServiceResponse) GetService() *Service {
+func (x *CreateItemResponse) GetItem() *Item {
 	if x != nil {
-		return x.Service
+		return x.Item
 	}
 	return nil
 }
 
-type UpdateServiceRequest struct {
+type UpdateItemRequest struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	Id                     int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name                   *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
@@ -1605,6 +1629,8 @@ type UpdateServiceRequest struct {
 	IsTaxable              *bool                  `protobuf:"varint,6,opt,name=is_taxable,json=isTaxable,proto3,oneof" json:"is_taxable,omitempty"`
 	DefaultTaxRateId       *int64                 `protobuf:"varint,8,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
 	DefaultLedgerAccountId *int32                 `protobuf:"varint,9,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
+	// See Item.item_type.
+	ItemType *string `protobuf:"bytes,11,opt,name=item_type,json=itemType,proto3,oneof" json:"item_type,omitempty"`
 	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
 	// resource_version from the copy you read to fail with ABORTED if it's since changed;
 	// leave unset (0) to write unconditionally.
@@ -1613,20 +1639,20 @@ type UpdateServiceRequest struct {
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *UpdateServiceRequest) Reset() {
-	*x = UpdateServiceRequest{}
+func (x *UpdateItemRequest) Reset() {
+	*x = UpdateItemRequest{}
 	mi := &file_ava_v1_party_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdateServiceRequest) String() string {
+func (x *UpdateItemRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdateServiceRequest) ProtoMessage() {}
+func (*UpdateItemRequest) ProtoMessage() {}
 
-func (x *UpdateServiceRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateItemRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1638,95 +1664,102 @@ func (x *UpdateServiceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdateServiceRequest.ProtoReflect.Descriptor instead.
-func (*UpdateServiceRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateItemRequest.ProtoReflect.Descriptor instead.
+func (*UpdateItemRequest) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *UpdateServiceRequest) GetId() int64 {
+func (x *UpdateItemRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *UpdateServiceRequest) GetName() string {
+func (x *UpdateItemRequest) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
 	}
 	return ""
 }
 
-func (x *UpdateServiceRequest) GetDescription() string {
+func (x *UpdateItemRequest) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
 	}
 	return ""
 }
 
-func (x *UpdateServiceRequest) GetRetailPrice() *Decimal {
+func (x *UpdateItemRequest) GetRetailPrice() *Decimal {
 	if x != nil {
 		return x.RetailPrice
 	}
 	return nil
 }
 
-func (x *UpdateServiceRequest) GetCostPrice() *Decimal {
+func (x *UpdateItemRequest) GetCostPrice() *Decimal {
 	if x != nil {
 		return x.CostPrice
 	}
 	return nil
 }
 
-func (x *UpdateServiceRequest) GetIsTaxable() bool {
+func (x *UpdateItemRequest) GetIsTaxable() bool {
 	if x != nil && x.IsTaxable != nil {
 		return *x.IsTaxable
 	}
 	return false
 }
 
-func (x *UpdateServiceRequest) GetDefaultTaxRateId() int64 {
+func (x *UpdateItemRequest) GetDefaultTaxRateId() int64 {
 	if x != nil && x.DefaultTaxRateId != nil {
 		return *x.DefaultTaxRateId
 	}
 	return 0
 }
 
-func (x *UpdateServiceRequest) GetDefaultLedgerAccountId() int32 {
+func (x *UpdateItemRequest) GetDefaultLedgerAccountId() int32 {
 	if x != nil && x.DefaultLedgerAccountId != nil {
 		return *x.DefaultLedgerAccountId
 	}
 	return 0
 }
 
-func (x *UpdateServiceRequest) GetResourceVersion() int64 {
+func (x *UpdateItemRequest) GetItemType() string {
+	if x != nil && x.ItemType != nil {
+		return *x.ItemType
+	}
+	return ""
+}
+
+func (x *UpdateItemRequest) GetResourceVersion() int64 {
 	if x != nil {
 		return x.ResourceVersion
 	}
 	return 0
 }
 
-type UpdateServiceResponse struct {
+type UpdateItemResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       *Service               `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Item          *Item                  `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UpdateServiceResponse) Reset() {
-	*x = UpdateServiceResponse{}
+func (x *UpdateItemResponse) Reset() {
+	*x = UpdateItemResponse{}
 	mi := &file_ava_v1_party_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdateServiceResponse) String() string {
+func (x *UpdateItemResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdateServiceResponse) ProtoMessage() {}
+func (*UpdateItemResponse) ProtoMessage() {}
 
-func (x *UpdateServiceResponse) ProtoReflect() protoreflect.Message {
+func (x *UpdateItemResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1738,19 +1771,19 @@ func (x *UpdateServiceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdateServiceResponse.ProtoReflect.Descriptor instead.
-func (*UpdateServiceResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateItemResponse.ProtoReflect.Descriptor instead.
+func (*UpdateItemResponse) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *UpdateServiceResponse) GetService() *Service {
+func (x *UpdateItemResponse) GetItem() *Item {
 	if x != nil {
-		return x.Service
+		return x.Item
 	}
 	return nil
 }
 
-type DeactivateServiceRequest struct {
+type DeactivateItemRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
@@ -1761,20 +1794,20 @@ type DeactivateServiceRequest struct {
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *DeactivateServiceRequest) Reset() {
-	*x = DeactivateServiceRequest{}
+func (x *DeactivateItemRequest) Reset() {
+	*x = DeactivateItemRequest{}
 	mi := &file_ava_v1_party_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeactivateServiceRequest) String() string {
+func (x *DeactivateItemRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeactivateServiceRequest) ProtoMessage() {}
+func (*DeactivateItemRequest) ProtoMessage() {}
 
-func (x *DeactivateServiceRequest) ProtoReflect() protoreflect.Message {
+func (x *DeactivateItemRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1786,46 +1819,46 @@ func (x *DeactivateServiceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeactivateServiceRequest.ProtoReflect.Descriptor instead.
-func (*DeactivateServiceRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeactivateItemRequest.ProtoReflect.Descriptor instead.
+func (*DeactivateItemRequest) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *DeactivateServiceRequest) GetId() int64 {
+func (x *DeactivateItemRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *DeactivateServiceRequest) GetResourceVersion() int64 {
+func (x *DeactivateItemRequest) GetResourceVersion() int64 {
 	if x != nil {
 		return x.ResourceVersion
 	}
 	return 0
 }
 
-type DeactivateServiceResponse struct {
+type DeactivateItemResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       *Service               `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Item          *Item                  `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DeactivateServiceResponse) Reset() {
-	*x = DeactivateServiceResponse{}
+func (x *DeactivateItemResponse) Reset() {
+	*x = DeactivateItemResponse{}
 	mi := &file_ava_v1_party_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeactivateServiceResponse) String() string {
+func (x *DeactivateItemResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeactivateServiceResponse) ProtoMessage() {}
+func (*DeactivateItemResponse) ProtoMessage() {}
 
-func (x *DeactivateServiceResponse) ProtoReflect() protoreflect.Message {
+func (x *DeactivateItemResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_ava_v1_party_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1837,14 +1870,14 @@ func (x *DeactivateServiceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeactivateServiceResponse.ProtoReflect.Descriptor instead.
-func (*DeactivateServiceResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeactivateItemResponse.ProtoReflect.Descriptor instead.
+func (*DeactivateItemResponse) Descriptor() ([]byte, []int) {
 	return file_ava_v1_party_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *DeactivateServiceResponse) GetService() *Service {
+func (x *DeactivateItemResponse) GetItem() *Item {
 	if x != nil {
-		return x.Service
+		return x.Item
 	}
 	return nil
 }
@@ -2611,12 +2644,13 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12)\n" +
 	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"F\n" +
 	"\x19DeactivateContactResponse\x12)\n" +
-	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\x9c\x06\n" +
-	"\aService\x12\x0e\n" +
+	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\xb0\x06\n" +
+	"\x04Item\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
-	"businessId\x12!\n" +
-	"\fservice_code\x18\x03 \x01(\tR\vserviceCode\x12\x12\n" +
+	"businessId\x12\x1b\n" +
+	"\titem_code\x18\x03 \x01(\tR\bitemCode\x12\x1b\n" +
+	"\titem_type\x18\x12 \x01(\tR\bitemType\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x05 \x01(\tH\x00R\vdescription\x88\x01\x01\x12&\n" +
 	"\x0funit_of_measure\x18\x06 \x01(\tR\runitOfMeasure\x12.\n" +
@@ -2638,41 +2672,44 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\x14_default_tax_rate_idB\x1c\n" +
 	"\x1a_default_ledger_account_idB\x15\n" +
 	"\x13_created_by_user_idJ\x04\b\n" +
-	"\x10\vR\x10default_tax_rate\"#\n" +
-	"\x11GetServiceRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
-	"\x12GetServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"a\n" +
-	"\x13ListServicesRequest\x12\x1f\n" +
+	"\x10\vR\x10default_tax_rate\" \n" +
+	"\x0eGetItemRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"3\n" +
+	"\x0fGetItemResponse\x12 \n" +
+	"\x04item\x18\x01 \x01(\v2\f.ava.v1.ItemR\x04item\"^\n" +
+	"\x10ListItemsRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12)\n" +
-	"\x10include_inactive\x18\x02 \x01(\bR\x0fincludeInactive\"C\n" +
-	"\x14ListServicesResponse\x12+\n" +
-	"\bservices\x18\x01 \x03(\v2\x0f.ava.v1.ServiceR\bservices\"\xbf\x04\n" +
-	"\x14CreateServiceRequest\x12\x1f\n" +
+	"\x10include_inactive\x18\x02 \x01(\bR\x0fincludeInactive\"7\n" +
+	"\x11ListItemsResponse\x12\"\n" +
+	"\x05items\x18\x01 \x03(\v2\f.ava.v1.ItemR\x05items\"\xe6\x04\n" +
+	"\x11CreateItemRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
-	"businessId\x12!\n" +
-	"\fservice_code\x18\x02 \x01(\tR\vserviceCode\x12\x12\n" +
+	"businessId\x12\x1b\n" +
+	"\titem_code\x18\x02 \x01(\tR\bitemCode\x12 \n" +
+	"\titem_type\x18\f \x01(\tH\x00R\bitemType\x88\x01\x01\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12+\n" +
-	"\x0funit_of_measure\x18\x05 \x01(\tH\x01R\runitOfMeasure\x88\x01\x01\x123\n" +
+	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12+\n" +
+	"\x0funit_of_measure\x18\x05 \x01(\tH\x02R\runitOfMeasure\x88\x01\x01\x123\n" +
 	"\n" +
-	"cost_price\x18\x06 \x01(\v2\x0f.ava.v1.DecimalH\x02R\tcostPrice\x88\x01\x01\x122\n" +
+	"cost_price\x18\x06 \x01(\v2\x0f.ava.v1.DecimalH\x03R\tcostPrice\x88\x01\x01\x122\n" +
 	"\fretail_price\x18\a \x01(\v2\x0f.ava.v1.DecimalR\vretailPrice\x12\x1d\n" +
 	"\n" +
 	"is_taxable\x18\b \x01(\bR\tisTaxable\x122\n" +
 	"\x13default_tax_rate_id\x18\n" +
-	" \x01(\x03H\x03R\x10defaultTaxRateId\x88\x01\x01\x12>\n" +
-	"\x19default_ledger_account_id\x18\v \x01(\x05H\x04R\x16defaultLedgerAccountId\x88\x01\x01B\x0e\n" +
+	" \x01(\x03H\x04R\x10defaultTaxRateId\x88\x01\x01\x12>\n" +
+	"\x19default_ledger_account_id\x18\v \x01(\x05H\x05R\x16defaultLedgerAccountId\x88\x01\x01B\f\n" +
+	"\n" +
+	"_item_typeB\x0e\n" +
 	"\f_descriptionB\x12\n" +
 	"\x10_unit_of_measureB\r\n" +
 	"\v_cost_priceB\x16\n" +
 	"\x14_default_tax_rate_idB\x1c\n" +
 	"\x1a_default_ledger_account_idJ\x04\b\t\x10\n" +
-	"R\x10default_tax_rate\"B\n" +
-	"\x15CreateServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\xad\x04\n" +
-	"\x14UpdateServiceRequest\x12\x0e\n" +
+	"R\x10default_tax_rate\"6\n" +
+	"\x12CreateItemResponse\x12 \n" +
+	"\x04item\x18\x01 \x01(\v2\f.ava.v1.ItemR\x04item\"\xda\x04\n" +
+	"\x11UpdateItemRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x127\n" +
@@ -2682,7 +2719,8 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\n" +
 	"is_taxable\x18\x06 \x01(\bH\x04R\tisTaxable\x88\x01\x01\x122\n" +
 	"\x13default_tax_rate_id\x18\b \x01(\x03H\x05R\x10defaultTaxRateId\x88\x01\x01\x12>\n" +
-	"\x19default_ledger_account_id\x18\t \x01(\x05H\x06R\x16defaultLedgerAccountId\x88\x01\x01\x12)\n" +
+	"\x19default_ledger_account_id\x18\t \x01(\x05H\x06R\x16defaultLedgerAccountId\x88\x01\x01\x12 \n" +
+	"\titem_type\x18\v \x01(\tH\aR\bitemType\x88\x01\x01\x12)\n" +
 	"\x10resource_version\x18\n" +
 	" \x01(\x03R\x0fresourceVersionB\a\n" +
 	"\x05_nameB\x0e\n" +
@@ -2691,14 +2729,16 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\v_cost_priceB\r\n" +
 	"\v_is_taxableB\x16\n" +
 	"\x14_default_tax_rate_idB\x1c\n" +
-	"\x1a_default_ledger_account_idJ\x04\b\a\x10\bR\x10default_tax_rate\"B\n" +
-	"\x15UpdateServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"U\n" +
-	"\x18DeactivateServiceRequest\x12\x0e\n" +
+	"\x1a_default_ledger_account_idB\f\n" +
+	"\n" +
+	"_item_typeJ\x04\b\a\x10\bR\x10default_tax_rate\"6\n" +
+	"\x12UpdateItemResponse\x12 \n" +
+	"\x04item\x18\x01 \x01(\v2\f.ava.v1.ItemR\x04item\"R\n" +
+	"\x15DeactivateItemRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12)\n" +
-	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"F\n" +
-	"\x19DeactivateServiceResponse\x12)\n" +
-	"\aservice\x18\x01 \x01(\v2\x0f.ava.v1.ServiceR\aservice\"\xb3\x03\n" +
+	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\":\n" +
+	"\x16DeactivateItemResponse\x12 \n" +
+	"\x04item\x18\x01 \x01(\v2\f.ava.v1.ItemR\x04item\"\xb3\x03\n" +
 	"\aTaxRate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -2752,14 +2792,15 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\fListContacts\x12\x1b.ava.v1.ListContactsRequest\x1a\x1c.ava.v1.ListContactsResponse\x12L\n" +
 	"\rCreateContact\x12\x1c.ava.v1.CreateContactRequest\x1a\x1d.ava.v1.CreateContactResponse\x12L\n" +
 	"\rUpdateContact\x12\x1c.ava.v1.UpdateContactRequest\x1a\x1d.ava.v1.UpdateContactResponse\x12X\n" +
-	"\x11DeactivateContact\x12 .ava.v1.DeactivateContactRequest\x1a!.ava.v1.DeactivateContactResponse2\x9d\x03\n" +
-	"\x15ServiceCatalogService\x12C\n" +
+	"\x11DeactivateContact\x12 .ava.v1.DeactivateContactRequest\x1a!.ava.v1.DeactivateContactResponse2\xe6\x02\n" +
+	"\vItemService\x12:\n" +
+	"\aGetItem\x12\x16.ava.v1.GetItemRequest\x1a\x17.ava.v1.GetItemResponse\x12@\n" +
+	"\tListItems\x12\x18.ava.v1.ListItemsRequest\x1a\x19.ava.v1.ListItemsResponse\x12C\n" +
 	"\n" +
-	"GetService\x12\x19.ava.v1.GetServiceRequest\x1a\x1a.ava.v1.GetServiceResponse\x12I\n" +
-	"\fListServices\x12\x1b.ava.v1.ListServicesRequest\x1a\x1c.ava.v1.ListServicesResponse\x12L\n" +
-	"\rCreateService\x12\x1c.ava.v1.CreateServiceRequest\x1a\x1d.ava.v1.CreateServiceResponse\x12L\n" +
-	"\rUpdateService\x12\x1c.ava.v1.UpdateServiceRequest\x1a\x1d.ava.v1.UpdateServiceResponse\x12X\n" +
-	"\x11DeactivateService\x12 .ava.v1.DeactivateServiceRequest\x1a!.ava.v1.DeactivateServiceResponse2\x96\x03\n" +
+	"CreateItem\x12\x19.ava.v1.CreateItemRequest\x1a\x1a.ava.v1.CreateItemResponse\x12C\n" +
+	"\n" +
+	"UpdateItem\x12\x19.ava.v1.UpdateItemRequest\x1a\x1a.ava.v1.UpdateItemResponse\x12O\n" +
+	"\x0eDeactivateItem\x12\x1d.ava.v1.DeactivateItemRequest\x1a\x1e.ava.v1.DeactivateItemResponse2\x96\x03\n" +
 	"\x0eTaxRateService\x12C\n" +
 	"\n" +
 	"GetTaxRate\x12\x19.ava.v1.GetTaxRateRequest\x1a\x1a.ava.v1.GetTaxRateResponse\x12I\n" +
@@ -2795,17 +2836,17 @@ var file_ava_v1_party_proto_goTypes = []any{
 	(*UpdateContactResponse)(nil),     // 10: ava.v1.UpdateContactResponse
 	(*DeactivateContactRequest)(nil),  // 11: ava.v1.DeactivateContactRequest
 	(*DeactivateContactResponse)(nil), // 12: ava.v1.DeactivateContactResponse
-	(*Service)(nil),                   // 13: ava.v1.Service
-	(*GetServiceRequest)(nil),         // 14: ava.v1.GetServiceRequest
-	(*GetServiceResponse)(nil),        // 15: ava.v1.GetServiceResponse
-	(*ListServicesRequest)(nil),       // 16: ava.v1.ListServicesRequest
-	(*ListServicesResponse)(nil),      // 17: ava.v1.ListServicesResponse
-	(*CreateServiceRequest)(nil),      // 18: ava.v1.CreateServiceRequest
-	(*CreateServiceResponse)(nil),     // 19: ava.v1.CreateServiceResponse
-	(*UpdateServiceRequest)(nil),      // 20: ava.v1.UpdateServiceRequest
-	(*UpdateServiceResponse)(nil),     // 21: ava.v1.UpdateServiceResponse
-	(*DeactivateServiceRequest)(nil),  // 22: ava.v1.DeactivateServiceRequest
-	(*DeactivateServiceResponse)(nil), // 23: ava.v1.DeactivateServiceResponse
+	(*Item)(nil),                      // 13: ava.v1.Item
+	(*GetItemRequest)(nil),            // 14: ava.v1.GetItemRequest
+	(*GetItemResponse)(nil),           // 15: ava.v1.GetItemResponse
+	(*ListItemsRequest)(nil),          // 16: ava.v1.ListItemsRequest
+	(*ListItemsResponse)(nil),         // 17: ava.v1.ListItemsResponse
+	(*CreateItemRequest)(nil),         // 18: ava.v1.CreateItemRequest
+	(*CreateItemResponse)(nil),        // 19: ava.v1.CreateItemResponse
+	(*UpdateItemRequest)(nil),         // 20: ava.v1.UpdateItemRequest
+	(*UpdateItemResponse)(nil),        // 21: ava.v1.UpdateItemResponse
+	(*DeactivateItemRequest)(nil),     // 22: ava.v1.DeactivateItemRequest
+	(*DeactivateItemResponse)(nil),    // 23: ava.v1.DeactivateItemResponse
 	(*TaxRate)(nil),                   // 24: ava.v1.TaxRate
 	(*GetTaxRateRequest)(nil),         // 25: ava.v1.GetTaxRateRequest
 	(*GetTaxRateResponse)(nil),        // 26: ava.v1.GetTaxRateResponse
@@ -2837,19 +2878,19 @@ var file_ava_v1_party_proto_depIdxs = []int32{
 	36, // 13: ava.v1.UpdateContactRequest.credit_limit:type_name -> ava.v1.Decimal
 	2,  // 14: ava.v1.UpdateContactResponse.contact:type_name -> ava.v1.Contact
 	2,  // 15: ava.v1.DeactivateContactResponse.contact:type_name -> ava.v1.Contact
-	36, // 16: ava.v1.Service.cost_price:type_name -> ava.v1.Decimal
-	36, // 17: ava.v1.Service.retail_price:type_name -> ava.v1.Decimal
-	35, // 18: ava.v1.Service.created_at:type_name -> google.protobuf.Timestamp
-	35, // 19: ava.v1.Service.updated_at:type_name -> google.protobuf.Timestamp
-	13, // 20: ava.v1.GetServiceResponse.service:type_name -> ava.v1.Service
-	13, // 21: ava.v1.ListServicesResponse.services:type_name -> ava.v1.Service
-	36, // 22: ava.v1.CreateServiceRequest.cost_price:type_name -> ava.v1.Decimal
-	36, // 23: ava.v1.CreateServiceRequest.retail_price:type_name -> ava.v1.Decimal
-	13, // 24: ava.v1.CreateServiceResponse.service:type_name -> ava.v1.Service
-	36, // 25: ava.v1.UpdateServiceRequest.retail_price:type_name -> ava.v1.Decimal
-	36, // 26: ava.v1.UpdateServiceRequest.cost_price:type_name -> ava.v1.Decimal
-	13, // 27: ava.v1.UpdateServiceResponse.service:type_name -> ava.v1.Service
-	13, // 28: ava.v1.DeactivateServiceResponse.service:type_name -> ava.v1.Service
+	36, // 16: ava.v1.Item.cost_price:type_name -> ava.v1.Decimal
+	36, // 17: ava.v1.Item.retail_price:type_name -> ava.v1.Decimal
+	35, // 18: ava.v1.Item.created_at:type_name -> google.protobuf.Timestamp
+	35, // 19: ava.v1.Item.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 20: ava.v1.GetItemResponse.item:type_name -> ava.v1.Item
+	13, // 21: ava.v1.ListItemsResponse.items:type_name -> ava.v1.Item
+	36, // 22: ava.v1.CreateItemRequest.cost_price:type_name -> ava.v1.Decimal
+	36, // 23: ava.v1.CreateItemRequest.retail_price:type_name -> ava.v1.Decimal
+	13, // 24: ava.v1.CreateItemResponse.item:type_name -> ava.v1.Item
+	36, // 25: ava.v1.UpdateItemRequest.retail_price:type_name -> ava.v1.Decimal
+	36, // 26: ava.v1.UpdateItemRequest.cost_price:type_name -> ava.v1.Decimal
+	13, // 27: ava.v1.UpdateItemResponse.item:type_name -> ava.v1.Item
+	13, // 28: ava.v1.DeactivateItemResponse.item:type_name -> ava.v1.Item
 	36, // 29: ava.v1.TaxRate.rate:type_name -> ava.v1.Decimal
 	35, // 30: ava.v1.TaxRate.created_at:type_name -> google.protobuf.Timestamp
 	35, // 31: ava.v1.TaxRate.updated_at:type_name -> google.protobuf.Timestamp
@@ -2865,11 +2906,11 @@ var file_ava_v1_party_proto_depIdxs = []int32{
 	7,  // 41: ava.v1.ContactService.CreateContact:input_type -> ava.v1.CreateContactRequest
 	9,  // 42: ava.v1.ContactService.UpdateContact:input_type -> ava.v1.UpdateContactRequest
 	11, // 43: ava.v1.ContactService.DeactivateContact:input_type -> ava.v1.DeactivateContactRequest
-	14, // 44: ava.v1.ServiceCatalogService.GetService:input_type -> ava.v1.GetServiceRequest
-	16, // 45: ava.v1.ServiceCatalogService.ListServices:input_type -> ava.v1.ListServicesRequest
-	18, // 46: ava.v1.ServiceCatalogService.CreateService:input_type -> ava.v1.CreateServiceRequest
-	20, // 47: ava.v1.ServiceCatalogService.UpdateService:input_type -> ava.v1.UpdateServiceRequest
-	22, // 48: ava.v1.ServiceCatalogService.DeactivateService:input_type -> ava.v1.DeactivateServiceRequest
+	14, // 44: ava.v1.ItemService.GetItem:input_type -> ava.v1.GetItemRequest
+	16, // 45: ava.v1.ItemService.ListItems:input_type -> ava.v1.ListItemsRequest
+	18, // 46: ava.v1.ItemService.CreateItem:input_type -> ava.v1.CreateItemRequest
+	20, // 47: ava.v1.ItemService.UpdateItem:input_type -> ava.v1.UpdateItemRequest
+	22, // 48: ava.v1.ItemService.DeactivateItem:input_type -> ava.v1.DeactivateItemRequest
 	25, // 49: ava.v1.TaxRateService.GetTaxRate:input_type -> ava.v1.GetTaxRateRequest
 	27, // 50: ava.v1.TaxRateService.ListTaxRates:input_type -> ava.v1.ListTaxRatesRequest
 	29, // 51: ava.v1.TaxRateService.CreateTaxRate:input_type -> ava.v1.CreateTaxRateRequest
@@ -2880,11 +2921,11 @@ var file_ava_v1_party_proto_depIdxs = []int32{
 	8,  // 56: ava.v1.ContactService.CreateContact:output_type -> ava.v1.CreateContactResponse
 	10, // 57: ava.v1.ContactService.UpdateContact:output_type -> ava.v1.UpdateContactResponse
 	12, // 58: ava.v1.ContactService.DeactivateContact:output_type -> ava.v1.DeactivateContactResponse
-	15, // 59: ava.v1.ServiceCatalogService.GetService:output_type -> ava.v1.GetServiceResponse
-	17, // 60: ava.v1.ServiceCatalogService.ListServices:output_type -> ava.v1.ListServicesResponse
-	19, // 61: ava.v1.ServiceCatalogService.CreateService:output_type -> ava.v1.CreateServiceResponse
-	21, // 62: ava.v1.ServiceCatalogService.UpdateService:output_type -> ava.v1.UpdateServiceResponse
-	23, // 63: ava.v1.ServiceCatalogService.DeactivateService:output_type -> ava.v1.DeactivateServiceResponse
+	15, // 59: ava.v1.ItemService.GetItem:output_type -> ava.v1.GetItemResponse
+	17, // 60: ava.v1.ItemService.ListItems:output_type -> ava.v1.ListItemsResponse
+	19, // 61: ava.v1.ItemService.CreateItem:output_type -> ava.v1.CreateItemResponse
+	21, // 62: ava.v1.ItemService.UpdateItem:output_type -> ava.v1.UpdateItemResponse
+	23, // 63: ava.v1.ItemService.DeactivateItem:output_type -> ava.v1.DeactivateItemResponse
 	26, // 64: ava.v1.TaxRateService.GetTaxRate:output_type -> ava.v1.GetTaxRateResponse
 	28, // 65: ava.v1.TaxRateService.ListTaxRates:output_type -> ava.v1.ListTaxRatesResponse
 	30, // 66: ava.v1.TaxRateService.CreateTaxRate:output_type -> ava.v1.CreateTaxRateResponse

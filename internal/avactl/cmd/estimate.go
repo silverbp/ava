@@ -139,7 +139,7 @@ func newEstimateCreateCmd() *cobra.Command {
 
 			var lineItems []*avav1.NewEstimateLineItem
 			for i, f := range rawFields {
-				serviceID, err := parseOptionalInt64(f, "service")
+				itemID, err := parseOptionalInt64(f, "item")
 				if err != nil {
 					return err
 				}
@@ -148,7 +148,7 @@ func newEstimateCreateCmd() *cobra.Command {
 					return err
 				}
 				lineItems = append(lineItems, &avav1.NewEstimateLineItem{
-					ServiceId:   serviceID,
+					ItemId:      itemID,
 					LineNumber:  int32(i + 1),
 					Description: f["desc"],
 					Quantity:    parseDecimalField(f, "qty"),
@@ -190,17 +190,17 @@ func newEstimateCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&expires, "expires", "", "expiration date, YYYY-MM-DD (required)")
 	cmd.Flags().StringVar(&notes, "notes", "", "notes")
 	cmd.Flags().StringVar(&terms, "terms", "", "terms")
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - price/taxable/tax-rate default from the service when omitted")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,item=<id>[,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - price/taxable/tax-rate default from the item when omitted")
 	_ = cmd.MarkFlagRequired("customer")
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("expires")
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Create an estimate",
-		Detail:  "Repeat --line once per line item. price/taxable/tax-rate default from service=<id>'s catalog entry when omitted.",
+		Detail:  "Repeat --line once per line item. price/taxable/tax-rate default from item=<id>'s catalog entry when omitted.",
 		Examples: []resource.Example{
 			{Cmd: "avactl estimate create --customer 5 --date 2026-01-01 --expires 2026-02-01 " + `--line "desc=Consulting,qty=10,price=150.00,taxable,tax-rate=1"`},
-			{Cmd: "avactl estimate create --customer 5 --date 2026-01-01 --expires 2026-02-01 " + `--line "desc=Consulting,service=71,qty=10"`},
+			{Cmd: "avactl estimate create --customer 5 --date 2026-01-01 --expires 2026-02-01 " + `--line "desc=Consulting,item=71,qty=10"`},
 		},
 	}.Apply(cmd)
 	return cmd
@@ -225,7 +225,7 @@ func newEstimateUpdateLinesCmd() *cobra.Command {
 
 			var lineItems []*avav1.NewEstimateLineItem
 			for i, f := range rawFields {
-				serviceID, err := parseOptionalInt64(f, "service")
+				itemID, err := parseOptionalInt64(f, "item")
 				if err != nil {
 					return err
 				}
@@ -234,7 +234,7 @@ func newEstimateUpdateLinesCmd() *cobra.Command {
 					return err
 				}
 				lineItems = append(lineItems, &avav1.NewEstimateLineItem{
-					ServiceId:   serviceID,
+					ItemId:      itemID,
 					LineNumber:  int32(i + 1),
 					Description: f["desc"],
 					Quantity:    parseDecimalField(f, "qty"),
@@ -261,7 +261,7 @@ func newEstimateUpdateLinesCmd() *cobra.Command {
 			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetEstimate(), estimateNoun.Columns)
 		},
 	}
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - price/taxable/tax-rate default from the service when omitted")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,item=<id>[,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - price/taxable/tax-rate default from the item when omitted")
 	addResourceVersionFlag(cmd, &resourceVersion)
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{

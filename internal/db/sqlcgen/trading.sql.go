@@ -124,17 +124,17 @@ func (q *Queries) CreateEstimate(ctx context.Context, arg CreateEstimateParams) 
 
 const createEstimateLineItem = `-- name: CreateEstimateLineItem :one
 INSERT INTO estimate_line_item (
-    estimate_id, service_id, line_number, description, quantity, unit_price,
+    estimate_id, item_id, line_number, description, quantity, unit_price,
     line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
-RETURNING id, estimate_id, service_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at
+RETURNING id, estimate_id, item_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at
 `
 
 type CreateEstimateLineItemParams struct {
 	EstimateID   int64          `json:"estimate_id"`
-	ServiceID    *int64         `json:"service_id"`
+	ItemID       *int64         `json:"item_id"`
 	LineNumber   int32          `json:"line_number"`
 	Description  string         `json:"description"`
 	Quantity     pgtype.Numeric `json:"quantity"`
@@ -150,7 +150,7 @@ type CreateEstimateLineItemParams struct {
 func (q *Queries) CreateEstimateLineItem(ctx context.Context, arg CreateEstimateLineItemParams) (EstimateLineItem, error) {
 	row := q.db.QueryRow(ctx, createEstimateLineItem,
 		arg.EstimateID,
-		arg.ServiceID,
+		arg.ItemID,
 		arg.LineNumber,
 		arg.Description,
 		arg.Quantity,
@@ -166,7 +166,7 @@ func (q *Queries) CreateEstimateLineItem(ctx context.Context, arg CreateEstimate
 	err := row.Scan(
 		&i.ID,
 		&i.EstimateID,
-		&i.ServiceID,
+		&i.ItemID,
 		&i.LineNumber,
 		&i.Description,
 		&i.Quantity,
@@ -260,17 +260,17 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 
 const createInvoiceLineItem = `-- name: CreateInvoiceLineItem :one
 INSERT INTO invoice_line_item (
-    invoice_id, service_id, ledger_account_id, line_number, description, quantity,
+    invoice_id, item_id, ledger_account_id, line_number, description, quantity,
     unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 )
-RETURNING id, invoice_id, service_id, ledger_account_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at
+RETURNING id, invoice_id, item_id, ledger_account_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at
 `
 
 type CreateInvoiceLineItemParams struct {
 	InvoiceID       int64          `json:"invoice_id"`
-	ServiceID       *int64         `json:"service_id"`
+	ItemID          *int64         `json:"item_id"`
 	LedgerAccountID *int32         `json:"ledger_account_id"`
 	LineNumber      int32          `json:"line_number"`
 	Description     string         `json:"description"`
@@ -287,7 +287,7 @@ type CreateInvoiceLineItemParams struct {
 func (q *Queries) CreateInvoiceLineItem(ctx context.Context, arg CreateInvoiceLineItemParams) (InvoiceLineItem, error) {
 	row := q.db.QueryRow(ctx, createInvoiceLineItem,
 		arg.InvoiceID,
-		arg.ServiceID,
+		arg.ItemID,
 		arg.LedgerAccountID,
 		arg.LineNumber,
 		arg.Description,
@@ -304,7 +304,7 @@ func (q *Queries) CreateInvoiceLineItem(ctx context.Context, arg CreateInvoiceLi
 	err := row.Scan(
 		&i.ID,
 		&i.InvoiceID,
-		&i.ServiceID,
+		&i.ItemID,
 		&i.LedgerAccountID,
 		&i.LineNumber,
 		&i.Description,
@@ -522,7 +522,7 @@ func (q *Queries) GetPayment(ctx context.Context, id int64) (Payment, error) {
 }
 
 const listEstimateLineItems = `-- name: ListEstimateLineItems :many
-SELECT id, estimate_id, service_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at FROM estimate_line_item WHERE estimate_id = $1 AND deleted_at IS NULL ORDER BY line_number
+SELECT id, estimate_id, item_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at FROM estimate_line_item WHERE estimate_id = $1 AND deleted_at IS NULL ORDER BY line_number
 `
 
 func (q *Queries) ListEstimateLineItems(ctx context.Context, estimateID int64) ([]EstimateLineItem, error) {
@@ -537,7 +537,7 @@ func (q *Queries) ListEstimateLineItems(ctx context.Context, estimateID int64) (
 		if err := rows.Scan(
 			&i.ID,
 			&i.EstimateID,
-			&i.ServiceID,
+			&i.ItemID,
 			&i.LineNumber,
 			&i.Description,
 			&i.Quantity,
@@ -614,7 +614,7 @@ func (q *Queries) ListEstimates(ctx context.Context, arg ListEstimatesParams) ([
 }
 
 const listInvoiceLineItems = `-- name: ListInvoiceLineItems :many
-SELECT id, invoice_id, service_id, ledger_account_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at FROM invoice_line_item WHERE invoice_id = $1 AND deleted_at IS NULL ORDER BY line_number
+SELECT id, invoice_id, item_id, ledger_account_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at FROM invoice_line_item WHERE invoice_id = $1 AND deleted_at IS NULL ORDER BY line_number
 `
 
 func (q *Queries) ListInvoiceLineItems(ctx context.Context, invoiceID int64) ([]InvoiceLineItem, error) {
@@ -629,7 +629,7 @@ func (q *Queries) ListInvoiceLineItems(ctx context.Context, invoiceID int64) ([]
 		if err := rows.Scan(
 			&i.ID,
 			&i.InvoiceID,
-			&i.ServiceID,
+			&i.ItemID,
 			&i.LedgerAccountID,
 			&i.LineNumber,
 			&i.Description,

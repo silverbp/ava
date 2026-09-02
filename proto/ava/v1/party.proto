@@ -18,12 +18,15 @@ service ContactService {
   rpc DeactivateContact(DeactivateContactRequest) returns (DeactivateContactResponse);
 }
 
-service ServiceCatalogService {
-  rpc GetService(GetServiceRequest) returns (GetServiceResponse);
-  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
-  rpc CreateService(CreateServiceRequest) returns (CreateServiceResponse);
-  rpc UpdateService(UpdateServiceRequest) returns (UpdateServiceResponse);
-  rpc DeactivateService(DeactivateServiceRequest) returns (DeactivateServiceResponse);
+// ItemService: the sales/purchase catalog (formerly the service catalog). An Item is
+// anything that can appear as a line on an estimate or invoice; item_type says how the
+// business treats it - see Item.item_type.
+service ItemService {
+  rpc GetItem(GetItemRequest) returns (GetItemResponse);
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
+  rpc CreateItem(CreateItemRequest) returns (CreateItemResponse);
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse);
+  rpc DeactivateItem(DeactivateItemRequest) returns (DeactivateItemResponse);
 }
 
 service TaxRateService {
@@ -170,13 +173,21 @@ message DeactivateContactResponse {
   Contact contact = 1;
 }
 
-message Service {
+message Item {
   reserved 10;
   reserved "default_tax_rate";
 
   int64 id = 1;
   int64 business_id = 2;
-  string service_code = 3;
+  string item_code = 3;
+  // How the business treats this item - one of the schema's string enums
+  // (same convention as Invoice.invoice_type), not a proto enum:
+  //   SERVICE       - labour/time, nothing physical
+  //   NON_INVENTORY - a physical product whose stock isn't tracked
+  //   INVENTORY     - a physical product whose on-hand quantity is tracked
+  // Only the classification exists so far; INVENTORY carries no quantity or
+  // COGS behaviour yet. More modes are expected.
+  string item_type = 18;
   string name = 4;
   optional string description = 5;
   string unit_of_measure = 6;
@@ -184,7 +195,7 @@ message Service {
   Decimal retail_price = 8;
   bool is_taxable = 9;
   // References tax_rate.id - unlike invoice_line_item/estimate_line_item,
-  // a service is catalog data, not a historical transaction, so there's no
+  // an item is catalog data, not a historical transaction, so there's no
   // need to also snapshot a decimal rate alongside the reference.
   optional int64 default_tax_rate_id = 15;
   // Which revenue/expense ledger_account a line normally posts to - a
@@ -199,31 +210,33 @@ message Service {
   int64 resource_version = 17;
 }
 
-message GetServiceRequest {
+message GetItemRequest {
   int64 id = 1;
 }
 
-message GetServiceResponse {
-  Service service = 1;
+message GetItemResponse {
+  Item item = 1;
 }
 
-message ListServicesRequest {
+message ListItemsRequest {
   int64 business_id = 1;
-  // By default only active services are returned; set to also include
+  // By default only active items are returned; set to also include
   // inactive (deactivated) ones.
   bool include_inactive = 2;
 }
 
-message ListServicesResponse {
-  repeated Service services = 1;
+message ListItemsResponse {
+  repeated Item items = 1;
 }
 
-message CreateServiceRequest {
+message CreateItemRequest {
   reserved 9;
   reserved "default_tax_rate";
 
   int64 business_id = 1;
-  string service_code = 2;
+  string item_code = 2;
+  // See Item.item_type. Defaults to SERVICE when unset.
+  optional string item_type = 12;
   string name = 3;
   optional string description = 4;
   optional string unit_of_measure = 5;
@@ -234,11 +247,11 @@ message CreateServiceRequest {
   optional int32 default_ledger_account_id = 11;
 }
 
-message CreateServiceResponse {
-  Service service = 1;
+message CreateItemResponse {
+  Item item = 1;
 }
 
-message UpdateServiceRequest {
+message UpdateItemRequest {
   reserved 7;
   reserved "default_tax_rate";
 
@@ -250,17 +263,19 @@ message UpdateServiceRequest {
   optional bool is_taxable = 6;
   optional int64 default_tax_rate_id = 8;
   optional int32 default_ledger_account_id = 9;
+  // See Item.item_type.
+  optional string item_type = 11;
   // Optimistic-concurrency precondition - see Business.resource_version. Pass the
   // resource_version from the copy you read to fail with ABORTED if it's since changed;
   // leave unset (0) to write unconditionally.
   int64 resource_version = 10;
 }
 
-message UpdateServiceResponse {
-  Service service = 1;
+message UpdateItemResponse {
+  Item item = 1;
 }
 
-message DeactivateServiceRequest {
+message DeactivateItemRequest {
   int64 id = 1;
   // Optimistic-concurrency precondition - see Business.resource_version. Pass the
   // resource_version from the copy you read to fail with ABORTED if it's since changed;
@@ -268,8 +283,8 @@ message DeactivateServiceRequest {
   int64 resource_version = 2;
 }
 
-message DeactivateServiceResponse {
-  Service service = 1;
+message DeactivateItemResponse {
+  Item item = 1;
 }
 
 message TaxRate {

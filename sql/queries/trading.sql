@@ -12,7 +12,7 @@ RETURNING *;
 
 -- name: CreateEstimateLineItem :one
 INSERT INTO estimate_line_item (
-    estimate_id, service_id, line_number, description, quantity, unit_price,
+    estimate_id, item_id, line_number, description, quantity, unit_price,
     line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
@@ -64,7 +64,7 @@ RETURNING *;
 
 -- name: CreateInvoiceLineItem :one
 INSERT INTO invoice_line_item (
-    invoice_id, service_id, ledger_account_id, line_number, description, quantity,
+    invoice_id, item_id, ledger_account_id, line_number, description, quantity,
     unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13

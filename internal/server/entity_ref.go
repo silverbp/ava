@@ -26,7 +26,7 @@ var validEntityTypes = map[string]bool{
 	"invoice":            true,
 	"payment":            true,
 	"estimate":           true,
-	"service":            true,
+	"item":               true,
 	"tax_rate":           true,
 	"bank_statement":     true,
 	"period_close":       true,
@@ -73,9 +73,9 @@ func validateEntityRef(ctx context.Context, q *sqlcgen.Queries, businessID int64
 		var e sqlcgen.Estimate
 		e, err = q.GetEstimate(ctx, entityID)
 		ownerBusinessID = e.BusinessID
-	case "service":
-		var s sqlcgen.Service
-		s, err = q.GetService(ctx, entityID)
+	case "item":
+		var s sqlcgen.Item
+		s, err = q.GetItem(ctx, entityID)
 		ownerBusinessID = s.BusinessID
 	case "tax_rate":
 		var t sqlcgen.TaxRate

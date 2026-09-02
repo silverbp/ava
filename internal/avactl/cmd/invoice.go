@@ -140,7 +140,7 @@ func newInvoiceCreateCmd() *cobra.Command {
 
 			var lineItems []*avav1.NewInvoiceLineItem
 			for i, f := range rawFields {
-				serviceID, err := parseOptionalInt64(f, "service")
+				itemID, err := parseOptionalInt64(f, "item")
 				if err != nil {
 					return err
 				}
@@ -153,7 +153,7 @@ func newInvoiceCreateCmd() *cobra.Command {
 					return err
 				}
 				lineItems = append(lineItems, &avav1.NewInvoiceLineItem{
-					ServiceId:       serviceID,
+					ItemId:          itemID,
 					LedgerAccountId: ledgerAccountID,
 					LineNumber:      int32(i + 1),
 					Description:     f["desc"],
@@ -206,24 +206,24 @@ func newInvoiceCreateCmd() *cobra.Command {
 	cmd.Flags().Int64Var(&estimate, "estimate", 0, "estimate id this invoice converts from")
 	cmd.Flags().StringVar(&notes, "notes", "", "notes")
 	cmd.Flags().StringVar(&terms, "terms", "", "terms")
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the service when omitted. Omit entirely when --estimate is set to build the lines from that estimate instead.")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,item=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the item when omitted. Omit entirely when --estimate is set to build the lines from that estimate instead.")
 	_ = cmd.MarkFlagRequired("contact")
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("due")
 	resource.Doc{
 		Summary: "Create an invoice",
 		Detail: "Every line needs a ledger_account_id one way or another - either set account=<id> " +
-			"explicitly, or set service=<id> on a service that has its own default_ledger_account_id. " +
+			"explicitly, or set item=<id> on an item that has its own default_ledger_account_id. " +
 			"The contact must also have a customer (for SALES) or vendor (for PURCHASE) record with its " +
 			"own ledger_account_id set — the invoice posts to the ledger atomically as part of creation. " +
 			"Pass --estimate with no --line flags to build the invoice's lines from that estimate's own " +
-			"lines instead (service_id/description/qty/price/taxable/tax_rate carried over as-is, " +
-			"ledger_account_id resolved fresh from each line's service default).",
+			"lines instead (item_id/description/qty/price/taxable/tax_rate carried over as-is, " +
+			"ledger_account_id resolved fresh from each line's item default).",
 		Examples: []resource.Example{
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
 				`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`},
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
-				`--line "desc=Consulting,service=71,qty=10"`},
+				`--line "desc=Consulting,item=71,qty=10"`},
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 --estimate 12"},
 		},
 	}.Apply(cmd)
@@ -249,7 +249,7 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 
 			var lineItems []*avav1.NewInvoiceLineItem
 			for i, f := range rawFields {
-				serviceID, err := parseOptionalInt64(f, "service")
+				itemID, err := parseOptionalInt64(f, "item")
 				if err != nil {
 					return err
 				}
@@ -262,7 +262,7 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 					return err
 				}
 				lineItems = append(lineItems, &avav1.NewInvoiceLineItem{
-					ServiceId:       serviceID,
+					ItemId:          itemID,
 					LedgerAccountId: ledgerAccountID,
 					LineNumber:      int32(i + 1),
 					Description:     f["desc"],
@@ -290,7 +290,7 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetInvoice(), invoiceNoun.Columns)
 		},
 	}
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,service=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the service when omitted")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,item=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the item when omitted")
 	addResourceVersionFlag(cmd, &resourceVersion)
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{

@@ -123,35 +123,35 @@ func firstErr(errs ...error) error {
 }
 
 // ============================================================================
-// Service-catalog defaulting shared by EstimateService and InvoiceService.
+// Item-catalog defaulting shared by EstimateService and InvoiceService.
 // ============================================================================
 
-// serviceLineDefaults is the subset of a service catalog row a line can fall back to.
-type serviceLineDefaults struct {
+// itemLineDefaults is the subset of an item catalog row a line can fall back to.
+type itemLineDefaults struct {
 	LedgerAccountID *int32
 	UnitPrice       *avav1.Decimal
 	IsTaxable       bool
 	TaxRateID       *int64
 }
 
-func serviceLineDefaultsFor(svc sqlcgen.Service) (serviceLineDefaults, error) {
-	price, err := moneypb.ToProto(svc.RetailPrice)
+func itemLineDefaultsFor(item sqlcgen.Item) (itemLineDefaults, error) {
+	price, err := moneypb.ToProto(item.RetailPrice)
 	if err != nil {
-		return serviceLineDefaults{}, err
+		return itemLineDefaults{}, err
 	}
-	return serviceLineDefaults{
-		LedgerAccountID: svc.DefaultLedgerAccountID,
+	return itemLineDefaults{
+		LedgerAccountID: item.DefaultLedgerAccountID,
 		UnitPrice:       price,
-		IsTaxable:       svc.IsTaxable,
-		TaxRateID:       svc.DefaultTaxRateID,
+		IsTaxable:       item.IsTaxable,
+		TaxRateID:       item.DefaultTaxRateID,
 	}, nil
 }
 
-// resolvedEstimateLine is a NewEstimateLineItem after applying service-catalog defaults (see
+// resolvedEstimateLine is a NewEstimateLineItem after applying item-catalog defaults (see
 // resolveEstimateLines) - unit_price/is_taxable/tax_rate_id may have originated from the request
-// or the service, but from here on every caller treats them as final.
+// or the item, but from here on every caller treats them as final.
 type resolvedEstimateLine struct {
-	ServiceID   *int64
+	ItemID      *int64
 	LineNumber  int32
 	Description string
 	Quantity    *avav1.Decimal
@@ -161,13 +161,13 @@ type resolvedEstimateLine struct {
 }
 
 // resolveEstimateLines fills any unset unit_price/is_taxable/tax_rate_id from the line's
-// service.retail_price/is_taxable/default_tax_rate_id - a convenience, not enforcement: an
-// explicit value on the line always wins over the service's default (docs/schema.md, "service").
+// item.retail_price/is_taxable/default_tax_rate_id - a convenience, not enforcement: an
+// explicit value on the line always wins over the item's default (docs/schema.md, "item").
 func resolveEstimateLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.NewEstimateLineItem) ([]resolvedEstimateLine, error) {
 	resolved := make([]resolvedEstimateLine, len(raw))
 	for i, li := range raw {
 		r := resolvedEstimateLine{
-			ServiceID:   li.ServiceId,
+			ItemID:      li.ItemId,
 			LineNumber:  li.LineNumber,
 			Description: li.Description,
 			Quantity:    li.Quantity,
@@ -175,12 +175,12 @@ func resolveEstimateLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.
 			IsTaxable:   li.GetIsTaxable(),
 			TaxRateID:   li.TaxRateId,
 		}
-		if li.ServiceId != nil {
-			svc, err := q.GetService(ctx, li.GetServiceId())
+		if li.ItemId != nil {
+			item, err := q.GetItem(ctx, li.GetItemId())
 			if err != nil {
-				return nil, fmt.Errorf("line %d: service %d: %w", i, li.GetServiceId(), err)
+				return nil, fmt.Errorf("line %d: item %d: %w", i, li.GetItemId(), err)
 			}
-			defaults, err := serviceLineDefaultsFor(svc)
+			defaults, err := itemLineDefaultsFor(item)
 			if err != nil {
 				return nil, fmt.Errorf("line %d: %w", i, err)
 			}
@@ -203,7 +203,7 @@ func resolveEstimateLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.
 // carrying ledger_account_id (estimates have no ledger impact, so estimate_line_item has no such
 // column - see docs/schema.md, "estimate").
 type resolvedInvoiceLine struct {
-	ServiceID       *int64
+	ItemID          *int64
 	LedgerAccountID *int32
 	LineNumber      int32
 	Description     string
@@ -214,14 +214,14 @@ type resolvedInvoiceLine struct {
 }
 
 // resolveInvoiceLines is resolveEstimateLines plus ledger_account_id: also defaulted from the
-// service (default_ledger_account_id) when unset, but still required either way -
+// item (default_ledger_account_id) when unset, but still required either way -
 // CreateInvoice/UpdateInvoiceLineItems reject a line with neither an explicit value nor a
-// service default to fall back on.
+// item default to fall back on.
 func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.NewInvoiceLineItem) ([]resolvedInvoiceLine, error) {
 	resolved := make([]resolvedInvoiceLine, len(raw))
 	for i, li := range raw {
 		r := resolvedInvoiceLine{
-			ServiceID:       li.ServiceId,
+			ItemID:          li.ItemId,
 			LedgerAccountID: li.LedgerAccountId,
 			LineNumber:      li.LineNumber,
 			Description:     li.Description,
@@ -230,12 +230,12 @@ func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.N
 			IsTaxable:       li.GetIsTaxable(),
 			TaxRateID:       li.TaxRateId,
 		}
-		if li.ServiceId != nil {
-			svc, err := q.GetService(ctx, li.GetServiceId())
+		if li.ItemId != nil {
+			item, err := q.GetItem(ctx, li.GetItemId())
 			if err != nil {
-				return nil, fmt.Errorf("line %d: service %d: %w", i, li.GetServiceId(), err)
+				return nil, fmt.Errorf("line %d: item %d: %w", i, li.GetItemId(), err)
 			}
-			defaults, err := serviceLineDefaultsFor(svc)
+			defaults, err := itemLineDefaultsFor(item)
 			if err != nil {
 				return nil, fmt.Errorf("line %d: %w", i, err)
 			}
@@ -253,7 +253,7 @@ func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.N
 			}
 		}
 		if r.LedgerAccountID == nil {
-			return nil, fmt.Errorf("line %d: ledger_account_id is required (set it explicitly, or set service_id on a service that has a default_ledger_account_id)", i)
+			return nil, fmt.Errorf("line %d: ledger_account_id is required (set it explicitly, or set item_id on an item that has a default_ledger_account_id)", i)
 		}
 		resolved[i] = r
 	}
@@ -261,11 +261,11 @@ func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.N
 }
 
 // newInvoiceLineItemsFromEstimate converts an accepted estimate's line items into the
-// NewInvoiceLineItem shape CreateInvoice expects, carrying over service_id (and the
+// NewInvoiceLineItem shape CreateInvoice expects, carrying over item_id (and the
 // quantity/price/tax fields the estimate already resolved) but never ledger_account_id -
 // estimate_line_item has no such column, so it's left unset here and picked up from the
-// line's service.default_ledger_account_id by resolveInvoiceLines, same as any other
-// invoice line that sets service_id without an explicit ledger_account_id.
+// line's item.default_ledger_account_id by resolveInvoiceLines, same as any other
+// invoice line that sets item_id without an explicit ledger_account_id.
 func newInvoiceLineItemsFromEstimate(estLines []sqlcgen.EstimateLineItem) ([]*avav1.NewInvoiceLineItem, error) {
 	out := make([]*avav1.NewInvoiceLineItem, len(estLines))
 	for i, eli := range estLines {
@@ -279,7 +279,7 @@ func newInvoiceLineItemsFromEstimate(estLines []sqlcgen.EstimateLineItem) ([]*av
 		}
 		isTaxable := eli.IsTaxable
 		out[i] = &avav1.NewInvoiceLineItem{
-			ServiceId:   eli.ServiceID,
+			ItemId:      eli.ItemID,
 			LineNumber:  eli.LineNumber,
 			Description: eli.Description,
 			Quantity:    quantity,
@@ -462,7 +462,7 @@ func (s *estimateService) CreateEstimate(ctx context.Context, req *avav1.CreateE
 			src := resolved[i]
 			li, err := q.CreateEstimateLineItem(ctx, sqlcgen.CreateEstimateLineItemParams{
 				EstimateID:   estimate.ID,
-				ServiceID:    src.ServiceID,
+				ItemID:       src.ItemID,
 				LineNumber:   src.LineNumber,
 				Description:  src.Description,
 				Quantity:     cl.Quantity,
@@ -588,7 +588,7 @@ func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav
 			src := resolved[i]
 			li, err := q.CreateEstimateLineItem(ctx, sqlcgen.CreateEstimateLineItemParams{
 				EstimateID:   estimate.ID,
-				ServiceID:    src.ServiceID,
+				ItemID:       src.ItemID,
 				LineNumber:   src.LineNumber,
 				Description:  src.Description,
 				Quantity:     cl.Quantity,
@@ -733,7 +733,7 @@ func estimateLineItemToProto(li sqlcgen.EstimateLineItem) (*avav1.EstimateLineIt
 	return &avav1.EstimateLineItem{
 		Id:           li.ID,
 		EstimateId:   li.EstimateID,
-		ServiceId:    li.ServiceID,
+		ItemId:       li.ItemID,
 		LineNumber:   li.LineNumber,
 		Description:  li.Description,
 		Quantity:     quantity,
@@ -911,7 +911,7 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 			src := resolved[i]
 			li, err := q.CreateInvoiceLineItem(ctx, sqlcgen.CreateInvoiceLineItemParams{
 				InvoiceID:       invoice.ID,
-				ServiceID:       src.ServiceID,
+				ItemID:          src.ItemID,
 				LedgerAccountID: src.LedgerAccountID,
 				LineNumber:      src.LineNumber,
 				Description:     src.Description,
@@ -1066,7 +1066,7 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 			src := resolved[i]
 			li, err := q.CreateInvoiceLineItem(ctx, sqlcgen.CreateInvoiceLineItemParams{
 				InvoiceID:       invoice.ID,
-				ServiceID:       src.ServiceID,
+				ItemID:          src.ItemID,
 				LedgerAccountID: src.LedgerAccountID,
 				LineNumber:      src.LineNumber,
 				Description:     src.Description,
@@ -1540,7 +1540,7 @@ func invoiceLineItemToProto(li sqlcgen.InvoiceLineItem) (*avav1.InvoiceLineItem,
 	return &avav1.InvoiceLineItem{
 		Id:              li.ID,
 		InvoiceId:       li.InvoiceID,
-		ServiceId:       li.ServiceID,
+		ItemId:          li.ItemID,
 		LedgerAccountId: li.LedgerAccountID,
 		LineNumber:      li.LineNumber,
 		Description:     li.Description,

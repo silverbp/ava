@@ -55,7 +55,7 @@ service PaymentService {
 message EstimateLineItem {
   int64 id = 1;
   int64 estimate_id = 2;
-  optional int64 service_id = 3;
+  optional int64 item_id = 3;
   int32 line_number = 4;
   string description = 5;
   Decimal quantity = 6;
@@ -87,11 +87,11 @@ message Estimate {
   int64 resource_version = 16;
 }
 
-// unit_price/is_taxable/tax_rate_id may all be left unset when service_id is set - the server
-// fills each one from that service's own catalog defaults (retail_price/is_taxable/
-// default_tax_rate_id) unless the line explicitly overrides it. See docs/schema.md, "service".
+// unit_price/is_taxable/tax_rate_id may all be left unset when item_id is set - the server
+// fills each one from that item's own catalog defaults (retail_price/is_taxable/
+// default_tax_rate_id) unless the line explicitly overrides it. See docs/schema.md, "item".
 message NewEstimateLineItem {
-  optional int64 service_id = 1;
+  optional int64 item_id = 1;
   int32 line_number = 2;
   string description = 3;
   Decimal quantity = 4;
@@ -173,7 +173,7 @@ message GetEstimatePdfResponse {
 message InvoiceLineItem {
   int64 id = 1;
   int64 invoice_id = 2;
-  optional int64 service_id = 3;
+  optional int64 item_id = 3;
   optional int32 ledger_account_id = 4;
   int32 line_number = 5;
   string description = 6;
@@ -211,14 +211,14 @@ message Invoice {
   int64 resource_version = 21;
 }
 
-// ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when service_id is
-// set - the server fills each one from that service's own catalog defaults
+// ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when item_id is
+// set - the server fills each one from that item's own catalog defaults
 // (default_ledger_account_id/retail_price/is_taxable/default_tax_rate_id) unless the line
 // explicitly overrides it. ledger_account_id still ends up required either way -
-// CreateInvoice/UpdateInvoiceLineItems reject a line that has neither an explicit value nor a
-// service default to fall back on. See docs/schema.md, "service"/"invoice_line_item.ledger_account_id".
+// CreateInvoice/UpdateInvoiceLineItems reject a line that has neither an explicit value nor an
+// item default to fall back on. See docs/schema.md, "item"/"invoice_line_item.ledger_account_id".
 message NewInvoiceLineItem {
-  optional int64 service_id = 1;
+  optional int64 item_id = 1;
   optional int32 ledger_account_id = 2;
   int32 line_number = 3;
   string description = 4;
@@ -261,9 +261,9 @@ message CreateInvoiceRequest {
   optional string notes = 8;
   optional string terms = 9;
   // May be left empty when estimate_id is set - the invoice is then built from that
-  // estimate's own line items (service_id/description/quantity/unit_price/is_taxable/
+  // estimate's own line items (item_id/description/quantity/unit_price/is_taxable/
   // tax_rate_id carried over as-is; ledger_account_id resolved fresh via each line's
-  // service.default_ledger_account_id, same as any other line that sets service_id without
+  // item.default_ledger_account_id, same as any other line that sets item_id without
   // an explicit ledger_account_id - see NewInvoiceLineItem). Required otherwise.
   repeated NewInvoiceLineItem line_items = 10;
 }

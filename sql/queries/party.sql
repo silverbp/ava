@@ -59,26 +59,27 @@ RETURNING *;
 -- name: GetVendorByContactID :one
 SELECT * FROM vendor WHERE contact_id = $1;
 
--- name: CreateService :one
-INSERT INTO service (
-    business_id, service_code, name, description, unit_of_measure, cost_price,
+-- name: CreateItem :one
+INSERT INTO item (
+    business_id, item_code, item_type, name, description, unit_of_measure, cost_price,
     retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, created_by_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
 RETURNING *;
 
--- name: GetService :one
-SELECT * FROM service WHERE id = $1 AND deleted_at IS NULL;
+-- name: GetItem :one
+SELECT * FROM item WHERE id = $1 AND deleted_at IS NULL;
 
--- name: ListServices :many
-SELECT * FROM service
+-- name: ListItems :many
+SELECT * FROM item
 WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL
     AND (is_active OR sqlc.arg('include_inactive')::bool)
-ORDER BY service_code;
+ORDER BY item_code;
 
--- name: UpdateService :one
-UPDATE service SET
+-- name: UpdateItem :one
+UPDATE item SET
+    item_type = COALESCE(sqlc.narg('item_type'), item_type),
     name = COALESCE(sqlc.narg('name'), name),
     description = COALESCE(sqlc.narg('description'), description),
     retail_price = COALESCE(sqlc.narg('retail_price'), retail_price),
@@ -91,8 +92,8 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL
     AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
--- name: DeactivateService :one
-UPDATE service SET is_active = FALSE, updated_at = NOW()
+-- name: DeactivateItem :one
+UPDATE item SET is_active = FALSE, updated_at = NOW()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
     AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;

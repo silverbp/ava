@@ -164,19 +164,19 @@ erDiagram
     ledger_account |o--o{ customer : "ledger_account_id"
     contact |o--o| vendor : "contact_id"
     ledger_account |o--o{ vendor : "ledger_account_id"
-    business ||--o{ service : "business_id"
-    tax_rate |o--o{ service : "default_tax_rate_id"
-    ledger_account |o--o{ service : "default_ledger_account_id"
+    business ||--o{ item : "business_id"
+    tax_rate |o--o{ item : "default_tax_rate_id"
+    ledger_account |o--o{ item : "default_ledger_account_id"
     business ||--o{ estimate : "business_id"
     contact ||--o{ estimate : "customer_id"
     estimate ||--o{ estimate_line_item : "estimate_id"
-    service |o--o{ estimate_line_item : "service_id"
+    item |o--o{ estimate_line_item : "item_id"
     tax_rate |o--o{ estimate_line_item : "tax_rate_id"
     business ||--o{ invoice : "business_id"
     contact ||--o{ invoice : "contact_id"
     estimate |o--o{ invoice : "estimate_id"
     invoice ||--o{ invoice_line_item : "invoice_id"
-    service |o--o{ invoice_line_item : "service_id"
+    item |o--o{ invoice_line_item : "item_id"
     tax_rate |o--o{ invoice_line_item : "tax_rate_id"
     ledger_account |o--o{ invoice_line_item : "ledger_account_id"
     ledger_transaction |o--o{ invoice : "ledger_transaction_id"
@@ -211,12 +211,13 @@ erDiagram
         bigint contact_id FK
         int ledger_account_id FK
     }
-    service {
+    item {
         bigint id PK
         bigint business_id FK
         bigint default_tax_rate_id FK
         int default_ledger_account_id FK
-        varchar service_code UK
+        varchar item_code UK
+        varchar item_type "SERVICE NON_INVENTORY INVENTORY"
         decimal retail_price
         decimal cost_price
     }
@@ -238,7 +239,7 @@ erDiagram
     estimate_line_item {
         bigint id PK
         bigint estimate_id FK
-        bigint service_id FK
+        bigint item_id FK
         bigint tax_rate_id FK
         decimal quantity
         decimal unit_price
@@ -260,7 +261,7 @@ erDiagram
     invoice_line_item {
         bigint id PK
         bigint invoice_id FK
-        bigint service_id FK
+        bigint item_id FK
         bigint tax_rate_id FK
         int ledger_account_id FK
         decimal quantity
@@ -313,16 +314,16 @@ erDiagram
   (whichever `invoice_type` selects) are both mandatory (see below). `estimate_id` links an
   invoice back to the estimate it came from; `CreateInvoice` can also build the invoice's line
   items *from* that estimate — pass `estimate_id` with `line_items` empty and each estimate line's
-  `service_id`/`description`/`quantity`/`unit_price`/`is_taxable`/`tax_rate_id` carries over as-is,
+  `item_id`/`description`/`quantity`/`unit_price`/`is_taxable`/`tax_rate_id` carries over as-is,
   with `ledger_account_id` resolved fresh through `resolveInvoiceLines` (estimate lines have no
   ledger account of their own — see below).
 - **`invoice_line_item.ledger_account_id`** — which revenue (SALES) or expense (PURCHASE)
   account this line posts to, required on every line one way or another. A caller can set it
-  explicitly, or leave it unset and set `service_id` on a service that has its own
+  explicitly, or leave it unset and set `item_id` on an item that has its own
   `default_ledger_account_id` - `resolveInvoiceLines` (`internal/server/trading_service.go`)
   fills it in server-side in that case, same for `unit_price`/`is_taxable`/`tax_rate_id` from
-  the service's `retail_price`/`is_taxable`/`default_tax_rate_id`. An explicit value on the line
-  always wins over the service's default; `CreateInvoice`/`UpdateInvoiceLineItems` only reject a
+  the item's `retail_price`/`is_taxable`/`default_tax_rate_id`. An explicit value on the line
+  always wins over the item's default; `CreateInvoice`/`UpdateInvoiceLineItems` only reject a
   line that ends up with neither. The invoice's contact must also have a `customer` (for SALES)
   or `vendor` (for PURCHASE) row with its own `ledger_account_id` set — an invoice posts
   atomically at creation, always. `UpdateInvoiceLineItems` regenerates the linked ledger
@@ -339,17 +340,25 @@ erDiagram
   how much of the payment went to that invoice specifically. The sum across one payment's
   applications can't exceed its `amount` (a payment may be partially or fully unapplied, never
   over-applied).
-- **`service`** — the sales/purchase catalog. `default_tax_rate_id`/`default_ledger_account_id`
-  are the source `CreateInvoice`/`CreateEstimate`/`UpdateInvoiceLineItems`/`UpdateEstimateLineItems`
-  resolve a line's `ledger_account_id`/`unit_price`/`is_taxable`/`tax_rate_id` from when the line
-  sets `service_id` and leaves them unset - see the `invoice_line_item.ledger_account_id` bullet
-  above. Still overridable per line, never enforced to match.
+- **`item`** — the sales/purchase catalog (formerly `service`): anything that can appear as a
+  line on an estimate or invoice. `item_type` says how the business treats it — `SERVICE`
+  (labour/time, nothing physical), `NON_INVENTORY` (a physical product that's sold or bought but
+  whose stock isn't tracked — drop-shipped, consumables, one-offs) or `INVENTORY` (a physical
+  product whose on-hand quantity the business wants tracked). Only the classification exists so
+  far: an `INVENTORY` item carries no quantity, inventory-asset account or COGS behaviour yet;
+  that lands alongside stock movements. It's a `VARCHAR` + `CHECK` string enum like
+  `invoice_type`, not a boolean pair, since more modes are expected.
+  `default_tax_rate_id`/`default_ledger_account_id` are the source
+  `CreateInvoice`/`CreateEstimate`/`UpdateInvoiceLineItems`/`UpdateEstimateLineItems` resolve a
+  line's `ledger_account_id`/`unit_price`/`is_taxable`/`tax_rate_id` from when the line sets
+  `item_id` and leaves them unset - see the `invoice_line_item.ledger_account_id` bullet above.
+  Still overridable per line, never enforced to match.
 - **`tax_rate`** — a named rate (e.g. "Standard 20%") tied to its own liability account.
-  `service.default_tax_rate_id` and each line item's `tax_rate_id` reference it (`ledger_account`
-  has no default-tax-rate column — dropped as redundant with `service.default_tax_rate_id`, the
+  `item.default_tax_rate_id` and each line item's `tax_rate_id` reference it (`ledger_account`
+  has no default-tax-rate column — dropped as redundant with `item.default_tax_rate_id`, the
   more common day-to-day entry path). A line item's own `tax_rate` / `tax_amount` columns still
   snapshot the rate actually applied at the time, so a later change to `tax_rate` never rewrites
-  history — `service.default_tax_rate_id` doesn't need that same snapshot, since a service is
+  history — `item.default_tax_rate_id` doesn't need that same snapshot, since an item is
   catalog data, not a historical transaction.
 
 ## 3. Users & Auth
@@ -427,7 +436,7 @@ erDiagram
   raw token). `replaced_by_session_id` tracks rotation.
 - **`created_by_user_id`** — a nullable FK to `app_user`, added to header/
   parent tables across the schema (`business`, `ledger_account`,
-  `ledger_transaction`, `period_close`, `contact`, `service`, `tax_rate`,
+  `ledger_transaction`, `period_close`, `contact`, `item`, `tax_rate`,
   `estimate`, `invoice`, `payment`, `bank_statement`, `entity_context`,
   `attachment`) so records can be attributed to the user who created them,
   not just scoped to a business. Stays nullable everywhere — period-close
@@ -528,10 +537,10 @@ relationships — see note below.
   until its table is actually generalized, at which point it becomes generic
   (`invoice.contact_id`).
 - **Snapshot, don't reference, at the point of sale.** Line items store their own `unit_price`
-  and `tax_rate` rather than only a pointer to `service` / `tax_rate`, so a later catalog or
+  and `tax_rate` rather than only a pointer to `item` / `tax_rate`, so a later catalog or
   rate change never silently rewrites a historical document.
 - **Optimistic concurrency via `resource_version`** (Kubernetes' `resourceVersion`, as a
-  per-row `BIGINT`). Every mutable resource (`business`, `ledger_account`, `contact`, `service`,
+  per-row `BIGINT`). Every mutable resource (`business`, `ledger_account`, `contact`, `item`,
   `tax_rate`, `estimate`, `invoice`) carries one; the `bump_resource_version` trigger increments
   it on *every* UPDATE to the row - user edits, soft-deletes, and internal side effects like
   `ConsumeNextInvoiceNumber` or `ApplyPaymentToInvoice` alike - so it can't be set from outside

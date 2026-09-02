@@ -104,7 +104,7 @@ func parseDecimalField(fields map[string]string, key string) *avav1.Decimal {
 	return &avav1.Decimal{Value: v}
 }
 
-// parseOptionalBool distinguishes "not set at all" (nil - a service's own
+// parseOptionalBool distinguishes "not set at all" (nil - an item's own
 // default applies, if the line has one) from an explicit true/false.
 func parseOptionalBool(fields map[string]string, key string) *bool {
 	v, ok := fields[key]

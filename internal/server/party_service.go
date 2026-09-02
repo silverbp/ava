@@ -254,58 +254,78 @@ func contactToProto(ctx context.Context, q *sqlcgen.Queries, c sqlcgen.Contact) 
 	}, nil
 }
 
-// --- ServiceCatalogService ---
+// --- ItemService ---
 
-type serviceCatalogService struct {
-	avav1.UnimplementedServiceCatalogServiceServer
+// item.item_type values - mirrors the CHECK constraint on item.item_type
+// (migrations/00001_initial.up.sql). A string enum like invoice.invoice_type,
+// not a proto enum, since more modes are expected and the schema's other
+// enums already take that shape.
+const (
+	itemTypeService      = "SERVICE"       // labour/time, nothing physical
+	itemTypeNonInventory = "NON_INVENTORY" // physical product, stock not tracked
+	itemTypeInventory    = "INVENTORY"     // physical product, on-hand quantity tracked
+)
+
+var validItemTypes = map[string]bool{
+	itemTypeService:      true,
+	itemTypeNonInventory: true,
+	itemTypeInventory:    true,
+}
+
+func itemTypeList() string {
+	return itemTypeService + ", " + itemTypeNonInventory + ", " + itemTypeInventory
+}
+
+type itemService struct {
+	avav1.UnimplementedItemServiceServer
 	store *db.Store
 }
 
-func newServiceCatalogService(store *db.Store) *serviceCatalogService {
-	return &serviceCatalogService{store: store}
+func newItemService(store *db.Store) *itemService {
+	return &itemService{store: store}
 }
 
-func (s *serviceCatalogService) GetService(ctx context.Context, req *avav1.GetServiceRequest) (*avav1.GetServiceResponse, error) {
-	svc, err := s.store.Queries.GetService(ctx, req.GetId())
+func (s *itemService) GetItem(ctx context.Context, req *avav1.GetItemRequest) (*avav1.GetItemResponse, error) {
+	item, err := s.store.Queries.GetItem(ctx, req.GetId())
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "service %d not found", req.GetId())
+			return nil, status.Errorf(codes.NotFound, "item %d not found", req.GetId())
 		}
 		return nil, translatePgError(err)
 	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, svc.BusinessID, "VIEWER"); err != nil {
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, item.BusinessID, "VIEWER"); err != nil {
 		return nil, err
 	}
-	pb, err := serviceToProto(svc)
+	pb, err := itemToProto(item)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting service: %v", err)
+		return nil, status.Errorf(codes.Internal, "converting item: %v", err)
 	}
-	return &avav1.GetServiceResponse{Service: pb}, nil
+	return &avav1.GetItemResponse{Item: pb}, nil
 }
 
-func (s *serviceCatalogService) ListServices(ctx context.Context, req *avav1.ListServicesRequest) (*avav1.ListServicesResponse, error) {
+func (s *itemService) ListItems(ctx context.Context, req *avav1.ListItemsRequest) (*avav1.ListItemsResponse, error) {
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "VIEWER"); err != nil {
 		return nil, err
 	}
-	rows, err := s.store.Queries.ListServices(ctx, sqlcgen.ListServicesParams{
+	rows, err := s.store.Queries.ListItems(ctx, sqlcgen.ListItemsParams{
 		BusinessID:      req.GetBusinessId(),
 		IncludeInactive: req.GetIncludeInactive(),
 	})
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-	resp := &avav1.ListServicesResponse{}
-	for _, svc := range rows {
-		pb, err := serviceToProto(svc)
+	resp := &avav1.ListItemsResponse{}
+	for _, item := range rows {
+		pb, err := itemToProto(item)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "converting service: %v", err)
+			return nil, status.Errorf(codes.Internal, "converting item: %v", err)
 		}
-		resp.Services = append(resp.Services, pb)
+		resp.Items = append(resp.Items, pb)
 	}
 	return resp, nil
 }
 
-func (s *serviceCatalogService) CreateService(ctx context.Context, req *avav1.CreateServiceRequest) (*avav1.CreateServiceResponse, error) {
+func (s *itemService) CreateItem(ctx context.Context, req *avav1.CreateItemRequest) (*avav1.CreateItemResponse, error) {
 	u, ok := auth.UserFromContext(ctx)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
@@ -313,8 +333,15 @@ func (s *serviceCatalogService) CreateService(ctx context.Context, req *avav1.Cr
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "MEMBER"); err != nil {
 		return nil, err
 	}
-	if req.GetServiceCode() == "" || req.GetName() == "" || req.GetRetailPrice() == nil {
-		return nil, status.Error(codes.InvalidArgument, "service_code, name, and retail_price are required")
+	if req.GetItemCode() == "" || req.GetName() == "" || req.GetRetailPrice() == nil {
+		return nil, status.Error(codes.InvalidArgument, "item_code, name, and retail_price are required")
+	}
+	itemType := itemTypeService
+	if req.ItemType != nil {
+		itemType = req.GetItemType()
+		if !validItemTypes[itemType] {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid item_type %q (want one of %s)", itemType, itemTypeList())
+		}
 	}
 
 	costPrice, err := moneypb.ToNumeric(req.CostPrice)
@@ -326,9 +353,9 @@ func (s *serviceCatalogService) CreateService(ctx context.Context, req *avav1.Cr
 		return nil, status.Errorf(codes.InvalidArgument, "invalid retail_price: %v", err)
 	}
 
-	created, err := s.store.Queries.CreateService(ctx, sqlcgen.CreateServiceParams{
+	created, err := s.store.Queries.CreateItem(ctx, sqlcgen.CreateItemParams{
 		BusinessID:             req.GetBusinessId(),
-		ServiceCode:            req.GetServiceCode(),
+		ItemCode:               req.GetItemCode(),
 		Name:                   req.GetName(),
 		Description:            req.Description,
 		UnitOfMeasure:          req.UnitOfMeasure,
@@ -342,18 +369,18 @@ func (s *serviceCatalogService) CreateService(ctx context.Context, req *avav1.Cr
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-	pb, err := serviceToProto(created)
+	pb, err := itemToProto(created)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting service: %v", err)
+		return nil, status.Errorf(codes.Internal, "converting item: %v", err)
 	}
-	return &avav1.CreateServiceResponse{Service: pb}, nil
+	return &avav1.CreateItemResponse{Item: pb}, nil
 }
 
-func (s *serviceCatalogService) UpdateService(ctx context.Context, req *avav1.UpdateServiceRequest) (*avav1.UpdateServiceResponse, error) {
-	existing, err := s.store.Queries.GetService(ctx, req.GetId())
+func (s *itemService) UpdateItem(ctx context.Context, req *avav1.UpdateItemRequest) (*avav1.UpdateItemResponse, error) {
+	existing, err := s.store.Queries.GetItem(ctx, req.GetId())
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "service %d not found", req.GetId())
+			return nil, status.Errorf(codes.NotFound, "item %d not found", req.GetId())
 		}
 		return nil, translatePgError(err)
 	}
@@ -361,6 +388,9 @@ func (s *serviceCatalogService) UpdateService(ctx context.Context, req *avav1.Up
 		return nil, err
 	}
 
+	if req.ItemType != nil && !validItemTypes[req.GetItemType()] {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid item_type %q (want one of %s)", req.GetItemType(), itemTypeList())
+	}
 	retailPrice, err := moneypb.ToNumeric(req.RetailPrice)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid retail_price: %v", err)
@@ -370,8 +400,9 @@ func (s *serviceCatalogService) UpdateService(ctx context.Context, req *avav1.Up
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cost_price: %v", err)
 	}
 
-	updated, err := s.store.Queries.UpdateService(ctx, sqlcgen.UpdateServiceParams{
+	updated, err := s.store.Queries.UpdateItem(ctx, sqlcgen.UpdateItemParams{
 		ID:                     req.GetId(),
+		ItemType:               req.ItemType,
 		Name:                   req.Name,
 		Description:            req.Description,
 		RetailPrice:            retailPrice,
@@ -382,66 +413,66 @@ func (s *serviceCatalogService) UpdateService(ctx context.Context, req *avav1.Up
 		ResourceVersion:        expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translateUpdateError(err, "service", req.GetId(), req.GetResourceVersion())
+		return nil, translateUpdateError(err, "item", req.GetId(), req.GetResourceVersion())
 	}
-	pb, err := serviceToProto(updated)
+	pb, err := itemToProto(updated)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting service: %v", err)
+		return nil, status.Errorf(codes.Internal, "converting item: %v", err)
 	}
-	return &avav1.UpdateServiceResponse{Service: pb}, nil
+	return &avav1.UpdateItemResponse{Item: pb}, nil
 }
 
-func (s *serviceCatalogService) DeactivateService(ctx context.Context, req *avav1.DeactivateServiceRequest) (*avav1.DeactivateServiceResponse, error) {
-	existing, err := s.store.Queries.GetService(ctx, req.GetId())
+func (s *itemService) DeactivateItem(ctx context.Context, req *avav1.DeactivateItemRequest) (*avav1.DeactivateItemResponse, error) {
+	existing, err := s.store.Queries.GetItem(ctx, req.GetId())
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "service %d not found", req.GetId())
+			return nil, status.Errorf(codes.NotFound, "item %d not found", req.GetId())
 		}
 		return nil, translatePgError(err)
 	}
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
 		return nil, err
 	}
-	deactivated, err := s.store.Queries.DeactivateService(ctx, sqlcgen.DeactivateServiceParams{
+	deactivated, err := s.store.Queries.DeactivateItem(ctx, sqlcgen.DeactivateItemParams{
 		ID:              req.GetId(),
 		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translateUpdateError(err, "service", req.GetId(), req.GetResourceVersion())
+		return nil, translateUpdateError(err, "item", req.GetId(), req.GetResourceVersion())
 	}
-	pb, err := serviceToProto(deactivated)
+	pb, err := itemToProto(deactivated)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting service: %v", err)
+		return nil, status.Errorf(codes.Internal, "converting item: %v", err)
 	}
-	return &avav1.DeactivateServiceResponse{Service: pb}, nil
+	return &avav1.DeactivateItemResponse{Item: pb}, nil
 }
 
-func serviceToProto(svc sqlcgen.Service) (*avav1.Service, error) {
-	costPrice, err := moneypb.ToProto(svc.CostPrice)
+func itemToProto(item sqlcgen.Item) (*avav1.Item, error) {
+	costPrice, err := moneypb.ToProto(item.CostPrice)
 	if err != nil {
 		return nil, err
 	}
-	retailPrice, err := moneypb.ToProto(svc.RetailPrice)
+	retailPrice, err := moneypb.ToProto(item.RetailPrice)
 	if err != nil {
 		return nil, err
 	}
-	return &avav1.Service{
-		Id:                     svc.ID,
-		BusinessId:             svc.BusinessID,
-		ServiceCode:            svc.ServiceCode,
-		Name:                   svc.Name,
-		Description:            svc.Description,
-		UnitOfMeasure:          derefOr(svc.UnitOfMeasure, "EACH"),
+	return &avav1.Item{
+		Id:                     item.ID,
+		BusinessId:             item.BusinessID,
+		ItemCode:               item.ItemCode,
+		Name:                   item.Name,
+		Description:            item.Description,
+		UnitOfMeasure:          derefOr(item.UnitOfMeasure, "EACH"),
 		CostPrice:              costPrice,
 		RetailPrice:            retailPrice,
-		IsTaxable:              svc.IsTaxable,
-		DefaultTaxRateId:       svc.DefaultTaxRateID,
-		DefaultLedgerAccountId: svc.DefaultLedgerAccountID,
-		IsActive:               svc.IsActive,
-		CreatedByUserId:        svc.CreatedByUserID,
-		CreatedAt:              timestampProto(svc.CreatedAt),
-		UpdatedAt:              timestampProto(svc.UpdatedAt),
-		ResourceVersion:        svc.ResourceVersion,
+		IsTaxable:              item.IsTaxable,
+		DefaultTaxRateId:       item.DefaultTaxRateID,
+		DefaultLedgerAccountId: item.DefaultLedgerAccountID,
+		IsActive:               item.IsActive,
+		CreatedByUserId:        item.CreatedByUserID,
+		CreatedAt:              timestampProto(item.CreatedAt),
+		UpdatedAt:              timestampProto(item.UpdatedAt),
+		ResourceVersion:        item.ResourceVersion,
 	}, nil
 }
 

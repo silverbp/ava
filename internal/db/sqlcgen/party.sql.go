@@ -115,19 +115,20 @@ func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) 
 	return i, err
 }
 
-const createService = `-- name: CreateService :one
-INSERT INTO service (
-    business_id, service_code, name, description, unit_of_measure, cost_price,
+const createItem = `-- name: CreateItem :one
+INSERT INTO item (
+    business_id, item_code, item_type, name, description, unit_of_measure, cost_price,
     retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, created_by_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+RETURNING id, business_id, item_code, item_type, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
-type CreateServiceParams struct {
+type CreateItemParams struct {
 	BusinessID             int64          `json:"business_id"`
-	ServiceCode            string         `json:"service_code"`
+	ItemCode               string         `json:"item_code"`
+	ItemType               string         `json:"item_type"`
 	Name                   string         `json:"name"`
 	Description            *string        `json:"description"`
 	UnitOfMeasure          *string        `json:"unit_of_measure"`
@@ -139,10 +140,11 @@ type CreateServiceParams struct {
 	CreatedByUserID        *int64         `json:"created_by_user_id"`
 }
 
-func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (Service, error) {
-	row := q.db.QueryRow(ctx, createService,
+func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Item, error) {
+	row := q.db.QueryRow(ctx, createItem,
 		arg.BusinessID,
-		arg.ServiceCode,
+		arg.ItemCode,
+		arg.ItemType,
 		arg.Name,
 		arg.Description,
 		arg.UnitOfMeasure,
@@ -153,11 +155,12 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		arg.DefaultLedgerAccountID,
 		arg.CreatedByUserID,
 	)
-	var i Service
+	var i Item
 	err := row.Scan(
 		&i.ID,
 		&i.BusinessID,
-		&i.ServiceCode,
+		&i.ItemCode,
+		&i.ItemType,
 		&i.Name,
 		&i.Description,
 		&i.UnitOfMeasure,
@@ -286,25 +289,26 @@ func (q *Queries) DeactivateContact(ctx context.Context, arg DeactivateContactPa
 	return i, err
 }
 
-const deactivateService = `-- name: DeactivateService :one
-UPDATE service SET is_active = FALSE, updated_at = NOW()
+const deactivateItem = `-- name: DeactivateItem :one
+UPDATE item SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
     AND ($2::bigint IS NULL OR resource_version = $2)
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+RETURNING id, business_id, item_code, item_type, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
-type DeactivateServiceParams struct {
+type DeactivateItemParams struct {
 	ID              int64  `json:"id"`
 	ResourceVersion *int64 `json:"resource_version"`
 }
 
-func (q *Queries) DeactivateService(ctx context.Context, arg DeactivateServiceParams) (Service, error) {
-	row := q.db.QueryRow(ctx, deactivateService, arg.ID, arg.ResourceVersion)
-	var i Service
+func (q *Queries) DeactivateItem(ctx context.Context, arg DeactivateItemParams) (Item, error) {
+	row := q.db.QueryRow(ctx, deactivateItem, arg.ID, arg.ResourceVersion)
+	var i Item
 	err := row.Scan(
 		&i.ID,
 		&i.BusinessID,
-		&i.ServiceCode,
+		&i.ItemCode,
+		&i.ItemType,
 		&i.Name,
 		&i.Description,
 		&i.UnitOfMeasure,
@@ -408,17 +412,18 @@ func (q *Queries) GetCustomerByContactID(ctx context.Context, contactID int64) (
 	return i, err
 }
 
-const getService = `-- name: GetService :one
-SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM service WHERE id = $1 AND deleted_at IS NULL
+const getItem = `-- name: GetItem :one
+SELECT id, business_id, item_code, item_type, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM item WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) GetService(ctx context.Context, id int64) (Service, error) {
-	row := q.db.QueryRow(ctx, getService, id)
-	var i Service
+func (q *Queries) GetItem(ctx context.Context, id int64) (Item, error) {
+	row := q.db.QueryRow(ctx, getItem, id)
+	var i Item
 	err := row.Scan(
 		&i.ID,
 		&i.BusinessID,
-		&i.ServiceCode,
+		&i.ItemCode,
+		&i.ItemType,
 		&i.Name,
 		&i.Description,
 		&i.UnitOfMeasure,
@@ -535,31 +540,32 @@ func (q *Queries) ListContacts(ctx context.Context, arg ListContactsParams) ([]C
 	return items, nil
 }
 
-const listServices = `-- name: ListServices :many
-SELECT id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM service
+const listItems = `-- name: ListItems :many
+SELECT id, business_id, item_code, item_type, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM item
 WHERE business_id = $1 AND deleted_at IS NULL
     AND (is_active OR $2::bool)
-ORDER BY service_code
+ORDER BY item_code
 `
 
-type ListServicesParams struct {
+type ListItemsParams struct {
 	BusinessID      int64 `json:"business_id"`
 	IncludeInactive bool  `json:"include_inactive"`
 }
 
-func (q *Queries) ListServices(ctx context.Context, arg ListServicesParams) ([]Service, error) {
-	rows, err := q.db.Query(ctx, listServices, arg.BusinessID, arg.IncludeInactive)
+func (q *Queries) ListItems(ctx context.Context, arg ListItemsParams) ([]Item, error) {
+	rows, err := q.db.Query(ctx, listItems, arg.BusinessID, arg.IncludeInactive)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Service
+	var items []Item
 	for rows.Next() {
-		var i Service
+		var i Item
 		if err := rows.Scan(
 			&i.ID,
 			&i.BusinessID,
-			&i.ServiceCode,
+			&i.ItemCode,
+			&i.ItemType,
 			&i.Name,
 			&i.Description,
 			&i.UnitOfMeasure,
@@ -703,22 +709,24 @@ func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (C
 	return i, err
 }
 
-const updateService = `-- name: UpdateService :one
-UPDATE service SET
-    name = COALESCE($1, name),
-    description = COALESCE($2, description),
-    retail_price = COALESCE($3, retail_price),
-    cost_price = COALESCE($4, cost_price),
-    is_taxable = COALESCE($5, is_taxable),
-    default_tax_rate_id = COALESCE($6, default_tax_rate_id),
-    default_ledger_account_id = COALESCE($7, default_ledger_account_id),
+const updateItem = `-- name: UpdateItem :one
+UPDATE item SET
+    item_type = COALESCE($1, item_type),
+    name = COALESCE($2, name),
+    description = COALESCE($3, description),
+    retail_price = COALESCE($4, retail_price),
+    cost_price = COALESCE($5, cost_price),
+    is_taxable = COALESCE($6, is_taxable),
+    default_tax_rate_id = COALESCE($7, default_tax_rate_id),
+    default_ledger_account_id = COALESCE($8, default_ledger_account_id),
     updated_at = NOW()
-WHERE id = $8 AND deleted_at IS NULL
-    AND ($9::bigint IS NULL OR resource_version = $9)
-RETURNING id, business_id, service_code, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+WHERE id = $9 AND deleted_at IS NULL
+    AND ($10::bigint IS NULL OR resource_version = $10)
+RETURNING id, business_id, item_code, item_type, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
-type UpdateServiceParams struct {
+type UpdateItemParams struct {
+	ItemType               *string        `json:"item_type"`
 	Name                   *string        `json:"name"`
 	Description            *string        `json:"description"`
 	RetailPrice            pgtype.Numeric `json:"retail_price"`
@@ -730,8 +738,9 @@ type UpdateServiceParams struct {
 	ResourceVersion        *int64         `json:"resource_version"`
 }
 
-func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error) {
-	row := q.db.QueryRow(ctx, updateService,
+func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error) {
+	row := q.db.QueryRow(ctx, updateItem,
+		arg.ItemType,
 		arg.Name,
 		arg.Description,
 		arg.RetailPrice,
@@ -742,11 +751,12 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		arg.ID,
 		arg.ResourceVersion,
 	)
-	var i Service
+	var i Item
 	err := row.Scan(
 		&i.ID,
 		&i.BusinessID,
-		&i.ServiceCode,
+		&i.ItemCode,
+		&i.ItemType,
 		&i.Name,
 		&i.Description,
 		&i.UnitOfMeasure,

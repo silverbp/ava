@@ -30,7 +30,7 @@ type EstimateLineItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	EstimateId    int64                  `protobuf:"varint,2,opt,name=estimate_id,json=estimateId,proto3" json:"estimate_id,omitempty"`
-	ServiceId     *int64                 `protobuf:"varint,3,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
+	ItemId        *int64                 `protobuf:"varint,3,opt,name=item_id,json=itemId,proto3,oneof" json:"item_id,omitempty"`
 	LineNumber    int32                  `protobuf:"varint,4,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
 	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
 	Quantity      *Decimal               `protobuf:"bytes,6,opt,name=quantity,proto3" json:"quantity,omitempty"`
@@ -88,9 +88,9 @@ func (x *EstimateLineItem) GetEstimateId() int64 {
 	return 0
 }
 
-func (x *EstimateLineItem) GetServiceId() int64 {
-	if x != nil && x.ServiceId != nil {
-		return *x.ServiceId
+func (x *EstimateLineItem) GetItemId() int64 {
+	if x != nil && x.ItemId != nil {
+		return *x.ItemId
 	}
 	return 0
 }
@@ -323,12 +323,12 @@ func (x *Estimate) GetResourceVersion() int64 {
 	return 0
 }
 
-// unit_price/is_taxable/tax_rate_id may all be left unset when service_id is set - the server
-// fills each one from that service's own catalog defaults (retail_price/is_taxable/
-// default_tax_rate_id) unless the line explicitly overrides it. See docs/schema.md, "service".
+// unit_price/is_taxable/tax_rate_id may all be left unset when item_id is set - the server
+// fills each one from that item's own catalog defaults (retail_price/is_taxable/
+// default_tax_rate_id) unless the line explicitly overrides it. See docs/schema.md, "item".
 type NewEstimateLineItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ServiceId     *int64                 `protobuf:"varint,1,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
+	ItemId        *int64                 `protobuf:"varint,1,opt,name=item_id,json=itemId,proto3,oneof" json:"item_id,omitempty"`
 	LineNumber    int32                  `protobuf:"varint,2,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Quantity      *Decimal               `protobuf:"bytes,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
@@ -369,9 +369,9 @@ func (*NewEstimateLineItem) Descriptor() ([]byte, []int) {
 	return file_ava_v1_trading_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *NewEstimateLineItem) GetServiceId() int64 {
-	if x != nil && x.ServiceId != nil {
-		return *x.ServiceId
+func (x *NewEstimateLineItem) GetItemId() int64 {
+	if x != nil && x.ItemId != nil {
+		return *x.ItemId
 	}
 	return 0
 }
@@ -1049,7 +1049,7 @@ type InvoiceLineItem struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	InvoiceId       int64                  `protobuf:"varint,2,opt,name=invoice_id,json=invoiceId,proto3" json:"invoice_id,omitempty"`
-	ServiceId       *int64                 `protobuf:"varint,3,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
+	ItemId          *int64                 `protobuf:"varint,3,opt,name=item_id,json=itemId,proto3,oneof" json:"item_id,omitempty"`
 	LedgerAccountId *int32                 `protobuf:"varint,4,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
 	LineNumber      int32                  `protobuf:"varint,5,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
 	Description     string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
@@ -1108,9 +1108,9 @@ func (x *InvoiceLineItem) GetInvoiceId() int64 {
 	return 0
 }
 
-func (x *InvoiceLineItem) GetServiceId() int64 {
-	if x != nil && x.ServiceId != nil {
-		return *x.ServiceId
+func (x *InvoiceLineItem) GetItemId() int64 {
+	if x != nil && x.ItemId != nil {
+		return *x.ItemId
 	}
 	return 0
 }
@@ -1390,15 +1390,15 @@ func (x *Invoice) GetResourceVersion() int64 {
 	return 0
 }
 
-// ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when service_id is
-// set - the server fills each one from that service's own catalog defaults
+// ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when item_id is
+// set - the server fills each one from that item's own catalog defaults
 // (default_ledger_account_id/retail_price/is_taxable/default_tax_rate_id) unless the line
 // explicitly overrides it. ledger_account_id still ends up required either way -
-// CreateInvoice/UpdateInvoiceLineItems reject a line that has neither an explicit value nor a
-// service default to fall back on. See docs/schema.md, "service"/"invoice_line_item.ledger_account_id".
+// CreateInvoice/UpdateInvoiceLineItems reject a line that has neither an explicit value nor an
+// item default to fall back on. See docs/schema.md, "item"/"invoice_line_item.ledger_account_id".
 type NewInvoiceLineItem struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	ServiceId       *int64                 `protobuf:"varint,1,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
+	ItemId          *int64                 `protobuf:"varint,1,opt,name=item_id,json=itemId,proto3,oneof" json:"item_id,omitempty"`
 	LedgerAccountId *int32                 `protobuf:"varint,2,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
 	LineNumber      int32                  `protobuf:"varint,3,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
 	Description     string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -1440,9 +1440,9 @@ func (*NewInvoiceLineItem) Descriptor() ([]byte, []int) {
 	return file_ava_v1_trading_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *NewInvoiceLineItem) GetServiceId() int64 {
-	if x != nil && x.ServiceId != nil {
-		return *x.ServiceId
+func (x *NewInvoiceLineItem) GetItemId() int64 {
+	if x != nil && x.ItemId != nil {
+		return *x.ItemId
 	}
 	return 0
 }
@@ -1697,9 +1697,9 @@ type CreateInvoiceRequest struct {
 	Notes         *string    `protobuf:"bytes,8,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
 	Terms         *string    `protobuf:"bytes,9,opt,name=terms,proto3,oneof" json:"terms,omitempty"`
 	// May be left empty when estimate_id is set - the invoice is then built from that
-	// estimate's own line items (service_id/description/quantity/unit_price/is_taxable/
+	// estimate's own line items (item_id/description/quantity/unit_price/is_taxable/
 	// tax_rate_id carried over as-is; ledger_account_id resolved fresh via each line's
-	// service.default_ledger_account_id, same as any other line that sets service_id without
+	// item.default_ledger_account_id, same as any other line that sets item_id without
 	// an explicit ledger_account_id - see NewInvoiceLineItem). Required otherwise.
 	LineItems     []*NewInvoiceLineItem `protobuf:"bytes,10,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2799,13 +2799,12 @@ var File_ava_v1_trading_proto protoreflect.FileDescriptor
 
 const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
-	"\x14ava/v1/trading.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\x80\x04\n" +
+	"\x14ava/v1/trading.proto\x12\x06ava.v1\x1a\x13ava/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16google/type/date.proto\"\xf7\x03\n" +
 	"\x10EstimateLineItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vestimate_id\x18\x02 \x01(\x03R\n" +
-	"estimateId\x12\"\n" +
-	"\n" +
-	"service_id\x18\x03 \x01(\x03H\x00R\tserviceId\x88\x01\x01\x12\x1f\n" +
+	"estimateId\x12\x1c\n" +
+	"\aitem_id\x18\x03 \x01(\x03H\x00R\x06itemId\x88\x01\x01\x12\x1f\n" +
 	"\vline_number\x18\x04 \x01(\x05R\n" +
 	"lineNumber\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12+\n" +
@@ -2820,8 +2819,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
 	"tax_amount\x18\v \x01(\v2\x0f.ava.v1.DecimalR\ttaxAmount\x12.\n" +
 	"\n" +
-	"line_total\x18\f \x01(\v2\x0f.ava.v1.DecimalR\tlineTotalB\r\n" +
-	"\v_service_idB\x0e\n" +
+	"line_total\x18\f \x01(\v2\x0f.ava.v1.DecimalR\tlineTotalB\n" +
+	"\n" +
+	"\b_item_idB\x0e\n" +
 	"\f_tax_rate_id\"\xdf\x05\n" +
 	"\bEstimate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
@@ -2847,10 +2847,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x10resource_version\x18\x10 \x01(\x03R\x0fresourceVersionB\b\n" +
 	"\x06_notesB\b\n" +
 	"\x06_termsB\x15\n" +
-	"\x13_created_by_user_id\"\xd0\x02\n" +
-	"\x13NewEstimateLineItem\x12\"\n" +
-	"\n" +
-	"service_id\x18\x01 \x01(\x03H\x00R\tserviceId\x88\x01\x01\x12\x1f\n" +
+	"\x13_created_by_user_id\"\xc7\x02\n" +
+	"\x13NewEstimateLineItem\x12\x1c\n" +
+	"\aitem_id\x18\x01 \x01(\x03H\x00R\x06itemId\x88\x01\x01\x12\x1f\n" +
 	"\vline_number\x18\x02 \x01(\x05R\n" +
 	"lineNumber\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12+\n" +
@@ -2859,8 +2858,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"unit_price\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\tunitPrice\x12\"\n" +
 	"\n" +
 	"is_taxable\x18\x06 \x01(\bH\x01R\tisTaxable\x88\x01\x01\x12#\n" +
-	"\vtax_rate_id\x18\a \x01(\x03H\x02R\ttaxRateId\x88\x01\x01B\r\n" +
-	"\v_service_idB\r\n" +
+	"\vtax_rate_id\x18\a \x01(\x03H\x02R\ttaxRateId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_item_idB\r\n" +
 	"\v_is_taxableB\x0e\n" +
 	"\f_tax_rate_id\"$\n" +
 	"\x12GetEstimateRequest\x12\x0e\n" +
@@ -2905,13 +2905,12 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x15GetEstimatePdfRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"2\n" +
 	"\x16GetEstimatePdfResponse\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\fR\acontent\"\xc4\x04\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\"\xbb\x04\n" +
 	"\x0fInvoiceLineItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
-	"invoice_id\x18\x02 \x01(\x03R\tinvoiceId\x12\"\n" +
-	"\n" +
-	"service_id\x18\x03 \x01(\x03H\x00R\tserviceId\x88\x01\x01\x12/\n" +
+	"invoice_id\x18\x02 \x01(\x03R\tinvoiceId\x12\x1c\n" +
+	"\aitem_id\x18\x03 \x01(\x03H\x00R\x06itemId\x88\x01\x01\x12/\n" +
 	"\x11ledger_account_id\x18\x04 \x01(\x05H\x01R\x0fledgerAccountId\x88\x01\x01\x12\x1f\n" +
 	"\vline_number\x18\x05 \x01(\x05R\n" +
 	"lineNumber\x12 \n" +
@@ -2927,8 +2926,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
 	"tax_amount\x18\f \x01(\v2\x0f.ava.v1.DecimalR\ttaxAmount\x12.\n" +
 	"\n" +
-	"line_total\x18\r \x01(\v2\x0f.ava.v1.DecimalR\tlineTotalB\r\n" +
-	"\v_service_idB\x14\n" +
+	"line_total\x18\r \x01(\v2\x0f.ava.v1.DecimalR\tlineTotalB\n" +
+	"\n" +
+	"\b_item_idB\x14\n" +
 	"\x12_ledger_account_idB\x0e\n" +
 	"\f_tax_rate_id\"\xd9\a\n" +
 	"\aInvoice\x12\x0e\n" +
@@ -2965,10 +2965,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x06_notesB\b\n" +
 	"\x06_termsB\x18\n" +
 	"\x16_ledger_transaction_idB\x15\n" +
-	"\x13_created_by_user_id\"\x96\x03\n" +
-	"\x12NewInvoiceLineItem\x12\"\n" +
-	"\n" +
-	"service_id\x18\x01 \x01(\x03H\x00R\tserviceId\x88\x01\x01\x12/\n" +
+	"\x13_created_by_user_id\"\x8d\x03\n" +
+	"\x12NewInvoiceLineItem\x12\x1c\n" +
+	"\aitem_id\x18\x01 \x01(\x03H\x00R\x06itemId\x88\x01\x01\x12/\n" +
 	"\x11ledger_account_id\x18\x02 \x01(\x05H\x01R\x0fledgerAccountId\x88\x01\x01\x12\x1f\n" +
 	"\vline_number\x18\x03 \x01(\x05R\n" +
 	"lineNumber\x12 \n" +
@@ -2978,8 +2977,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"unit_price\x18\x06 \x01(\v2\x0f.ava.v1.DecimalR\tunitPrice\x12\"\n" +
 	"\n" +
 	"is_taxable\x18\a \x01(\bH\x02R\tisTaxable\x88\x01\x01\x12#\n" +
-	"\vtax_rate_id\x18\b \x01(\x03H\x03R\ttaxRateId\x88\x01\x01B\r\n" +
-	"\v_service_idB\x14\n" +
+	"\vtax_rate_id\x18\b \x01(\x03H\x03R\ttaxRateId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_item_idB\x14\n" +
 	"\x12_ledger_account_idB\r\n" +
 	"\v_is_taxableB\x0e\n" +
 	"\f_tax_rate_id\"#\n" +

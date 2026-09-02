@@ -276,253 +276,261 @@ var ContactService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	ServiceCatalogService_GetService_FullMethodName        = "/ava.v1.ServiceCatalogService/GetService"
-	ServiceCatalogService_ListServices_FullMethodName      = "/ava.v1.ServiceCatalogService/ListServices"
-	ServiceCatalogService_CreateService_FullMethodName     = "/ava.v1.ServiceCatalogService/CreateService"
-	ServiceCatalogService_UpdateService_FullMethodName     = "/ava.v1.ServiceCatalogService/UpdateService"
-	ServiceCatalogService_DeactivateService_FullMethodName = "/ava.v1.ServiceCatalogService/DeactivateService"
+	ItemService_GetItem_FullMethodName        = "/ava.v1.ItemService/GetItem"
+	ItemService_ListItems_FullMethodName      = "/ava.v1.ItemService/ListItems"
+	ItemService_CreateItem_FullMethodName     = "/ava.v1.ItemService/CreateItem"
+	ItemService_UpdateItem_FullMethodName     = "/ava.v1.ItemService/UpdateItem"
+	ItemService_DeactivateItem_FullMethodName = "/ava.v1.ItemService/DeactivateItem"
 )
 
-// ServiceCatalogServiceClient is the client API for ServiceCatalogService service.
+// ItemServiceClient is the client API for ItemService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ServiceCatalogServiceClient interface {
-	GetService(ctx context.Context, in *GetServiceRequest, opts ...grpc.CallOption) (*GetServiceResponse, error)
-	ListServices(ctx context.Context, in *ListServicesRequest, opts ...grpc.CallOption) (*ListServicesResponse, error)
-	CreateService(ctx context.Context, in *CreateServiceRequest, opts ...grpc.CallOption) (*CreateServiceResponse, error)
-	UpdateService(ctx context.Context, in *UpdateServiceRequest, opts ...grpc.CallOption) (*UpdateServiceResponse, error)
-	DeactivateService(ctx context.Context, in *DeactivateServiceRequest, opts ...grpc.CallOption) (*DeactivateServiceResponse, error)
+//
+// ItemService: the sales/purchase catalog (formerly the service catalog). An Item is
+// anything that can appear as a line on an estimate or invoice; item_type says how the
+// business treats it - see Item.item_type.
+type ItemServiceClient interface {
+	GetItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error)
+	ListItems(ctx context.Context, in *ListItemsRequest, opts ...grpc.CallOption) (*ListItemsResponse, error)
+	CreateItem(ctx context.Context, in *CreateItemRequest, opts ...grpc.CallOption) (*CreateItemResponse, error)
+	UpdateItem(ctx context.Context, in *UpdateItemRequest, opts ...grpc.CallOption) (*UpdateItemResponse, error)
+	DeactivateItem(ctx context.Context, in *DeactivateItemRequest, opts ...grpc.CallOption) (*DeactivateItemResponse, error)
 }
 
-type serviceCatalogServiceClient struct {
+type itemServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewServiceCatalogServiceClient(cc grpc.ClientConnInterface) ServiceCatalogServiceClient {
-	return &serviceCatalogServiceClient{cc}
+func NewItemServiceClient(cc grpc.ClientConnInterface) ItemServiceClient {
+	return &itemServiceClient{cc}
 }
 
-func (c *serviceCatalogServiceClient) GetService(ctx context.Context, in *GetServiceRequest, opts ...grpc.CallOption) (*GetServiceResponse, error) {
+func (c *itemServiceClient) GetItem(ctx context.Context, in *GetItemRequest, opts ...grpc.CallOption) (*GetItemResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetServiceResponse)
-	err := c.cc.Invoke(ctx, ServiceCatalogService_GetService_FullMethodName, in, out, cOpts...)
+	out := new(GetItemResponse)
+	err := c.cc.Invoke(ctx, ItemService_GetItem_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serviceCatalogServiceClient) ListServices(ctx context.Context, in *ListServicesRequest, opts ...grpc.CallOption) (*ListServicesResponse, error) {
+func (c *itemServiceClient) ListItems(ctx context.Context, in *ListItemsRequest, opts ...grpc.CallOption) (*ListItemsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListServicesResponse)
-	err := c.cc.Invoke(ctx, ServiceCatalogService_ListServices_FullMethodName, in, out, cOpts...)
+	out := new(ListItemsResponse)
+	err := c.cc.Invoke(ctx, ItemService_ListItems_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serviceCatalogServiceClient) CreateService(ctx context.Context, in *CreateServiceRequest, opts ...grpc.CallOption) (*CreateServiceResponse, error) {
+func (c *itemServiceClient) CreateItem(ctx context.Context, in *CreateItemRequest, opts ...grpc.CallOption) (*CreateItemResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateServiceResponse)
-	err := c.cc.Invoke(ctx, ServiceCatalogService_CreateService_FullMethodName, in, out, cOpts...)
+	out := new(CreateItemResponse)
+	err := c.cc.Invoke(ctx, ItemService_CreateItem_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serviceCatalogServiceClient) UpdateService(ctx context.Context, in *UpdateServiceRequest, opts ...grpc.CallOption) (*UpdateServiceResponse, error) {
+func (c *itemServiceClient) UpdateItem(ctx context.Context, in *UpdateItemRequest, opts ...grpc.CallOption) (*UpdateItemResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateServiceResponse)
-	err := c.cc.Invoke(ctx, ServiceCatalogService_UpdateService_FullMethodName, in, out, cOpts...)
+	out := new(UpdateItemResponse)
+	err := c.cc.Invoke(ctx, ItemService_UpdateItem_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serviceCatalogServiceClient) DeactivateService(ctx context.Context, in *DeactivateServiceRequest, opts ...grpc.CallOption) (*DeactivateServiceResponse, error) {
+func (c *itemServiceClient) DeactivateItem(ctx context.Context, in *DeactivateItemRequest, opts ...grpc.CallOption) (*DeactivateItemResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeactivateServiceResponse)
-	err := c.cc.Invoke(ctx, ServiceCatalogService_DeactivateService_FullMethodName, in, out, cOpts...)
+	out := new(DeactivateItemResponse)
+	err := c.cc.Invoke(ctx, ItemService_DeactivateItem_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ServiceCatalogServiceServer is the server API for ServiceCatalogService service.
-// All implementations must embed UnimplementedServiceCatalogServiceServer
+// ItemServiceServer is the server API for ItemService service.
+// All implementations must embed UnimplementedItemServiceServer
 // for forward compatibility.
-type ServiceCatalogServiceServer interface {
-	GetService(context.Context, *GetServiceRequest) (*GetServiceResponse, error)
-	ListServices(context.Context, *ListServicesRequest) (*ListServicesResponse, error)
-	CreateService(context.Context, *CreateServiceRequest) (*CreateServiceResponse, error)
-	UpdateService(context.Context, *UpdateServiceRequest) (*UpdateServiceResponse, error)
-	DeactivateService(context.Context, *DeactivateServiceRequest) (*DeactivateServiceResponse, error)
-	mustEmbedUnimplementedServiceCatalogServiceServer()
+//
+// ItemService: the sales/purchase catalog (formerly the service catalog). An Item is
+// anything that can appear as a line on an estimate or invoice; item_type says how the
+// business treats it - see Item.item_type.
+type ItemServiceServer interface {
+	GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error)
+	ListItems(context.Context, *ListItemsRequest) (*ListItemsResponse, error)
+	CreateItem(context.Context, *CreateItemRequest) (*CreateItemResponse, error)
+	UpdateItem(context.Context, *UpdateItemRequest) (*UpdateItemResponse, error)
+	DeactivateItem(context.Context, *DeactivateItemRequest) (*DeactivateItemResponse, error)
+	mustEmbedUnimplementedItemServiceServer()
 }
 
-// UnimplementedServiceCatalogServiceServer must be embedded to have
+// UnimplementedItemServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedServiceCatalogServiceServer struct{}
+type UnimplementedItemServiceServer struct{}
 
-func (UnimplementedServiceCatalogServiceServer) GetService(context.Context, *GetServiceRequest) (*GetServiceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetService not implemented")
+func (UnimplementedItemServiceServer) GetItem(context.Context, *GetItemRequest) (*GetItemResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetItem not implemented")
 }
-func (UnimplementedServiceCatalogServiceServer) ListServices(context.Context, *ListServicesRequest) (*ListServicesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListServices not implemented")
+func (UnimplementedItemServiceServer) ListItems(context.Context, *ListItemsRequest) (*ListItemsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListItems not implemented")
 }
-func (UnimplementedServiceCatalogServiceServer) CreateService(context.Context, *CreateServiceRequest) (*CreateServiceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateService not implemented")
+func (UnimplementedItemServiceServer) CreateItem(context.Context, *CreateItemRequest) (*CreateItemResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateItem not implemented")
 }
-func (UnimplementedServiceCatalogServiceServer) UpdateService(context.Context, *UpdateServiceRequest) (*UpdateServiceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateService not implemented")
+func (UnimplementedItemServiceServer) UpdateItem(context.Context, *UpdateItemRequest) (*UpdateItemResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateItem not implemented")
 }
-func (UnimplementedServiceCatalogServiceServer) DeactivateService(context.Context, *DeactivateServiceRequest) (*DeactivateServiceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeactivateService not implemented")
+func (UnimplementedItemServiceServer) DeactivateItem(context.Context, *DeactivateItemRequest) (*DeactivateItemResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeactivateItem not implemented")
 }
-func (UnimplementedServiceCatalogServiceServer) mustEmbedUnimplementedServiceCatalogServiceServer() {}
-func (UnimplementedServiceCatalogServiceServer) testEmbeddedByValue()                               {}
+func (UnimplementedItemServiceServer) mustEmbedUnimplementedItemServiceServer() {}
+func (UnimplementedItemServiceServer) testEmbeddedByValue()                     {}
 
-// UnsafeServiceCatalogServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ServiceCatalogServiceServer will
+// UnsafeItemServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ItemServiceServer will
 // result in compilation errors.
-type UnsafeServiceCatalogServiceServer interface {
-	mustEmbedUnimplementedServiceCatalogServiceServer()
+type UnsafeItemServiceServer interface {
+	mustEmbedUnimplementedItemServiceServer()
 }
 
-func RegisterServiceCatalogServiceServer(s grpc.ServiceRegistrar, srv ServiceCatalogServiceServer) {
-	// If the following call panics, it indicates UnimplementedServiceCatalogServiceServer was
+func RegisterItemServiceServer(s grpc.ServiceRegistrar, srv ItemServiceServer) {
+	// If the following call panics, it indicates UnimplementedItemServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&ServiceCatalogService_ServiceDesc, srv)
+	s.RegisterService(&ItemService_ServiceDesc, srv)
 }
 
-func _ServiceCatalogService_GetService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetServiceRequest)
+func _ItemService_GetItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetItemRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceCatalogServiceServer).GetService(ctx, in)
+		return srv.(ItemServiceServer).GetItem(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ServiceCatalogService_GetService_FullMethodName,
+		FullMethod: ItemService_GetItem_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceCatalogServiceServer).GetService(ctx, req.(*GetServiceRequest))
+		return srv.(ItemServiceServer).GetItem(ctx, req.(*GetItemRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ServiceCatalogService_ListServices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListServicesRequest)
+func _ItemService_ListItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListItemsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceCatalogServiceServer).ListServices(ctx, in)
+		return srv.(ItemServiceServer).ListItems(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ServiceCatalogService_ListServices_FullMethodName,
+		FullMethod: ItemService_ListItems_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceCatalogServiceServer).ListServices(ctx, req.(*ListServicesRequest))
+		return srv.(ItemServiceServer).ListItems(ctx, req.(*ListItemsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ServiceCatalogService_CreateService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateServiceRequest)
+func _ItemService_CreateItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateItemRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceCatalogServiceServer).CreateService(ctx, in)
+		return srv.(ItemServiceServer).CreateItem(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ServiceCatalogService_CreateService_FullMethodName,
+		FullMethod: ItemService_CreateItem_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceCatalogServiceServer).CreateService(ctx, req.(*CreateServiceRequest))
+		return srv.(ItemServiceServer).CreateItem(ctx, req.(*CreateItemRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ServiceCatalogService_UpdateService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateServiceRequest)
+func _ItemService_UpdateItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateItemRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceCatalogServiceServer).UpdateService(ctx, in)
+		return srv.(ItemServiceServer).UpdateItem(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ServiceCatalogService_UpdateService_FullMethodName,
+		FullMethod: ItemService_UpdateItem_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceCatalogServiceServer).UpdateService(ctx, req.(*UpdateServiceRequest))
+		return srv.(ItemServiceServer).UpdateItem(ctx, req.(*UpdateItemRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ServiceCatalogService_DeactivateService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeactivateServiceRequest)
+func _ItemService_DeactivateItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeactivateItemRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceCatalogServiceServer).DeactivateService(ctx, in)
+		return srv.(ItemServiceServer).DeactivateItem(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ServiceCatalogService_DeactivateService_FullMethodName,
+		FullMethod: ItemService_DeactivateItem_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceCatalogServiceServer).DeactivateService(ctx, req.(*DeactivateServiceRequest))
+		return srv.(ItemServiceServer).DeactivateItem(ctx, req.(*DeactivateItemRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// ServiceCatalogService_ServiceDesc is the grpc.ServiceDesc for ServiceCatalogService service.
+// ItemService_ServiceDesc is the grpc.ServiceDesc for ItemService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var ServiceCatalogService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "ava.v1.ServiceCatalogService",
-	HandlerType: (*ServiceCatalogServiceServer)(nil),
+var ItemService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "ava.v1.ItemService",
+	HandlerType: (*ItemServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetService",
-			Handler:    _ServiceCatalogService_GetService_Handler,
+			MethodName: "GetItem",
+			Handler:    _ItemService_GetItem_Handler,
 		},
 		{
-			MethodName: "ListServices",
-			Handler:    _ServiceCatalogService_ListServices_Handler,
+			MethodName: "ListItems",
+			Handler:    _ItemService_ListItems_Handler,
 		},
 		{
-			MethodName: "CreateService",
-			Handler:    _ServiceCatalogService_CreateService_Handler,
+			MethodName: "CreateItem",
+			Handler:    _ItemService_CreateItem_Handler,
 		},
 		{
-			MethodName: "UpdateService",
-			Handler:    _ServiceCatalogService_UpdateService_Handler,
+			MethodName: "UpdateItem",
+			Handler:    _ItemService_UpdateItem_Handler,
 		},
 		{
-			MethodName: "DeactivateService",
-			Handler:    _ServiceCatalogService_DeactivateService_Handler,
+			MethodName: "DeactivateItem",
+			Handler:    _ItemService_DeactivateItem_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

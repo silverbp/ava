@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 // Package server wires the gRPC server: the Postgres-backed Store, the auth
-// interceptor, and one implementation per proto service.
+// interceptor, and one implementation per proto item.
 package server
 
 import (
@@ -72,7 +72,7 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 	avav1.RegisterReportingServiceServer(grpcServer, newReportingService(store))
 	avav1.RegisterPeriodCloseServiceServer(grpcServer, newPeriodCloseService(store))
 	avav1.RegisterContactServiceServer(grpcServer, newContactService(store))
-	avav1.RegisterServiceCatalogServiceServer(grpcServer, newServiceCatalogService(store))
+	avav1.RegisterItemServiceServer(grpcServer, newItemService(store))
 	avav1.RegisterTaxRateServiceServer(grpcServer, newTaxRateService(store))
 	avav1.RegisterEstimateServiceServer(grpcServer, newEstimateService(store))
 	avav1.RegisterInvoiceServiceServer(grpcServer, newInvoiceService(store))

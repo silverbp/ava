@@ -66,7 +66,7 @@ func NewRootCmd() *cobra.Command {
 	addGrouped(root, groupAccounting,
 		newInvoiceCmd(), newEstimateCmd(), newPaymentCmd(),
 		newLedgerAccountCmd(), newLedgerTransactionCmd(),
-		newContactCmd(), newServiceCmd(), newTaxRateCmd(),
+		newContactCmd(), newItemCmd(), newTaxRateCmd(),
 		newBankStatementCmd(), newBusinessCmd(), newContextCmd(),
 		newReportCmd(), newCloseCmd(),
 	)
