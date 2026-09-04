@@ -334,8 +334,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// InvoiceService. Every line item must set ledger_account_id (the
-// revenue/expense account it hits, chosen per line rather than defaulted),
+// InvoiceService. Every line item references a catalog item and posts to
+// that item's default_ledger_account_id (the revenue/expense account it
+// hits - owned by the item, never chosen per line; see NewInvoiceLineItem),
 // and the invoice's contact must have its own ledger_account_id (its AR/AP
 // account) — CreateInvoice posts the invoice to the ledger atomically
 // alongside creating it. UpdateInvoiceLineItems regenerates the linked
@@ -422,8 +423,9 @@ func (c *invoiceServiceClient) GetInvoicePdf(ctx context.Context, in *GetInvoice
 // All implementations must embed UnimplementedInvoiceServiceServer
 // for forward compatibility.
 //
-// InvoiceService. Every line item must set ledger_account_id (the
-// revenue/expense account it hits, chosen per line rather than defaulted),
+// InvoiceService. Every line item references a catalog item and posts to
+// that item's default_ledger_account_id (the revenue/expense account it
+// hits - owned by the item, never chosen per line; see NewInvoiceLineItem),
 // and the invoice's contact must have its own ledger_account_id (its AR/AP
 // account) — CreateInvoice posts the invoice to the ledger atomically
 // alongside creating it. UpdateInvoiceLineItems regenerates the linked

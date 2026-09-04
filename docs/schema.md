@@ -8,8 +8,11 @@ and AI-context tables that extend it.
 Split into four diagrams by domain. A single-attribute box with just `id PK` is a **stub** —
 its full definition lives in another diagram, included only to show the relationship.
 
-> Regenerate this file (and the companion [styled diagram artifact](https://claude.ai/code/artifact/d9c5ecac-77c6-4f70-bbd3-c0d429db9de1))
-> after schema changes rather than hand-editing it out of sync.
+> Regenerate this file (and the companion [styled schema artifact](https://claude.ai/code/artifact/2b23ae71-ba76-4d55-baec-91bf02304623))
+> after schema changes rather than hand-editing it out of sync. The artifact is generated
+> straight from the migration — every table, column, FK, unique index and CHECK enum — so it
+> can't drift the way hand-written prose can; the diagrams and the design notes in it come
+> from this file.
 
 ## 1. Core Ledger & Chart of Accounts
 
@@ -25,6 +28,7 @@ erDiagram
     income_statement_category |o--o{ ledger_account : "income_statement_category_id"
     ledger_account |o--o{ ledger_account : "parent_account_id"
     business ||--o{ ledger_transaction : "business_id"
+    business ||--o{ ledger_entry : "business_id"
     ledger_transaction ||--o{ ledger_entry : "ledger_transaction_id"
     ledger_account ||--o{ ledger_entry : "account_id"
     business ||--o{ period_close : "business_id"
@@ -78,6 +82,7 @@ erDiagram
     }
     ledger_entry {
         bigint id PK
+        bigint business_id FK
         bigint ledger_transaction_id FK
         int account_id FK
         decimal debit_amount
@@ -317,18 +322,29 @@ erDiagram
   `item_id`/`description`/`quantity`/`unit_price`/`is_taxable`/`tax_rate_id` carries over as-is,
   with `ledger_account_id` resolved fresh through `resolveInvoiceLines` (estimate lines have no
   ledger account of their own — see below).
+- **`invoice_line_item.item_id` / `estimate_line_item.item_id`** — every line references a
+  catalog `item` from the document's own business; there are no free-text lines (Xero/QuickBooks
+  style). This is enforced by the API (`lookupLineItem` in `internal/server/trading_service.go`:
+  missing → `INVALID_ARGUMENT`, another business's item → `INVALID_ARGUMENT`, inactive item →
+  `FAILED_PRECONDITION`) and the CLI (`--line` requires `item=<id>`), **not** by the schema —
+  the columns stay nullable because rows created before the catalog existed have `NULL` here.
+  Those legacy rows are read-only history: they still render and report fine, but
+  `update-lines` on such a document has to re-point every line at a real item.
 - **`invoice_line_item.ledger_account_id`** — which revenue (SALES) or expense (PURCHASE)
-  account this line posts to, required on every line one way or another. A caller can set it
-  explicitly, or leave it unset and set `item_id` on an item that has its own
-  `default_ledger_account_id` - `resolveInvoiceLines` (`internal/server/trading_service.go`)
-  fills it in server-side in that case, same for `unit_price`/`is_taxable`/`tax_rate_id` from
-  the item's `retail_price`/`is_taxable`/`default_tax_rate_id`. An explicit value on the line
-  always wins over the item's default; `CreateInvoice`/`UpdateInvoiceLineItems` only reject a
-  line that ends up with neither. The invoice's contact must also have a `customer` (for SALES)
-  or `vendor` (for PURCHASE) row with its own `ledger_account_id` set — an invoice posts
-  atomically at creation, always. `UpdateInvoiceLineItems` regenerates the linked ledger
-  transaction's entries in place (same `ledger_transaction_id`, entries replaced) when a posted
-  invoice's lines change, rather than rejecting the edit.
+  account this line posts to. It is *always* the line's item's `default_ledger_account_id`,
+  snapshotted onto the line at posting time by `resolveInvoiceLine` — a later change to the
+  item's account doesn't rewrite already-posted invoices, and there is no per-line override
+  (`NewInvoiceLineItem` has no such field; the old one is `reserved`). An item with no
+  `default_ledger_account_id` is rejected with `FAILED_PRECONDITION` rather than producing an
+  unpostable line — and `CreateItem` requires the field, so only pre-catalog items can lack it.
+  The other item-derived fields are defaults, not enforcement: `description` falls back to
+  `item.name`, and `unit_price`/`is_taxable`/`tax_rate_id` to the item's
+  `retail_price`/`is_taxable`/`default_tax_rate_id`, each overridable per line. The invoice's
+  contact must also have a `customer` (for SALES) or `vendor` (for PURCHASE) row with its own
+  `ledger_account_id` set — an invoice posts atomically at creation, always.
+  `UpdateInvoiceLineItems` regenerates the linked ledger transaction's entries in place (same
+  `ledger_transaction_id`, entries replaced) when a posted invoice's lines change, rather than
+  rejecting the edit.
 - **`payment`** — generalized via `payment_type` (RECEIVED / MADE). Applying it to an invoice is
   independent of the payment itself: zero, one, or several `payment_application` rows (each with
   its own `applied_amount`) let one deposit cover several invoices at once, rather than the
@@ -348,11 +364,15 @@ erDiagram
   far: an `INVENTORY` item carries no quantity, inventory-asset account or COGS behaviour yet;
   that lands alongside stock movements. It's a `VARCHAR` + `CHECK` string enum like
   `invoice_type`, not a boolean pair, since more modes are expected.
-  `default_tax_rate_id`/`default_ledger_account_id` are the source
-  `CreateInvoice`/`CreateEstimate`/`UpdateInvoiceLineItems`/`UpdateEstimateLineItems` resolve a
-  line's `ledger_account_id`/`unit_price`/`is_taxable`/`tax_rate_id` from when the line sets
-  `item_id` and leaves them unset - see the `invoice_line_item.ledger_account_id` bullet above.
-  Still overridable per line, never enforced to match.
+  Every estimate/invoice line must reference an item (see the `item_id` bullet above), so the
+  catalog is the only way anything gets onto a document. `default_ledger_account_id` is
+  required by `CreateItem` and is *the* account every invoice line for the item posts to — not
+  overridable per line (see `invoice_line_item.ledger_account_id`). `name`, `retail_price`,
+  `is_taxable` and `default_tax_rate_id` are genuine defaults: `resolveEstimateLine` /
+  `resolveInvoiceLine` fill a line's `description`/`unit_price`/`is_taxable`/`tax_rate_id` from
+  them when the line leaves those unset, and an explicit value on the line always wins.
+  Deactivating an item (`is_active = FALSE`) keeps it on existing lines but stops it going on
+  new ones.
 - **`tax_rate`** — a named rate (e.g. "Standard 20%") tied to its own liability account.
   `item.default_tax_rate_id` and each line item's `tax_rate_id` reference it (`ledger_account`
   has no default-tax-rate column — dropped as redundant with `item.default_tax_rate_id`, the
@@ -368,12 +388,15 @@ they can access.
 
 ```mermaid
 erDiagram
-    business |o--o{ app_user : "created_by_user_id"
+    app_user |o--o{ business : "created_by_user_id"
     business ||--o{ business_user : "business_id"
     app_user ||--o{ business_user : "user_id"
     app_user ||--o{ user_session : "user_id"
     app_user ||--o{ webauthn_credential : "user_id"
     user_session |o--o{ user_session : "replaced_by_session_id"
+    business ||--o{ business_invite : "business_id"
+    app_user |o--o{ business_invite : "invited_by_user_id"
+    app_user |o--o{ business_invite : "accepted_by_user_id"
 
     business {
         bigint id PK
@@ -382,6 +405,7 @@ erDiagram
         bigint id PK
         varchar email UK
         varchar display_name
+        boolean is_global_admin "at most one row TRUE"
         boolean is_active
     }
     business_user {
@@ -389,6 +413,18 @@ erDiagram
         bigint business_id FK
         bigint user_id FK
         varchar role "OWNER ADMIN MEMBER VIEWER"
+    }
+    business_invite {
+        bigint id PK
+        bigint business_id FK
+        varchar email
+        varchar role "OWNER ADMIN MEMBER VIEWER"
+        varchar token_hash
+        bigint invited_by_user_id FK
+        timestamp expires_at
+        timestamp accepted_at
+        bigint accepted_by_user_id FK
+        timestamp revoked_at
     }
     user_session {
         bigint id PK
@@ -418,6 +454,16 @@ erDiagram
   lookup/display and as the WebAuthn `user.name` during passkey
   registration. The actual credential material lives in
   `webauthn_credential`, never here.
+- **`is_global_admin`** — the one cross-business privilege in the schema:
+  only a global admin can create a business (`BusinessService.CreateBusiness`,
+  `auth.RequireGlobalAdmin`) or invite/manage users on any business. There
+  can be **at most one** at a time, enforced in the DB rather than only in
+  application code, by a unique index on a constant expression with a
+  partial `WHERE is_global_admin = TRUE AND deleted_at IS NULL`.
+  `UserService.SetGlobalAdmin` transfers the flag (clear the old holder, set
+  the new one, in one transaction) so it never attempts to violate that; the
+  very first admin has nobody to grant it, so it's bootstrapped from
+  `AVA_BOOTSTRAP_ADMIN_EMAIL` at startup (`internal/auth/bootstrap.go`).
 - **`webauthn_credential`** — one row per registered passkey (a user may
   register more than one, e.g. a laptop and a phone). `credential_id`/
   `public_key` are the raw values a WebAuthn relying-party library produces;
@@ -429,6 +475,15 @@ erDiagram
   `VARCHAR` + `CHECK`, matching the schema's existing string-enum convention
   (`invoice.status`, `payment.payment_type`, ...) rather than a native
   Postgres enum type.
+- **`business_invite`** — a pending invitation to join a business, carrying
+  the `role` the invitee will get once they accept. `token_hash` stores a
+  digest of the invite token, never the raw value (same rule as
+  `user_session.refresh_token_hash`), and the row is the audit trail as much
+  as the pending state: `expires_at`/`revoked_at`/`accepted_at` +
+  `accepted_by_user_id` mean an accepted or withdrawn invite stays on record
+  rather than being deleted. `email` is the invited address, which is
+  deliberately *not* an FK — you can invite someone who has no `app_user`
+  row yet, and the link to a real user is only made at acceptance.
 - **`user_session`** — server-side refresh-token storage for avactl/API
   sessions. Access tokens are short-lived signed JWTs, verified in-process on
   every gRPC call with no DB hit; only the long-lived refresh token here is

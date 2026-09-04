@@ -336,6 +336,14 @@ func (s *itemService) CreateItem(ctx context.Context, req *avav1.CreateItemReque
 	if req.GetItemCode() == "" || req.GetName() == "" || req.GetRetailPrice() == nil {
 		return nil, status.Error(codes.InvalidArgument, "item_code, name, and retail_price are required")
 	}
+	// Every invoice line posts to its item's default_ledger_account_id (there's no per-line
+	// override), so an item without one could never be invoiced - reject it up front.
+	if req.DefaultLedgerAccountId == nil {
+		return nil, status.Error(codes.InvalidArgument, "default_ledger_account_id is required")
+	}
+	if err := requireLedgerAccountInBusiness(ctx, s.store.Queries, req.GetBusinessId(), req.GetDefaultLedgerAccountId()); err != nil {
+		return nil, err
+	}
 	itemType := itemTypeService
 	if req.ItemType != nil {
 		itemType = req.GetItemType()
@@ -391,6 +399,11 @@ func (s *itemService) UpdateItem(ctx context.Context, req *avav1.UpdateItemReque
 	if req.ItemType != nil && !validItemTypes[req.GetItemType()] {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid item_type %q (want one of %s)", req.GetItemType(), itemTypeList())
 	}
+	if req.DefaultLedgerAccountId != nil {
+		if err := requireLedgerAccountInBusiness(ctx, s.store.Queries, existing.BusinessID, req.GetDefaultLedgerAccountId()); err != nil {
+			return nil, err
+		}
+	}
 	retailPrice, err := moneypb.ToNumeric(req.RetailPrice)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid retail_price: %v", err)
@@ -445,6 +458,27 @@ func (s *itemService) DeactivateItem(ctx context.Context, req *avav1.DeactivateI
 		return nil, status.Errorf(codes.Internal, "converting item: %v", err)
 	}
 	return &avav1.DeactivateItemResponse{Item: pb}, nil
+}
+
+// requireLedgerAccountInBusiness vets an item's default_ledger_account_id: it must exist,
+// belong to businessID (same tenancy rule as entity_ref.go's requireEntityInBusiness), and be
+// a postable account - a container roll-up node can never take a ledger entry, so an item
+// pointing at one would fail at invoice time instead of here.
+func requireLedgerAccountInBusiness(ctx context.Context, q *sqlcgen.Queries, businessID int64, accountID int32) error {
+	acct, err := q.GetLedgerAccount(ctx, accountID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return status.Errorf(codes.InvalidArgument, "ledger account %d not found", accountID)
+		}
+		return translatePgError(err)
+	}
+	if acct.BusinessID != businessID {
+		return status.Errorf(codes.InvalidArgument, "ledger account %d does not belong to business %d", accountID, businessID)
+	}
+	if acct.IsContainer {
+		return status.Errorf(codes.InvalidArgument, "ledger account %d (%s) is a container, not a postable account", accountID, acct.Name)
+	}
+	return nil
 }
 
 func itemToProto(item sqlcgen.Item) (*avav1.Item, error) {

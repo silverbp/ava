@@ -442,6 +442,44 @@ func (q *Queries) GetItem(ctx context.Context, id int64) (Item, error) {
 	return i, err
 }
 
+const getItemInBusiness = `-- name: GetItemInBusiness :one
+SELECT id, business_id, item_code, item_type, name, description, unit_of_measure, cost_price, retail_price, is_taxable, default_tax_rate_id, default_ledger_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM item WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL
+`
+
+type GetItemInBusinessParams struct {
+	ID         int64 `json:"id"`
+	BusinessID int64 `json:"business_id"`
+}
+
+// Business-scoped item lookup for estimate/invoice line resolution: a line may only
+// reference its own business's catalog. Deliberately no is_active filter so callers can
+// tell "not found" (InvalidArgument) from "inactive" (FailedPrecondition).
+func (q *Queries) GetItemInBusiness(ctx context.Context, arg GetItemInBusinessParams) (Item, error) {
+	row := q.db.QueryRow(ctx, getItemInBusiness, arg.ID, arg.BusinessID)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.ItemCode,
+		&i.ItemType,
+		&i.Name,
+		&i.Description,
+		&i.UnitOfMeasure,
+		&i.CostPrice,
+		&i.RetailPrice,
+		&i.IsTaxable,
+		&i.DefaultTaxRateID,
+		&i.DefaultLedgerAccountID,
+		&i.IsActive,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResourceVersion,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getTaxRate = `-- name: GetTaxRate :one
 SELECT id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version FROM tax_rate WHERE id = $1
 `

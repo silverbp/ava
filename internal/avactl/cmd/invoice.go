@@ -138,30 +138,9 @@ func newInvoiceCreateCmd() *cobra.Command {
 				return err
 			}
 
-			var lineItems []*avav1.NewInvoiceLineItem
-			for i, f := range rawFields {
-				itemID, err := parseOptionalInt64(f, "item")
-				if err != nil {
-					return err
-				}
-				taxRateID, err := parseOptionalInt64(f, "tax-rate")
-				if err != nil {
-					return err
-				}
-				ledgerAccountID, err := parseOptionalInt32(f, "account")
-				if err != nil {
-					return err
-				}
-				lineItems = append(lineItems, &avav1.NewInvoiceLineItem{
-					ItemId:          itemID,
-					LedgerAccountId: ledgerAccountID,
-					LineNumber:      int32(i + 1),
-					Description:     f["desc"],
-					Quantity:        parseDecimalField(f, "qty"),
-					UnitPrice:       parseDecimalField(f, "price"),
-					IsTaxable:       parseOptionalBool(f, "taxable"),
-					TaxRateId:       taxRateID,
-				})
+			lineItems, err := newInvoiceLineItems(rawFields)
+			if err != nil {
+				return err
 			}
 
 			conn, _, businessID, err := dial()
@@ -206,28 +185,55 @@ func newInvoiceCreateCmd() *cobra.Command {
 	cmd.Flags().Int64Var(&estimate, "estimate", 0, "estimate id this invoice converts from")
 	cmd.Flags().StringVar(&notes, "notes", "", "notes")
 	cmd.Flags().StringVar(&terms, "terms", "", "terms")
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,item=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the item when omitted. Omit entirely when --estimate is set to build the lines from that estimate instead.")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, lineFlagHelp+". Omit entirely when --estimate is set to build the lines from that estimate instead.")
 	_ = cmd.MarkFlagRequired("contact")
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("due")
 	resource.Doc{
 		Summary: "Create an invoice",
-		Detail: "Every line needs a ledger_account_id one way or another - either set account=<id> " +
-			"explicitly, or set item=<id> on an item that has its own default_ledger_account_id. " +
-			"The contact must also have a customer (for SALES) or vendor (for PURCHASE) record with its " +
+		Detail: "Every line must reference a catalog item (item=<id>) - there are no free-text lines. " +
+			"The line posts to that item's default_ledger_account_id; the account can't be set per line. " +
+			"desc/price/taxable/tax-rate default from the item's catalog entry and may be overridden per line. " +
+			"The contact must have a customer (for SALES) or vendor (for PURCHASE) record with its " +
 			"own ledger_account_id set — the invoice posts to the ledger atomically as part of creation. " +
 			"Pass --estimate with no --line flags to build the invoice's lines from that estimate's own " +
-			"lines instead (item_id/description/qty/price/taxable/tax_rate carried over as-is, " +
-			"ledger_account_id resolved fresh from each line's item default).",
+			"lines instead (item/description/qty/price/taxable/tax_rate carried over as-is, " +
+			"ledger account resolved fresh from each line's item).",
 		Examples: []resource.Example{
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
-				`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`},
+				`--line "item=71,qty=10"`},
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 " +
-				`--line "desc=Consulting,item=71,qty=10"`},
+				`--line "item=71,desc=Consulting (March),qty=10,price=150.00,taxable,tax-rate=1"`},
 			{Cmd: "avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 --estimate 12"},
 		},
 	}.Apply(cmd)
 	return cmd
+}
+
+// newInvoiceLineItems maps parsed --line field maps (parseLineFlags) onto the request shape.
+// line_number is the 1-based position in the flag list.
+func newInvoiceLineItems(rawFields []map[string]string) ([]*avav1.NewInvoiceLineItem, error) {
+	lineItems := make([]*avav1.NewInvoiceLineItem, 0, len(rawFields))
+	for i, f := range rawFields {
+		itemID, err := parseRequiredInt64(f, "item")
+		if err != nil {
+			return nil, err
+		}
+		taxRateID, err := parseOptionalInt64(f, "tax-rate")
+		if err != nil {
+			return nil, err
+		}
+		lineItems = append(lineItems, &avav1.NewInvoiceLineItem{
+			ItemId:      itemID,
+			LineNumber:  int32(i + 1),
+			Description: f["desc"],
+			Quantity:    parseDecimalField(f, "qty"),
+			UnitPrice:   parseDecimalField(f, "price"),
+			IsTaxable:   parseOptionalBool(f, "taxable"),
+			TaxRateId:   taxRateID,
+		})
+	}
+	return lineItems, nil
 }
 
 func newInvoiceUpdateLinesCmd() *cobra.Command {
@@ -246,31 +252,9 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			var lineItems []*avav1.NewInvoiceLineItem
-			for i, f := range rawFields {
-				itemID, err := parseOptionalInt64(f, "item")
-				if err != nil {
-					return err
-				}
-				taxRateID, err := parseOptionalInt64(f, "tax-rate")
-				if err != nil {
-					return err
-				}
-				ledgerAccountID, err := parseOptionalInt32(f, "account")
-				if err != nil {
-					return err
-				}
-				lineItems = append(lineItems, &avav1.NewInvoiceLineItem{
-					ItemId:          itemID,
-					LedgerAccountId: ledgerAccountID,
-					LineNumber:      int32(i + 1),
-					Description:     f["desc"],
-					Quantity:        parseDecimalField(f, "qty"),
-					UnitPrice:       parseDecimalField(f, "price"),
-					IsTaxable:       parseOptionalBool(f, "taxable"),
-					TaxRateId:       taxRateID,
-				})
+			lineItems, err := newInvoiceLineItems(rawFields)
+			if err != nil {
+				return err
 			}
 
 			conn, _, _, err := dial()
@@ -290,16 +274,17 @@ func newInvoiceUpdateLinesCmd() *cobra.Command {
 			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetInvoice(), invoiceNoun.Columns)
 		},
 	}
-	cmd.Flags().StringArrayVar(&rawLines, "line", nil, "desc=...,item=<id>[,qty=...][,price=...][,account=<id>][,taxable][,tax-rate=<id>] (repeatable) - price/account/taxable/tax-rate default from the item when omitted")
+	cmd.Flags().StringArrayVar(&rawLines, "line", nil, lineFlagHelp)
 	addResourceVersionFlag(cmd, &resourceVersion)
 	_ = cmd.MarkFlagRequired("line")
 	resource.Doc{
 		Summary: "Replace an invoice's line items",
 		Detail: "Replaces the entire line item set - repeat --line once per line item, including ones you're " +
-			"keeping unchanged. If the invoice is already posted to the ledger, its linked transaction's " +
+			"keeping unchanged. Every line must reference a catalog item (item=<id>) and posts to that item's " +
+			"default_ledger_account_id. If the invoice is already posted to the ledger, its linked transaction's " +
 			"entries are regenerated in place from the new lines rather than rejecting the edit.",
 		Examples: []resource.Example{{Cmd: "avactl invoice update-lines 42 " +
-			`--line "desc=Consulting,qty=10,price=150.00,account=40,taxable,tax-rate=1"`}},
+			`--line "item=71,qty=10,price=150.00,taxable,tax-rate=1"`}},
 	}.Apply(cmd)
 	return cmd
 }

@@ -147,16 +147,19 @@ func newItemCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&cost, "cost", "", "cost price")
 	cmd.Flags().BoolVar(&taxable, "taxable", false, "taxable by default")
 	cmd.Flags().Int64Var(&defaultTaxRateID, "default-tax-rate-id", 0, "default tax_rate id")
-	cmd.Flags().Int32Var(&defaultLedgerAccountID, "default-ledger-account-id", 0, "default ledger_account id this item's lines normally post to")
+	cmd.Flags().Int32Var(&defaultLedgerAccountID, "default-ledger-account-id", 0, "ledger_account id every invoice line for this item posts to (required)")
 	_ = cmd.MarkFlagRequired("code")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("price")
+	_ = cmd.MarkFlagRequired("default-ledger-account-id")
 	resource.Doc{
 		Summary: "Create a catalog item",
-		Detail:  "--type picks how the business treats the item: " + itemTypeFlagHelp + ".",
+		Detail: "--type picks how the business treats the item: " + itemTypeFlagHelp + ". " +
+			"--default-ledger-account-id is required: every invoice line references an item and posts to " +
+			"that item's account (it can't be set per line), so an item without one could never be invoiced.",
 		Examples: []resource.Example{
-			{Cmd: "avactl item create --code CONSULT --name Consulting --price 150.00"},
-			{Cmd: "avactl item create --code WIDGET --type INVENTORY --name Widget --price 25.00 --cost 10.00"},
+			{Cmd: "avactl item create --code CONSULT --name Consulting --price 150.00 --default-ledger-account-id 40"},
+			{Cmd: "avactl item create --code WIDGET --type INVENTORY --name Widget --price 25.00 --cost 10.00 --default-ledger-account-id 40"},
 		},
 	}.Apply(cmd)
 	return cmd

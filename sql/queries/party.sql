@@ -71,6 +71,12 @@ RETURNING *;
 -- name: GetItem :one
 SELECT * FROM item WHERE id = $1 AND deleted_at IS NULL;
 
+-- name: GetItemInBusiness :one
+-- Business-scoped item lookup for estimate/invoice line resolution: a line may only
+-- reference its own business's catalog. Deliberately no is_active filter so callers can
+-- tell "not found" (InvalidArgument) from "inactive" (FailedPrecondition).
+SELECT * FROM item WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL;
+
 -- name: ListItems :many
 SELECT * FROM item
 WHERE business_id = sqlc.arg('business_id') AND deleted_at IS NULL

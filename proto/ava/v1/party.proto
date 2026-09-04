@@ -198,9 +198,10 @@ message Item {
   // an item is catalog data, not a historical transaction, so there's no
   // need to also snapshot a decimal rate alongside the reference.
   optional int64 default_tax_rate_id = 15;
-  // Which revenue/expense ledger_account a line normally posts to - a
-  // default, not enforced; invoice_line_item.ledger_account_id can still
-  // override it per line.
+  // The revenue/expense ledger_account every invoice line for this item
+  // posts to (snapshotted onto invoice_line_item.ledger_account_id at
+  // posting time; not overridable per line). Required by CreateItem; only
+  // nullable here because pre-catalog rows may predate the rule.
   optional int32 default_ledger_account_id = 16;
   bool is_active = 11;
   optional int64 created_by_user_id = 12;
@@ -244,6 +245,10 @@ message CreateItemRequest {
   Decimal retail_price = 7;
   bool is_taxable = 8;
   optional int64 default_tax_rate_id = 10;
+  // Required (rejected with INVALID_ARGUMENT when unset): every estimate/invoice line must
+  // reference an item, and an invoice line always posts to its item's
+  // default_ledger_account_id - so an item without one could never be invoiced. Stays
+  // `optional` on the wire only so UpdateItemRequest can distinguish "unchanged" from a value.
   optional int32 default_ledger_account_id = 11;
 }
 

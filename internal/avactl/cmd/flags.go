@@ -42,9 +42,21 @@ func formatDate(d *typepb.Date) string {
 	return fmt.Sprintf("%04d-%02d-%02d", d.GetYear(), d.GetMonth(), d.GetDay())
 }
 
+// lineFlagKeys is every key a --line accepts, for estimate and invoice alike. item is
+// required (every line references a catalog item - no free-text lines); the rest override
+// that item's defaults. There is deliberately no account= key: an invoice line always posts
+// to its item's default_ledger_account_id.
+var lineFlagKeys = map[string]bool{
+	"item": true, "desc": true, "qty": true, "price": true, "taxable": true, "tax-rate": true,
+}
+
+// lineFlagHelp is the shared --line usage string for estimate/invoice create and update-lines.
+const lineFlagHelp = "item=<id>[,desc=...][,qty=...][,price=...][,taxable][,tax-rate=<id>] (repeatable) - desc/price/taxable/tax-rate default from the item when omitted"
+
 // parseLineFlags parses repeatable --line "key=value,key=value" flags,
-// shared by estimate/invoice create, into ordered field maps (line_number
-// is 1-based position in the flag list).
+// shared by estimate/invoice create and update-lines, into ordered field
+// maps (line_number is 1-based position in the flag list). Unknown keys are
+// an error rather than silently dropped, so a stale account=<id> fails loudly.
 func parseLineFlags(raw []string) ([]map[string]string, error) {
 	lines := make([]map[string]string, 0, len(raw))
 	for _, r := range raw {
@@ -54,14 +66,17 @@ func parseLineFlags(raw []string) ([]map[string]string, error) {
 				continue
 			}
 			kv := strings.SplitN(part, "=", 2)
+			if !lineFlagKeys[kv[0]] {
+				return nil, fmt.Errorf("invalid --line %q: unknown key %q (want one of item, desc, qty, price, taxable, tax-rate)", r, kv[0])
+			}
 			if len(kv) == 1 {
 				fields[kv[0]] = "true" // bare flag, e.g. "taxable"
 				continue
 			}
 			fields[kv[0]] = kv[1]
 		}
-		if _, ok := fields["desc"]; !ok {
-			return nil, fmt.Errorf("invalid --line %q: missing desc=", r)
+		if _, ok := fields["item"]; !ok {
+			return nil, fmt.Errorf("invalid --line %q: missing item=<id> (every line must reference a catalog item)", r)
 		}
 		lines = append(lines, fields)
 	}
@@ -69,6 +84,19 @@ func parseLineFlags(raw []string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("at least one --line is required")
 	}
 	return lines, nil
+}
+
+// parseRequiredInt64 is parseOptionalInt64 for a key parseLineFlags has
+// already guaranteed is present (item).
+func parseRequiredInt64(fields map[string]string, key string) (int64, error) {
+	n, err := parseOptionalInt64(fields, key)
+	if err != nil {
+		return 0, err
+	}
+	if n == nil {
+		return 0, fmt.Errorf("%s= is required", key)
+	}
+	return *n, nil
 }
 
 func parseOptionalInt64(fields map[string]string, key string) (*int64, error) {
@@ -81,19 +109,6 @@ func parseOptionalInt64(fields map[string]string, key string) (*int64, error) {
 		return nil, fmt.Errorf("%s must be an integer: %w", key, err)
 	}
 	return &n, nil
-}
-
-func parseOptionalInt32(fields map[string]string, key string) (*int32, error) {
-	v, ok := fields[key]
-	if !ok {
-		return nil, nil
-	}
-	n, err := strconv.ParseInt(v, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("%s must be an integer: %w", key, err)
-	}
-	n32 := int32(n)
-	return &n32, nil
 }
 
 func parseDecimalField(fields map[string]string, key string) *avav1.Decimal {

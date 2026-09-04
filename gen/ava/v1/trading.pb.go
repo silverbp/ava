@@ -323,12 +323,14 @@ func (x *Estimate) GetResourceVersion() int64 {
 	return 0
 }
 
-// unit_price/is_taxable/tax_rate_id may all be left unset when item_id is set - the server
-// fills each one from that item's own catalog defaults (retail_price/is_taxable/
-// default_tax_rate_id) unless the line explicitly overrides it. See docs/schema.md, "item".
+// item_id is required: every line references a catalog item (any item_type) belonging to the
+// estimate's business - there are no free-text lines. description defaults to the item's
+// name, and unit_price/is_taxable/tax_rate_id default from the item's own catalog entry
+// (retail_price/is_taxable/default_tax_rate_id) - each of those may still be overridden
+// per line. Inactive items are rejected on new lines. See docs/schema.md, "item".
 type NewEstimateLineItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ItemId        *int64                 `protobuf:"varint,1,opt,name=item_id,json=itemId,proto3,oneof" json:"item_id,omitempty"`
+	ItemId        int64                  `protobuf:"varint,1,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
 	LineNumber    int32                  `protobuf:"varint,2,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Quantity      *Decimal               `protobuf:"bytes,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
@@ -370,8 +372,8 @@ func (*NewEstimateLineItem) Descriptor() ([]byte, []int) {
 }
 
 func (x *NewEstimateLineItem) GetItemId() int64 {
-	if x != nil && x.ItemId != nil {
-		return *x.ItemId
+	if x != nil {
+		return x.ItemId
 	}
 	return 0
 }
@@ -1390,24 +1392,26 @@ func (x *Invoice) GetResourceVersion() int64 {
 	return 0
 }
 
-// ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when item_id is
-// set - the server fills each one from that item's own catalog defaults
-// (default_ledger_account_id/retail_price/is_taxable/default_tax_rate_id) unless the line
-// explicitly overrides it. ledger_account_id still ends up required either way -
-// CreateInvoice/UpdateInvoiceLineItems reject a line that has neither an explicit value nor an
-// item default to fall back on. See docs/schema.md, "item"/"invoice_line_item.ledger_account_id".
+// item_id is required: every line references a catalog item (any item_type) belonging to the
+// invoice's business - there are no free-text lines, Xero/QuickBooks style. The ledger account
+// the line posts to is always that item's default_ledger_account_id (snapshotted onto
+// invoice_line_item.ledger_account_id at posting time) and is not settable per line - the
+// old ledger_account_id field is reserved. description defaults to the item's name, and
+// unit_price/is_taxable/tax_rate_id default from the item's catalog entry
+// (retail_price/is_taxable/default_tax_rate_id); each of those may still be overridden per
+// line. Inactive items, and items with no default_ledger_account_id, are rejected.
+// See docs/schema.md, "item"/"invoice_line_item.ledger_account_id".
 type NewInvoiceLineItem struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	ItemId          *int64                 `protobuf:"varint,1,opt,name=item_id,json=itemId,proto3,oneof" json:"item_id,omitempty"`
-	LedgerAccountId *int32                 `protobuf:"varint,2,opt,name=ledger_account_id,json=ledgerAccountId,proto3,oneof" json:"ledger_account_id,omitempty"`
-	LineNumber      int32                  `protobuf:"varint,3,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
-	Description     string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	Quantity        *Decimal               `protobuf:"bytes,5,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	UnitPrice       *Decimal               `protobuf:"bytes,6,opt,name=unit_price,json=unitPrice,proto3" json:"unit_price,omitempty"`
-	IsTaxable       *bool                  `protobuf:"varint,7,opt,name=is_taxable,json=isTaxable,proto3,oneof" json:"is_taxable,omitempty"`
-	TaxRateId       *int64                 `protobuf:"varint,8,opt,name=tax_rate_id,json=taxRateId,proto3,oneof" json:"tax_rate_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ItemId        int64                  `protobuf:"varint,1,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	LineNumber    int32                  `protobuf:"varint,3,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Quantity      *Decimal               `protobuf:"bytes,5,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	UnitPrice     *Decimal               `protobuf:"bytes,6,opt,name=unit_price,json=unitPrice,proto3" json:"unit_price,omitempty"`
+	IsTaxable     *bool                  `protobuf:"varint,7,opt,name=is_taxable,json=isTaxable,proto3,oneof" json:"is_taxable,omitempty"`
+	TaxRateId     *int64                 `protobuf:"varint,8,opt,name=tax_rate_id,json=taxRateId,proto3,oneof" json:"tax_rate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NewInvoiceLineItem) Reset() {
@@ -1441,15 +1445,8 @@ func (*NewInvoiceLineItem) Descriptor() ([]byte, []int) {
 }
 
 func (x *NewInvoiceLineItem) GetItemId() int64 {
-	if x != nil && x.ItemId != nil {
-		return *x.ItemId
-	}
-	return 0
-}
-
-func (x *NewInvoiceLineItem) GetLedgerAccountId() int32 {
-	if x != nil && x.LedgerAccountId != nil {
-		return *x.LedgerAccountId
+	if x != nil {
+		return x.ItemId
 	}
 	return 0
 }
@@ -1698,9 +1695,9 @@ type CreateInvoiceRequest struct {
 	Terms         *string    `protobuf:"bytes,9,opt,name=terms,proto3,oneof" json:"terms,omitempty"`
 	// May be left empty when estimate_id is set - the invoice is then built from that
 	// estimate's own line items (item_id/description/quantity/unit_price/is_taxable/
-	// tax_rate_id carried over as-is; ledger_account_id resolved fresh via each line's
-	// item.default_ledger_account_id, same as any other line that sets item_id without
-	// an explicit ledger_account_id - see NewInvoiceLineItem). Required otherwise.
+	// tax_rate_id carried over as-is; ledger_account_id resolved fresh from each line's
+	// item.default_ledger_account_id, exactly as for any other line - see
+	// NewInvoiceLineItem). Required otherwise.
 	LineItems     []*NewInvoiceLineItem `protobuf:"bytes,10,rep,name=line_items,json=lineItems,proto3" json:"line_items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2847,9 +2844,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x10resource_version\x18\x10 \x01(\x03R\x0fresourceVersionB\b\n" +
 	"\x06_notesB\b\n" +
 	"\x06_termsB\x15\n" +
-	"\x13_created_by_user_id\"\xc7\x02\n" +
-	"\x13NewEstimateLineItem\x12\x1c\n" +
-	"\aitem_id\x18\x01 \x01(\x03H\x00R\x06itemId\x88\x01\x01\x12\x1f\n" +
+	"\x13_created_by_user_id\"\xb6\x02\n" +
+	"\x13NewEstimateLineItem\x12\x17\n" +
+	"\aitem_id\x18\x01 \x01(\x03R\x06itemId\x12\x1f\n" +
 	"\vline_number\x18\x02 \x01(\x05R\n" +
 	"lineNumber\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12+\n" +
@@ -2857,10 +2854,8 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
 	"unit_price\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\tunitPrice\x12\"\n" +
 	"\n" +
-	"is_taxable\x18\x06 \x01(\bH\x01R\tisTaxable\x88\x01\x01\x12#\n" +
-	"\vtax_rate_id\x18\a \x01(\x03H\x02R\ttaxRateId\x88\x01\x01B\n" +
-	"\n" +
-	"\b_item_idB\r\n" +
+	"is_taxable\x18\x06 \x01(\bH\x00R\tisTaxable\x88\x01\x01\x12#\n" +
+	"\vtax_rate_id\x18\a \x01(\x03H\x01R\ttaxRateId\x88\x01\x01B\r\n" +
 	"\v_is_taxableB\x0e\n" +
 	"\f_tax_rate_id\"$\n" +
 	"\x12GetEstimateRequest\x12\x0e\n" +
@@ -2965,10 +2960,9 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\x06_notesB\b\n" +
 	"\x06_termsB\x18\n" +
 	"\x16_ledger_transaction_idB\x15\n" +
-	"\x13_created_by_user_id\"\x8d\x03\n" +
-	"\x12NewInvoiceLineItem\x12\x1c\n" +
-	"\aitem_id\x18\x01 \x01(\x03H\x00R\x06itemId\x88\x01\x01\x12/\n" +
-	"\x11ledger_account_id\x18\x02 \x01(\x05H\x01R\x0fledgerAccountId\x88\x01\x01\x12\x1f\n" +
+	"\x13_created_by_user_id\"\xce\x02\n" +
+	"\x12NewInvoiceLineItem\x12\x17\n" +
+	"\aitem_id\x18\x01 \x01(\x03R\x06itemId\x12\x1f\n" +
 	"\vline_number\x18\x03 \x01(\x05R\n" +
 	"lineNumber\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12+\n" +
@@ -2976,13 +2970,10 @@ const file_ava_v1_trading_proto_rawDesc = "" +
 	"\n" +
 	"unit_price\x18\x06 \x01(\v2\x0f.ava.v1.DecimalR\tunitPrice\x12\"\n" +
 	"\n" +
-	"is_taxable\x18\a \x01(\bH\x02R\tisTaxable\x88\x01\x01\x12#\n" +
-	"\vtax_rate_id\x18\b \x01(\x03H\x03R\ttaxRateId\x88\x01\x01B\n" +
-	"\n" +
-	"\b_item_idB\x14\n" +
-	"\x12_ledger_account_idB\r\n" +
+	"is_taxable\x18\a \x01(\bH\x00R\tisTaxable\x88\x01\x01\x12#\n" +
+	"\vtax_rate_id\x18\b \x01(\x03H\x01R\ttaxRateId\x88\x01\x01B\r\n" +
 	"\v_is_taxableB\x0e\n" +
-	"\f_tax_rate_id\"#\n" +
+	"\f_tax_rate_idJ\x04\b\x02\x10\x03R\x11ledger_account_id\"#\n" +
 	"\x11GetInvoiceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"?\n" +
 	"\x12GetInvoiceResponse\x12)\n" +

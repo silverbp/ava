@@ -23,8 +23,9 @@ service EstimateService {
   rpc GetEstimatePdf(GetEstimatePdfRequest) returns (GetEstimatePdfResponse);
 }
 
-// InvoiceService. Every line item must set ledger_account_id (the
-// revenue/expense account it hits, chosen per line rather than defaulted),
+// InvoiceService. Every line item references a catalog item and posts to
+// that item's default_ledger_account_id (the revenue/expense account it
+// hits - owned by the item, never chosen per line; see NewInvoiceLineItem),
 // and the invoice's contact must have its own ledger_account_id (its AR/AP
 // account) — CreateInvoice posts the invoice to the ledger atomically
 // alongside creating it. UpdateInvoiceLineItems regenerates the linked
@@ -87,11 +88,13 @@ message Estimate {
   int64 resource_version = 16;
 }
 
-// unit_price/is_taxable/tax_rate_id may all be left unset when item_id is set - the server
-// fills each one from that item's own catalog defaults (retail_price/is_taxable/
-// default_tax_rate_id) unless the line explicitly overrides it. See docs/schema.md, "item".
+// item_id is required: every line references a catalog item (any item_type) belonging to the
+// estimate's business - there are no free-text lines. description defaults to the item's
+// name, and unit_price/is_taxable/tax_rate_id default from the item's own catalog entry
+// (retail_price/is_taxable/default_tax_rate_id) - each of those may still be overridden
+// per line. Inactive items are rejected on new lines. See docs/schema.md, "item".
 message NewEstimateLineItem {
-  optional int64 item_id = 1;
+  int64 item_id = 1;
   int32 line_number = 2;
   string description = 3;
   Decimal quantity = 4;
@@ -211,15 +214,20 @@ message Invoice {
   int64 resource_version = 21;
 }
 
-// ledger_account_id/unit_price/is_taxable/tax_rate_id may all be left unset when item_id is
-// set - the server fills each one from that item's own catalog defaults
-// (default_ledger_account_id/retail_price/is_taxable/default_tax_rate_id) unless the line
-// explicitly overrides it. ledger_account_id still ends up required either way -
-// CreateInvoice/UpdateInvoiceLineItems reject a line that has neither an explicit value nor an
-// item default to fall back on. See docs/schema.md, "item"/"invoice_line_item.ledger_account_id".
+// item_id is required: every line references a catalog item (any item_type) belonging to the
+// invoice's business - there are no free-text lines, Xero/QuickBooks style. The ledger account
+// the line posts to is always that item's default_ledger_account_id (snapshotted onto
+// invoice_line_item.ledger_account_id at posting time) and is not settable per line - the
+// old ledger_account_id field is reserved. description defaults to the item's name, and
+// unit_price/is_taxable/tax_rate_id default from the item's catalog entry
+// (retail_price/is_taxable/default_tax_rate_id); each of those may still be overridden per
+// line. Inactive items, and items with no default_ledger_account_id, are rejected.
+// See docs/schema.md, "item"/"invoice_line_item.ledger_account_id".
 message NewInvoiceLineItem {
-  optional int64 item_id = 1;
-  optional int32 ledger_account_id = 2;
+  reserved 2;
+  reserved "ledger_account_id";
+
+  int64 item_id = 1;
   int32 line_number = 3;
   string description = 4;
   Decimal quantity = 5;
@@ -262,9 +270,9 @@ message CreateInvoiceRequest {
   optional string terms = 9;
   // May be left empty when estimate_id is set - the invoice is then built from that
   // estimate's own line items (item_id/description/quantity/unit_price/is_taxable/
-  // tax_rate_id carried over as-is; ledger_account_id resolved fresh via each line's
-  // item.default_ledger_account_id, same as any other line that sets item_id without
-  // an explicit ledger_account_id - see NewInvoiceLineItem). Required otherwise.
+  // tax_rate_id carried over as-is; ledger_account_id resolved fresh from each line's
+  // item.default_ledger_account_id, exactly as for any other line - see
+  // NewInvoiceLineItem). Required otherwise.
   repeated NewInvoiceLineItem line_items = 10;
 }
 

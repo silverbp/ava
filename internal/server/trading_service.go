@@ -123,11 +123,50 @@ func firstErr(errs ...error) error {
 }
 
 // ============================================================================
-// Item-catalog defaulting shared by EstimateService and InvoiceService.
+// Item-catalog resolution shared by EstimateService and InvoiceService.
+//
+// Every estimate/invoice line must reference a catalog item from the document's own
+// business (Xero/QuickBooks style - no free-text lines). The item supplies the line's
+// defaults (description/unit_price/is_taxable/tax_rate_id, each overridable per line) and,
+// for invoices, *the* ledger account the line posts to (never overridable). Enforcement is
+// API-level only: the item_id/ledger_account_id columns stay nullable for pre-catalog rows.
 // ============================================================================
 
-// itemLineDefaults is the subset of an item catalog row a line can fall back to.
+// lookupLineItem fetches the item a line references, scoped to businessID. It is the single
+// gate that makes items mandatory: a missing item_id, an item that isn't in this business
+// (or doesn't exist), and an inactive item each get a distinct status so the caller knows
+// which to fix. Statuses returned from inside ExecTx pass through unchanged
+// (db.Store.ExecTx returns fn's error as-is; closeErrorStatus keeps an existing status).
+func lookupLineItem(ctx context.Context, q *sqlcgen.Queries, businessID int64, lineIdx int, itemID int64) (sqlcgen.Item, error) {
+	if itemID == 0 {
+		return sqlcgen.Item{}, status.Errorf(codes.InvalidArgument, "line %d: item_id is required", lineIdx)
+	}
+	item, err := q.GetItemInBusiness(ctx, sqlcgen.GetItemInBusinessParams{ID: itemID, BusinessID: businessID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return sqlcgen.Item{}, status.Errorf(codes.InvalidArgument, "line %d: item %d not found in business %d", lineIdx, itemID, businessID)
+		}
+		return sqlcgen.Item{}, translatePgError(err)
+	}
+	if err := checkLineItemUsable(lineIdx, item); err != nil {
+		return sqlcgen.Item{}, err
+	}
+	return item, nil
+}
+
+// checkLineItemUsable is the DB-free half of lookupLineItem: an item that has been
+// deactivated can't go on a new line (existing lines that already reference it are
+// untouched - they're history). Split out so it's unit-testable.
+func checkLineItemUsable(lineIdx int, item sqlcgen.Item) error {
+	if !item.IsActive {
+		return status.Errorf(codes.FailedPrecondition, "line %d: item %d (%s) is inactive", lineIdx, item.ID, item.ItemCode)
+	}
+	return nil
+}
+
+// itemLineDefaults is the subset of an item catalog row a line falls back to.
 type itemLineDefaults struct {
+	Name            string
 	LedgerAccountID *int32
 	UnitPrice       *avav1.Decimal
 	IsTaxable       bool
@@ -140,6 +179,7 @@ func itemLineDefaultsFor(item sqlcgen.Item) (itemLineDefaults, error) {
 		return itemLineDefaults{}, err
 	}
 	return itemLineDefaults{
+		Name:            item.Name,
 		LedgerAccountID: item.DefaultLedgerAccountID,
 		UnitPrice:       price,
 		IsTaxable:       item.IsTaxable,
@@ -148,8 +188,9 @@ func itemLineDefaultsFor(item sqlcgen.Item) (itemLineDefaults, error) {
 }
 
 // resolvedEstimateLine is a NewEstimateLineItem after applying item-catalog defaults (see
-// resolveEstimateLines) - unit_price/is_taxable/tax_rate_id may have originated from the request
-// or the item, but from here on every caller treats them as final.
+// resolveEstimateLine) - description/unit_price/is_taxable/tax_rate_id may have originated from
+// the request or the item, but from here on every caller treats them as final. ItemID is a
+// pointer only because the column is nullable; it's always set here.
 type resolvedEstimateLine struct {
 	ItemID      *int64
 	LineNumber  int32
@@ -160,39 +201,52 @@ type resolvedEstimateLine struct {
 	TaxRateID   *int64
 }
 
-// resolveEstimateLines fills any unset unit_price/is_taxable/tax_rate_id from the line's
-// item.retail_price/is_taxable/default_tax_rate_id - a convenience, not enforcement: an
-// explicit value on the line always wins over the item's default (docs/schema.md, "item").
-func resolveEstimateLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.NewEstimateLineItem) ([]resolvedEstimateLine, error) {
+// resolveEstimateLine applies item's defaults to li: description falls back to the item's
+// name, unit_price/is_taxable/tax_rate_id to retail_price/is_taxable/default_tax_rate_id. An
+// explicit value on the line always wins (docs/schema.md, "item"). Pure - item has already
+// been fetched and vetted by lookupLineItem.
+func resolveEstimateLine(lineIdx int, li *avav1.NewEstimateLineItem, item sqlcgen.Item) (resolvedEstimateLine, error) {
+	defaults, err := itemLineDefaultsFor(item)
+	if err != nil {
+		return resolvedEstimateLine{}, status.Errorf(codes.Internal, "line %d: item %d: %v", lineIdx, item.ID, err)
+	}
+	itemID := item.ID
+	r := resolvedEstimateLine{
+		ItemID:      &itemID,
+		LineNumber:  li.LineNumber,
+		Description: li.Description,
+		Quantity:    li.Quantity,
+		UnitPrice:   li.UnitPrice,
+		IsTaxable:   li.GetIsTaxable(),
+		TaxRateID:   li.TaxRateId,
+	}
+	if r.Description == "" {
+		r.Description = defaults.Name
+	}
+	if r.UnitPrice == nil {
+		r.UnitPrice = defaults.UnitPrice
+	}
+	if li.IsTaxable == nil {
+		r.IsTaxable = defaults.IsTaxable
+	}
+	if r.TaxRateID == nil && r.IsTaxable {
+		r.TaxRateID = defaults.TaxRateID
+	}
+	return r, nil
+}
+
+// resolveEstimateLines is lookupLineItem + resolveEstimateLine over every line of a request,
+// scoped to the estimate's business.
+func resolveEstimateLines(ctx context.Context, q *sqlcgen.Queries, businessID int64, raw []*avav1.NewEstimateLineItem) ([]resolvedEstimateLine, error) {
 	resolved := make([]resolvedEstimateLine, len(raw))
 	for i, li := range raw {
-		r := resolvedEstimateLine{
-			ItemID:      li.ItemId,
-			LineNumber:  li.LineNumber,
-			Description: li.Description,
-			Quantity:    li.Quantity,
-			UnitPrice:   li.UnitPrice,
-			IsTaxable:   li.GetIsTaxable(),
-			TaxRateID:   li.TaxRateId,
+		item, err := lookupLineItem(ctx, q, businessID, i, li.GetItemId())
+		if err != nil {
+			return nil, err
 		}
-		if li.ItemId != nil {
-			item, err := q.GetItem(ctx, li.GetItemId())
-			if err != nil {
-				return nil, fmt.Errorf("line %d: item %d: %w", i, li.GetItemId(), err)
-			}
-			defaults, err := itemLineDefaultsFor(item)
-			if err != nil {
-				return nil, fmt.Errorf("line %d: %w", i, err)
-			}
-			if r.UnitPrice == nil {
-				r.UnitPrice = defaults.UnitPrice
-			}
-			if li.IsTaxable == nil {
-				r.IsTaxable = defaults.IsTaxable
-			}
-			if r.TaxRateID == nil && r.IsTaxable {
-				r.TaxRateID = defaults.TaxRateID
-			}
+		r, err := resolveEstimateLine(i, li, item)
+		if err != nil {
+			return nil, err
 		}
 		resolved[i] = r
 	}
@@ -201,7 +255,8 @@ func resolveEstimateLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.
 
 // resolvedInvoiceLine is the NewInvoiceLineItem equivalent of resolvedEstimateLine, additionally
 // carrying ledger_account_id (estimates have no ledger impact, so estimate_line_item has no such
-// column - see docs/schema.md, "estimate").
+// column - see docs/schema.md, "estimate"). Both pointers are always set here; they're pointers
+// only because the columns are nullable.
 type resolvedInvoiceLine struct {
 	ItemID          *int64
 	LedgerAccountID *int32
@@ -213,47 +268,57 @@ type resolvedInvoiceLine struct {
 	TaxRateID       *int64
 }
 
-// resolveInvoiceLines is resolveEstimateLines plus ledger_account_id: also defaulted from the
-// item (default_ledger_account_id) when unset, but still required either way -
-// CreateInvoice/UpdateInvoiceLineItems reject a line with neither an explicit value nor a
-// item default to fall back on.
-func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.NewInvoiceLineItem) ([]resolvedInvoiceLine, error) {
+// resolveInvoiceLine is resolveEstimateLine plus the ledger account, which is *always* the
+// item's default_ledger_account_id - there is no per-line override (NewInvoiceLineItem has no
+// such field). An item without one can't be invoiced, so that's rejected up front rather than
+// producing a line the ledger posting would then choke on. Pure, like resolveEstimateLine.
+func resolveInvoiceLine(lineIdx int, li *avav1.NewInvoiceLineItem, item sqlcgen.Item) (resolvedInvoiceLine, error) {
+	defaults, err := itemLineDefaultsFor(item)
+	if err != nil {
+		return resolvedInvoiceLine{}, status.Errorf(codes.Internal, "line %d: item %d: %v", lineIdx, item.ID, err)
+	}
+	if defaults.LedgerAccountID == nil {
+		return resolvedInvoiceLine{}, status.Errorf(codes.FailedPrecondition,
+			"line %d: item %d (%s) has no default_ledger_account_id - set one on the item before invoicing it", lineIdx, item.ID, item.ItemCode)
+	}
+	itemID := item.ID
+	r := resolvedInvoiceLine{
+		ItemID:          &itemID,
+		LedgerAccountID: defaults.LedgerAccountID,
+		LineNumber:      li.LineNumber,
+		Description:     li.Description,
+		Quantity:        li.Quantity,
+		UnitPrice:       li.UnitPrice,
+		IsTaxable:       li.GetIsTaxable(),
+		TaxRateID:       li.TaxRateId,
+	}
+	if r.Description == "" {
+		r.Description = defaults.Name
+	}
+	if r.UnitPrice == nil {
+		r.UnitPrice = defaults.UnitPrice
+	}
+	if li.IsTaxable == nil {
+		r.IsTaxable = defaults.IsTaxable
+	}
+	if r.TaxRateID == nil && r.IsTaxable {
+		r.TaxRateID = defaults.TaxRateID
+	}
+	return r, nil
+}
+
+// resolveInvoiceLines is lookupLineItem + resolveInvoiceLine over every line of a request,
+// scoped to the invoice's business.
+func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, businessID int64, raw []*avav1.NewInvoiceLineItem) ([]resolvedInvoiceLine, error) {
 	resolved := make([]resolvedInvoiceLine, len(raw))
 	for i, li := range raw {
-		r := resolvedInvoiceLine{
-			ItemID:          li.ItemId,
-			LedgerAccountID: li.LedgerAccountId,
-			LineNumber:      li.LineNumber,
-			Description:     li.Description,
-			Quantity:        li.Quantity,
-			UnitPrice:       li.UnitPrice,
-			IsTaxable:       li.GetIsTaxable(),
-			TaxRateID:       li.TaxRateId,
+		item, err := lookupLineItem(ctx, q, businessID, i, li.GetItemId())
+		if err != nil {
+			return nil, err
 		}
-		if li.ItemId != nil {
-			item, err := q.GetItem(ctx, li.GetItemId())
-			if err != nil {
-				return nil, fmt.Errorf("line %d: item %d: %w", i, li.GetItemId(), err)
-			}
-			defaults, err := itemLineDefaultsFor(item)
-			if err != nil {
-				return nil, fmt.Errorf("line %d: %w", i, err)
-			}
-			if r.LedgerAccountID == nil {
-				r.LedgerAccountID = defaults.LedgerAccountID
-			}
-			if r.UnitPrice == nil {
-				r.UnitPrice = defaults.UnitPrice
-			}
-			if li.IsTaxable == nil {
-				r.IsTaxable = defaults.IsTaxable
-			}
-			if r.TaxRateID == nil && r.IsTaxable {
-				r.TaxRateID = defaults.TaxRateID
-			}
-		}
-		if r.LedgerAccountID == nil {
-			return nil, fmt.Errorf("line %d: ledger_account_id is required (set it explicitly, or set item_id on an item that has a default_ledger_account_id)", i)
+		r, err := resolveInvoiceLine(i, li, item)
+		if err != nil {
+			return nil, err
 		}
 		resolved[i] = r
 	}
@@ -261,11 +326,12 @@ func resolveInvoiceLines(ctx context.Context, q *sqlcgen.Queries, raw []*avav1.N
 }
 
 // newInvoiceLineItemsFromEstimate converts an accepted estimate's line items into the
-// NewInvoiceLineItem shape CreateInvoice expects, carrying over item_id (and the
-// quantity/price/tax fields the estimate already resolved) but never ledger_account_id -
-// estimate_line_item has no such column, so it's left unset here and picked up from the
-// line's item.default_ledger_account_id by resolveInvoiceLines, same as any other
-// invoice line that sets item_id without an explicit ledger_account_id.
+// NewInvoiceLineItem shape CreateInvoice expects, carrying over item_id and the
+// description/quantity/price/tax fields the estimate already resolved. The ledger account is
+// never carried (estimate_line_item has no such column); resolveInvoiceLines takes it from the
+// item's *current* default_ledger_account_id at invoice time, same as any hand-entered line.
+// A pre-catalog estimate line with no item_id becomes item_id 0 and is rejected by
+// lookupLineItem ("item_id is required") - it has to be re-pointed at a real item first.
 func newInvoiceLineItemsFromEstimate(estLines []sqlcgen.EstimateLineItem) ([]*avav1.NewInvoiceLineItem, error) {
 	out := make([]*avav1.NewInvoiceLineItem, len(estLines))
 	for i, eli := range estLines {
@@ -278,8 +344,12 @@ func newInvoiceLineItemsFromEstimate(estLines []sqlcgen.EstimateLineItem) ([]*av
 			return nil, fmt.Errorf("estimate line %d: unit_price: %w", i, err)
 		}
 		isTaxable := eli.IsTaxable
+		var itemID int64
+		if eli.ItemID != nil {
+			itemID = *eli.ItemID
+		}
 		out[i] = &avav1.NewInvoiceLineItem{
-			ItemId:      eli.ItemID,
+			ItemId:      itemID,
 			LineNumber:  eli.LineNumber,
 			Description: eli.Description,
 			Quantity:    quantity,
@@ -415,7 +485,7 @@ func (s *estimateService) CreateEstimate(ctx context.Context, req *avav1.CreateE
 		lineItems []sqlcgen.EstimateLineItem
 	)
 	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		resolved, err := resolveEstimateLines(ctx, q, req.GetLineItems())
+		resolved, err := resolveEstimateLines(ctx, q, req.GetBusinessId(), req.GetLineItems())
 		if err != nil {
 			return err
 		}
@@ -546,7 +616,7 @@ func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav
 		lineItems []sqlcgen.EstimateLineItem
 	)
 	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		resolved, err := resolveEstimateLines(ctx, q, req.GetLineItems())
+		resolved, err := resolveEstimateLines(ctx, q, existing.BusinessID, req.GetLineItems())
 		if err != nil {
 			return err
 		}
@@ -858,7 +928,7 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 			}
 		}
 
-		resolved, err := resolveInvoiceLines(ctx, q, rawLineItems)
+		resolved, err := resolveInvoiceLines(ctx, q, req.GetBusinessId(), rawLineItems)
 		if err != nil {
 			return err
 		}
@@ -1016,7 +1086,7 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 		lineItems []sqlcgen.InvoiceLineItem
 	)
 	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
-		resolved, err := resolveInvoiceLines(ctx, q, req.GetLineItems())
+		resolved, err := resolveInvoiceLines(ctx, q, existing.BusinessID, req.GetLineItems())
 		if err != nil {
 			return err
 		}

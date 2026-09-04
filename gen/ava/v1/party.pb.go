@@ -1455,15 +1455,19 @@ type CreateItemRequest struct {
 	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
 	ItemCode   string                 `protobuf:"bytes,2,opt,name=item_code,json=itemCode,proto3" json:"item_code,omitempty"`
 	// See Item.item_type. Defaults to SERVICE when unset.
-	ItemType               *string  `protobuf:"bytes,12,opt,name=item_type,json=itemType,proto3,oneof" json:"item_type,omitempty"`
-	Name                   string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description            *string  `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	UnitOfMeasure          *string  `protobuf:"bytes,5,opt,name=unit_of_measure,json=unitOfMeasure,proto3,oneof" json:"unit_of_measure,omitempty"`
-	CostPrice              *Decimal `protobuf:"bytes,6,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
-	RetailPrice            *Decimal `protobuf:"bytes,7,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
-	IsTaxable              bool     `protobuf:"varint,8,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
-	DefaultTaxRateId       *int64   `protobuf:"varint,10,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
-	DefaultLedgerAccountId *int32   `protobuf:"varint,11,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
+	ItemType         *string  `protobuf:"bytes,12,opt,name=item_type,json=itemType,proto3,oneof" json:"item_type,omitempty"`
+	Name             string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description      *string  `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	UnitOfMeasure    *string  `protobuf:"bytes,5,opt,name=unit_of_measure,json=unitOfMeasure,proto3,oneof" json:"unit_of_measure,omitempty"`
+	CostPrice        *Decimal `protobuf:"bytes,6,opt,name=cost_price,json=costPrice,proto3,oneof" json:"cost_price,omitempty"`
+	RetailPrice      *Decimal `protobuf:"bytes,7,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
+	IsTaxable        bool     `protobuf:"varint,8,opt,name=is_taxable,json=isTaxable,proto3" json:"is_taxable,omitempty"`
+	DefaultTaxRateId *int64   `protobuf:"varint,10,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
+	// Required (rejected with INVALID_ARGUMENT when unset): every estimate/invoice line must
+	// reference an item, and an invoice line always posts to its item's
+	// default_ledger_account_id - so an item without one could never be invoiced. Stays
+	// `optional` on the wire only so UpdateItemRequest can distinguish "unchanged" from a value.
+	DefaultLedgerAccountId *int32 `protobuf:"varint,11,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
