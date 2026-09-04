@@ -52,7 +52,14 @@ type computedLine struct {
 // trusting client-supplied aggregates), snapshotting the tax_rate actually
 // applied onto the line per the schema's own convention ("snapshot, don't
 // reference, at the point of sale" — docs/schema.md).
-func computeLines(ctx context.Context, q *sqlcgen.Queries, inputs []lineInput) (lines []computedLine, subtotal, totalTax, total decimal.Decimal, err error) {
+//
+// A line's own subtotal/tax/total may be negative — that's how a discount
+// posts, as a negative line against a catalog item pointed at a
+// contra-revenue/expense account (see debitCreditFor) — but the document as
+// a whole may not net negative: nothing downstream (payments, balance_due,
+// invoice.status) models a credit note, so a wholly negative document is
+// rejected here rather than accepted and breaking later.
+func computeLines(ctx context.Context, q *sqlcgen.Queries, businessID int64, inputs []lineInput) (lines []computedLine, subtotal, totalTax, total decimal.Decimal, err error) {
 	subtotal, totalTax = decimal.Zero, decimal.Zero
 
 	for i, in := range inputs {
@@ -68,8 +75,11 @@ func computeLines(ctx context.Context, q *sqlcgen.Queries, inputs []lineInput) (
 
 		taxRate, taxAmount := decimal.Zero, decimal.Zero
 		if in.IsTaxable && in.TaxRateID != nil {
-			tr, err := q.GetTaxRate(ctx, *in.TaxRateID)
+			tr, err := q.GetTaxRateInBusiness(ctx, sqlcgen.GetTaxRateInBusinessParams{ID: *in.TaxRateID, BusinessID: businessID})
 			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return nil, decimal.Zero, decimal.Zero, decimal.Zero, status.Errorf(codes.InvalidArgument, "line %d: tax rate %d not found in business %d", i, *in.TaxRateID, businessID)
+				}
 				return nil, decimal.Zero, decimal.Zero, decimal.Zero, fmt.Errorf("line %d: %w", i, err)
 			}
 			taxRate, err = ledgermath.NumericToDecimal(tr.Rate)
@@ -103,6 +113,9 @@ func computeLines(ctx context.Context, q *sqlcgen.Queries, inputs []lineInput) (
 	}
 
 	total = subtotal.Add(totalTax)
+	if total.IsNegative() {
+		return nil, decimal.Zero, decimal.Zero, decimal.Zero, status.Errorf(codes.InvalidArgument, "document total %s is negative — a discount line may not exceed the rest of the document", total)
+	}
 	return lines, subtotal, totalTax, total, nil
 }
 
@@ -380,6 +393,27 @@ func createDecimalEntry(ctx context.Context, q *sqlcgen.Queries, businessID, txn
 	return err
 }
 
+// debitCreditFor maps a signed amount onto the (debit, credit) pair
+// ledger_entry requires — exactly one side strictly positive
+// (ledger_entry_debit_or_credit, migrations/00001_initial.up.sql). naturalDebit
+// says which side a positive amount belongs on for this leg (e.g. true for an
+// AR leg, false for a revenue leg); a negative amount flips to the opposite
+// side as its absolute value instead of going negative on its natural side.
+// That's exactly how a discount line posts: a negative revenue line becomes a
+// debit to that same revenue (or contra-revenue) account. A zero amount
+// returns (0, 0) — callers must still skip it, since the XOR constraint
+// rejects a zero entry on either side.
+func debitCreditFor(amount decimal.Decimal, naturalDebit bool) (debit, credit decimal.Decimal) {
+	abs := amount.Abs()
+	if amount.IsNegative() {
+		naturalDebit = !naturalDebit
+	}
+	if naturalDebit {
+		return abs, decimal.Zero
+	}
+	return decimal.Zero, abs
+}
+
 func verifyTransactionBalances(ctx context.Context, q *sqlcgen.Queries, txnID int64) error {
 	entries, err := q.ListLedgerEntriesByTransaction(ctx, txnID)
 	if err != nil {
@@ -493,7 +527,7 @@ func (s *estimateService) CreateEstimate(ctx context.Context, req *avav1.CreateE
 		for i, r := range resolved {
 			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
-		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
+		computed, subtotal, totalTax, total, err := computeLines(ctx, q, req.GetBusinessId(), inputs)
 		if err != nil {
 			return err
 		}
@@ -624,7 +658,7 @@ func (s *estimateService) UpdateEstimateLineItems(ctx context.Context, req *avav
 		for i, r := range resolved {
 			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
-		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
+		computed, subtotal, totalTax, total, err := computeLines(ctx, q, existing.BusinessID, inputs)
 		if err != nil {
 			return err
 		}
@@ -936,7 +970,7 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 		for i, r := range resolved {
 			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
-		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
+		computed, subtotal, totalTax, total, err := computeLines(ctx, q, req.GetBusinessId(), inputs)
 		if err != nil {
 			return err
 		}
@@ -1094,7 +1128,7 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 		for i, r := range resolved {
 			inputs[i] = lineInput{Quantity: r.Quantity, UnitPrice: r.UnitPrice, IsTaxable: r.IsTaxable, TaxRateID: r.TaxRateID}
 		}
-		computed, subtotal, totalTax, total, err := computeLines(ctx, q, inputs)
+		computed, subtotal, totalTax, total, err := computeLines(ctx, q, existing.BusinessID, inputs)
 		if err != nil {
 			return err
 		}
@@ -1469,16 +1503,13 @@ func writeInvoiceLedgerEntries(ctx context.Context, q *sqlcgen.Queries, business
 	// AR/AP leg, against the contact's own ledger account. Skipped when the
 	// invoice totals zero — ledger_entry's debit_or_credit check constraint
 	// requires exactly one side strictly positive, which a zero amount on
-	// either side can never satisfy.
+	// either side can never satisfy. computeLines rejects a negative document
+	// total, so totalAmount is never negative here in practice; debitCreditFor
+	// is used anyway to keep this leg consistent with the per-line legs below.
 	if !totalAmount.IsZero() {
-		if isSales {
-			if err := createDecimalEntry(ctx, q, businessID, txnID, contactLedgerAccountID, totalAmount, decimal.Zero); err != nil {
-				return err
-			}
-		} else {
-			if err := createDecimalEntry(ctx, q, businessID, txnID, contactLedgerAccountID, decimal.Zero, totalAmount); err != nil {
-				return err
-			}
+		debit, credit := debitCreditFor(totalAmount, isSales)
+		if err := createDecimalEntry(ctx, q, businessID, txnID, contactLedgerAccountID, debit, credit); err != nil {
+			return err
 		}
 	}
 
@@ -1503,8 +1534,13 @@ func writeInvoiceLedgerEntries(ctx context.Context, q *sqlcgen.Queries, business
 		}
 
 		if isSales {
+			// Revenue leg: a positive subtotal credits the item's account, as
+			// usual. A negative subtotal — a discount item's line — debits
+			// the same account instead, which is exactly a contra-revenue
+			// posting; no separate discount machinery needed.
 			if !lineSubtotal.IsZero() {
-				if err := createDecimalEntry(ctx, q, businessID, txnID, *li.LedgerAccountID, decimal.Zero, lineSubtotal); err != nil {
+				debit, credit := debitCreditFor(lineSubtotal, false)
+				if err := createDecimalEntry(ctx, q, businessID, txnID, *li.LedgerAccountID, debit, credit); err != nil {
 					return err
 				}
 			}
@@ -1516,16 +1552,29 @@ func writeInvoiceLedgerEntries(ctx context.Context, q *sqlcgen.Queries, business
 				taxByLiabilityAccount[tr.TaxLiabilityAccountID] = taxByLiabilityAccount[tr.TaxLiabilityAccountID].Add(taxAmount)
 			}
 		} else {
+			// Expense leg: symmetric with the revenue leg above — a negative
+			// lineTotal (a discount on a PURCHASE) credits the account
+			// instead of debiting it.
 			lineTotal := lineSubtotal.Add(taxAmount)
 			if !lineTotal.IsZero() {
-				if err := createDecimalEntry(ctx, q, businessID, txnID, *li.LedgerAccountID, lineTotal, decimal.Zero); err != nil {
+				debit, credit := debitCreditFor(lineTotal, true)
+				if err := createDecimalEntry(ctx, q, businessID, txnID, *li.LedgerAccountID, debit, credit); err != nil {
 					return err
 				}
 			}
 		}
 	}
 	for accountID, amount := range taxByLiabilityAccount {
-		if err := createDecimalEntry(ctx, q, businessID, txnID, accountID, decimal.Zero, amount); err != nil {
+		// A discount line can net a rate's bucket to exactly zero (e.g. a
+		// taxable line and its equal-and-opposite discount sharing a tax
+		// rate); skip it the same way the per-line legs above do — the XOR
+		// constraint on ledger_entry rejects a zero-amount entry regardless
+		// of which side it's on.
+		if amount.IsZero() {
+			continue
+		}
+		debit, credit := debitCreditFor(amount, false)
+		if err := createDecimalEntry(ctx, q, businessID, txnID, accountID, debit, credit); err != nil {
 			return err
 		}
 	}

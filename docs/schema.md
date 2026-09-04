@@ -345,6 +345,17 @@ erDiagram
   `UpdateInvoiceLineItems` regenerates the linked ledger transaction's entries in place (same
   `ledger_transaction_id`, entries replaced) when a posted invoice's lines change, rather than
   rejecting the edit.
+- **Discounts are a negative line against a catalog item, not a header field.** A line's
+  `quantity`/`unit_price`/`line_subtotal`/`line_total` carry no CHECK constraints, so a negative
+  amount is representable end to end: `writeInvoiceLedgerEntries`'s `debitCreditFor` maps a
+  negative line onto the *opposite* side of `ledger_entry`'s required debit/credit split
+  (`ledger_entry_debit_or_credit`) at that same item's `default_ledger_account_id` — e.g. a
+  −$100 line against a "Discount" item posts as a $100 *debit* to that item's own account, a
+  standard contra-revenue/contra-expense posting, no separate discount machinery needed. The
+  item is what answers the allocation question a header `discount_amount` column never could:
+  which account absorbs it, decided once at item-creation time rather than per-invoice. A
+  document's *total* may not go negative, though — `computeLines` rejects that, since nothing
+  downstream (payments, `balance_due`, `invoice.status`) models a credit note.
 - **`payment`** — generalized via `payment_type` (RECEIVED / MADE). Applying it to an invoice is
   independent of the payment itself: zero, one, or several `payment_application` rows (each with
   its own `applied_amount`) let one deposit cover several invoices at once, rather than the
@@ -379,7 +390,11 @@ erDiagram
   more common day-to-day entry path). A line item's own `tax_rate` / `tax_amount` columns still
   snapshot the rate actually applied at the time, so a later change to `tax_rate` never rewrites
   history — `item.default_tax_rate_id` doesn't need that same snapshot, since an item is
-  catalog data, not a historical transaction.
+  catalog data, not a historical transaction. A line's `tax_rate_id` is resolved through
+  `GetTaxRateInBusiness`, the same tenancy gate `GetItemInBusiness` applies to `item_id` — a line
+  can't reference another business's tax rate (and post to that business's liability account).
+  `GetTaxRate` itself stays unscoped, used only where a `tax_rate_id` is being read back off an
+  already-stored, already-vetted line (e.g. the tax breakdown on a rendered PDF).
 
 ## 3. Users & Auth
 
@@ -594,6 +609,12 @@ relationships — see note below.
 - **Snapshot, don't reference, at the point of sale.** Line items store their own `unit_price`
   and `tax_rate` rather than only a pointer to `item` / `tax_rate`, so a later catalog or
   rate change never silently rewrites a historical document.
+- **The catalog item is the allocation decision.** A header-level `discount_amount` column has
+  no way to say *which account* absorbs a discount; a discount modelled as a line against a
+  catalog item does, via that item's own `default_ledger_account_id` — set once, at
+  item-creation time, the same way every other line's revenue/expense account is decided. This
+  is why `discount_amount` could be deleted outright rather than ever implemented (see
+  `invoice_line_item.ledger_account_id` above).
 - **Optimistic concurrency via `resource_version`** (Kubernetes' `resourceVersion`, as a
   per-row `BIGINT`). Every mutable resource (`business`, `ledger_account`, `contact`, `item`,
   `tax_rate`, `estimate`, `invoice`) carries one; the `bump_resource_version` trigger increments
@@ -623,9 +644,6 @@ relationships — see note below.
 - PURCHASE-side tax is rolled into the expense line rather than split to a liability account
   (`tax_liability_account_id` models tax *collected*, which fits SALES, not tax paid to a
   vendor) — a deliberate simplification, not an oversight.
-- Discounts (`estimate.discount_amount` / `invoice.discount_amount`) exist as columns but
-  aren't exposed by the API yet — posting a discounted invoice would need an allocation
-  decision (a contra-revenue account?) the schema doesn't have an opinion on yet.
 - No API surface to change an existing `customer`/`vendor` row's `ledger_account_id`, or to add a
   role to a contact that doesn't already have one — only `CreateContact` provisions them, via its
   `is_customer`/`is_vendor` intent flags.

@@ -115,6 +115,13 @@ RETURNING *;
 -- name: GetTaxRate :one
 SELECT * FROM tax_rate WHERE id = $1;
 
+-- name: GetTaxRateInBusiness :one
+-- Business-scoped tax rate lookup for estimate/invoice line resolution: a line may only
+-- reference its own business's tax rates, same reasoning as GetItemInBusiness. Deliberately
+-- no is_active filter — an item's default_tax_rate_id may legitimately point at a rate that's
+-- since been deactivated, and existing documents keep referencing it as history.
+SELECT * FROM tax_rate WHERE id = $1 AND business_id = $2;
+
 -- name: ListTaxRates :many
 SELECT * FROM tax_rate WHERE business_id = $1 ORDER BY name;
 

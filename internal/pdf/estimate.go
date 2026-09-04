@@ -34,7 +34,7 @@ func RenderEstimate(business, customer Party, est *avav1.Estimate, breakdown []T
 	for _, li := range est.GetLineItems() {
 		rows = append(rows, []string{
 			li.GetDescription(),
-			li.GetQuantity().GetValue(),
+			formatQuantity(li.GetQuantity().GetValue()),
 			formatMoneyString(li.GetUnitPrice().GetValue()),
 			formatMoneyString(li.GetLineSubtotal().GetValue()),
 		})

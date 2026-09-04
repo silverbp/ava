@@ -53,7 +53,7 @@ func RenderInvoice(business, billTo Party, inv *avav1.Invoice, breakdown []TaxBr
 	for _, li := range inv.GetLineItems() {
 		rows = append(rows, []string{
 			li.GetDescription(),
-			li.GetQuantity().GetValue(),
+			formatQuantity(li.GetQuantity().GetValue()),
 			formatMoneyString(li.GetUnitPrice().GetValue()),
 			// LineTotal is tax-inclusive (LineSubtotal + TaxAmount); shown
 			// per-line without a tax figure next to it, that reads as if

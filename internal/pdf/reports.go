@@ -49,6 +49,30 @@ func formatMoney(v decimal.Decimal) string {
 	return s
 }
 
+// formatQuantity renders a line item's quantity consistently with the money
+// columns beside it: thousands-grouped, parentheses instead of a leading
+// minus for negative (a discount line posted as qty=-1), and its stored
+// scale (DECIMAL(15,4)) trimmed of trailing zeros — "10.0000" as "10", not
+// left at full precision like the raw proto value.
+func formatQuantity(v string) string {
+	if v == "" {
+		v = "0"
+	}
+	dec, err := decimal.NewFromString(v)
+	if err != nil {
+		return v
+	}
+	s := groupThousands(dec.Abs().String())
+	if strings.Contains(s, ".") {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+	}
+	if dec.IsNegative() {
+		return "(" + s + ")"
+	}
+	return s
+}
+
 func groupThousands(s string) string {
 	intPart, frac, hasFrac := strings.Cut(s, ".")
 	var out []byte

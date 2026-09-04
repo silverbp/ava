@@ -186,7 +186,6 @@ type Estimate struct {
 	ExpirationDate  pgtype.Date      `json:"expiration_date"`
 	Subtotal        pgtype.Numeric   `json:"subtotal"`
 	TotalTaxAmount  pgtype.Numeric   `json:"total_tax_amount"`
-	DiscountAmount  pgtype.Numeric   `json:"discount_amount"`
 	TotalAmount     pgtype.Numeric   `json:"total_amount"`
 	Status          string           `json:"status"`
 	Notes           *string          `json:"notes"`
@@ -234,7 +233,6 @@ type Invoice struct {
 	DueDate             pgtype.Date      `json:"due_date"`
 	Subtotal            pgtype.Numeric   `json:"subtotal"`
 	TotalTaxAmount      pgtype.Numeric   `json:"total_tax_amount"`
-	DiscountAmount      pgtype.Numeric   `json:"discount_amount"`
 	TotalAmount         pgtype.Numeric   `json:"total_amount"`
 	PaidAmount          pgtype.Numeric   `json:"paid_amount"`
 	BalanceDue          pgtype.Numeric   `json:"balance_due"`

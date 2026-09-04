@@ -502,6 +502,37 @@ func (q *Queries) GetTaxRate(ctx context.Context, id int64) (TaxRate, error) {
 	return i, err
 }
 
+const getTaxRateInBusiness = `-- name: GetTaxRateInBusiness :one
+SELECT id, business_id, name, rate, tax_liability_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version FROM tax_rate WHERE id = $1 AND business_id = $2
+`
+
+type GetTaxRateInBusinessParams struct {
+	ID         int64 `json:"id"`
+	BusinessID int64 `json:"business_id"`
+}
+
+// Business-scoped tax rate lookup for estimate/invoice line resolution: a line may only
+// reference its own business's tax rates, same reasoning as GetItemInBusiness. Deliberately
+// no is_active filter — an item's default_tax_rate_id may legitimately point at a rate that's
+// since been deactivated, and existing documents keep referencing it as history.
+func (q *Queries) GetTaxRateInBusiness(ctx context.Context, arg GetTaxRateInBusinessParams) (TaxRate, error) {
+	row := q.db.QueryRow(ctx, getTaxRateInBusiness, arg.ID, arg.BusinessID)
+	var i TaxRate
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.Name,
+		&i.Rate,
+		&i.TaxLiabilityAccountID,
+		&i.IsActive,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResourceVersion,
+	)
+	return i, err
+}
+
 const getVendorByContactID = `-- name: GetVendorByContactID :one
 SELECT id, contact_id, ledger_account_id, created_at, updated_at FROM vendor WHERE contact_id = $1
 `
