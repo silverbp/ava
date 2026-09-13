@@ -25,7 +25,10 @@ const (
 	BankStatementService_GetBankStatement_FullMethodName                   = "/ava.v1.BankStatementService/GetBankStatement"
 	BankStatementService_ListBankStatements_FullMethodName                 = "/ava.v1.BankStatementService/ListBankStatements"
 	BankStatementService_CreateBankStatement_FullMethodName                = "/ava.v1.BankStatementService/CreateBankStatement"
+	BankStatementService_UpdateBankStatement_FullMethodName                = "/ava.v1.BankStatementService/UpdateBankStatement"
+	BankStatementService_DeactivateBankStatement_FullMethodName            = "/ava.v1.BankStatementService/DeactivateBankStatement"
 	BankStatementService_ReconcileLedgerTransactions_FullMethodName        = "/ava.v1.BankStatementService/ReconcileLedgerTransactions"
+	BankStatementService_UnreconcileLedgerTransactions_FullMethodName      = "/ava.v1.BankStatementService/UnreconcileLedgerTransactions"
 	BankStatementService_ListUnreconciledLedgerTransactions_FullMethodName = "/ava.v1.BankStatementService/ListUnreconciledLedgerTransactions"
 )
 
@@ -35,11 +38,30 @@ const (
 type BankStatementServiceClient interface {
 	GetBankStatement(ctx context.Context, in *GetBankStatementRequest, opts ...grpc.CallOption) (*GetBankStatementResponse, error)
 	ListBankStatements(ctx context.Context, in *ListBankStatementsRequest, opts ...grpc.CallOption) (*ListBankStatementsResponse, error)
+	// CreateBankStatement rejects an opening_balance that doesn't match the
+	// prior statement's closing_balance for the same ledger account, unless
+	// allow_opening_mismatch is set (the first statement on an account, or a
+	// deliberate mid-history import, have no prior statement to chain from).
 	CreateBankStatement(ctx context.Context, in *CreateBankStatementRequest, opts ...grpc.CallOption) (*CreateBankStatementResponse, error)
+	// UpdateBankStatement fixes a statement's own fields (e.g. a copy/paste
+	// error in opening/closing balance) - only passed fields change. The same
+	// chaining check as CreateBankStatement applies when opening_balance or
+	// statement_date changes.
+	UpdateBankStatement(ctx context.Context, in *UpdateBankStatementRequest, opts ...grpc.CallOption) (*UpdateBankStatementResponse, error)
+	// DeactivateBankStatement soft-deletes a statement. Rejected with
+	// FAILED_PRECONDITION while it still has reconciled lines - unreconcile
+	// them first, so a deactivated statement can never hide reconciled
+	// transactions from ListUnreconciledLedgerTransactions.
+	DeactivateBankStatement(ctx context.Context, in *DeactivateBankStatementRequest, opts ...grpc.CallOption) (*DeactivateBankStatementResponse, error)
 	// ReconcileLedgerTransactions links ledger_transaction_ids to a bank
 	// statement, one bank_statement_line each — each transaction must already
 	// post to the statement's own ledger_account_id (see docs/schema.md).
 	ReconcileLedgerTransactions(ctx context.Context, in *ReconcileLedgerTransactionsRequest, opts ...grpc.CallOption) (*ReconcileLedgerTransactionsResponse, error)
+	// UnreconcileLedgerTransactions unlinks previously-reconciled transactions
+	// from a statement (a wrong `reconcile` call, or undoing before a
+	// `deactivate`). The bank_statement_line rows are removed outright, not
+	// soft-deleted, so the same transaction can be reconciled again.
+	UnreconcileLedgerTransactions(ctx context.Context, in *UnreconcileLedgerTransactionsRequest, opts ...grpc.CallOption) (*UnreconcileLedgerTransactionsResponse, error)
 	// ListUnreconciledLedgerTransactions lists candidates for reconciliation:
 	// transactions posting to account_id, through through_date, not yet
 	// linked to any bank_statement for that account.
@@ -84,10 +106,40 @@ func (c *bankStatementServiceClient) CreateBankStatement(ctx context.Context, in
 	return out, nil
 }
 
+func (c *bankStatementServiceClient) UpdateBankStatement(ctx context.Context, in *UpdateBankStatementRequest, opts ...grpc.CallOption) (*UpdateBankStatementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateBankStatementResponse)
+	err := c.cc.Invoke(ctx, BankStatementService_UpdateBankStatement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bankStatementServiceClient) DeactivateBankStatement(ctx context.Context, in *DeactivateBankStatementRequest, opts ...grpc.CallOption) (*DeactivateBankStatementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeactivateBankStatementResponse)
+	err := c.cc.Invoke(ctx, BankStatementService_DeactivateBankStatement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bankStatementServiceClient) ReconcileLedgerTransactions(ctx context.Context, in *ReconcileLedgerTransactionsRequest, opts ...grpc.CallOption) (*ReconcileLedgerTransactionsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReconcileLedgerTransactionsResponse)
 	err := c.cc.Invoke(ctx, BankStatementService_ReconcileLedgerTransactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bankStatementServiceClient) UnreconcileLedgerTransactions(ctx context.Context, in *UnreconcileLedgerTransactionsRequest, opts ...grpc.CallOption) (*UnreconcileLedgerTransactionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnreconcileLedgerTransactionsResponse)
+	err := c.cc.Invoke(ctx, BankStatementService_UnreconcileLedgerTransactions_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -110,11 +162,30 @@ func (c *bankStatementServiceClient) ListUnreconciledLedgerTransactions(ctx cont
 type BankStatementServiceServer interface {
 	GetBankStatement(context.Context, *GetBankStatementRequest) (*GetBankStatementResponse, error)
 	ListBankStatements(context.Context, *ListBankStatementsRequest) (*ListBankStatementsResponse, error)
+	// CreateBankStatement rejects an opening_balance that doesn't match the
+	// prior statement's closing_balance for the same ledger account, unless
+	// allow_opening_mismatch is set (the first statement on an account, or a
+	// deliberate mid-history import, have no prior statement to chain from).
 	CreateBankStatement(context.Context, *CreateBankStatementRequest) (*CreateBankStatementResponse, error)
+	// UpdateBankStatement fixes a statement's own fields (e.g. a copy/paste
+	// error in opening/closing balance) - only passed fields change. The same
+	// chaining check as CreateBankStatement applies when opening_balance or
+	// statement_date changes.
+	UpdateBankStatement(context.Context, *UpdateBankStatementRequest) (*UpdateBankStatementResponse, error)
+	// DeactivateBankStatement soft-deletes a statement. Rejected with
+	// FAILED_PRECONDITION while it still has reconciled lines - unreconcile
+	// them first, so a deactivated statement can never hide reconciled
+	// transactions from ListUnreconciledLedgerTransactions.
+	DeactivateBankStatement(context.Context, *DeactivateBankStatementRequest) (*DeactivateBankStatementResponse, error)
 	// ReconcileLedgerTransactions links ledger_transaction_ids to a bank
 	// statement, one bank_statement_line each — each transaction must already
 	// post to the statement's own ledger_account_id (see docs/schema.md).
 	ReconcileLedgerTransactions(context.Context, *ReconcileLedgerTransactionsRequest) (*ReconcileLedgerTransactionsResponse, error)
+	// UnreconcileLedgerTransactions unlinks previously-reconciled transactions
+	// from a statement (a wrong `reconcile` call, or undoing before a
+	// `deactivate`). The bank_statement_line rows are removed outright, not
+	// soft-deleted, so the same transaction can be reconciled again.
+	UnreconcileLedgerTransactions(context.Context, *UnreconcileLedgerTransactionsRequest) (*UnreconcileLedgerTransactionsResponse, error)
 	// ListUnreconciledLedgerTransactions lists candidates for reconciliation:
 	// transactions posting to account_id, through through_date, not yet
 	// linked to any bank_statement for that account.
@@ -138,8 +209,17 @@ func (UnimplementedBankStatementServiceServer) ListBankStatements(context.Contex
 func (UnimplementedBankStatementServiceServer) CreateBankStatement(context.Context, *CreateBankStatementRequest) (*CreateBankStatementResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateBankStatement not implemented")
 }
+func (UnimplementedBankStatementServiceServer) UpdateBankStatement(context.Context, *UpdateBankStatementRequest) (*UpdateBankStatementResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateBankStatement not implemented")
+}
+func (UnimplementedBankStatementServiceServer) DeactivateBankStatement(context.Context, *DeactivateBankStatementRequest) (*DeactivateBankStatementResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeactivateBankStatement not implemented")
+}
 func (UnimplementedBankStatementServiceServer) ReconcileLedgerTransactions(context.Context, *ReconcileLedgerTransactionsRequest) (*ReconcileLedgerTransactionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReconcileLedgerTransactions not implemented")
+}
+func (UnimplementedBankStatementServiceServer) UnreconcileLedgerTransactions(context.Context, *UnreconcileLedgerTransactionsRequest) (*UnreconcileLedgerTransactionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UnreconcileLedgerTransactions not implemented")
 }
 func (UnimplementedBankStatementServiceServer) ListUnreconciledLedgerTransactions(context.Context, *ListUnreconciledLedgerTransactionsRequest) (*ListUnreconciledLedgerTransactionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListUnreconciledLedgerTransactions not implemented")
@@ -219,6 +299,42 @@ func _BankStatementService_CreateBankStatement_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BankStatementService_UpdateBankStatement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateBankStatementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BankStatementServiceServer).UpdateBankStatement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BankStatementService_UpdateBankStatement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BankStatementServiceServer).UpdateBankStatement(ctx, req.(*UpdateBankStatementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BankStatementService_DeactivateBankStatement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeactivateBankStatementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BankStatementServiceServer).DeactivateBankStatement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BankStatementService_DeactivateBankStatement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BankStatementServiceServer).DeactivateBankStatement(ctx, req.(*DeactivateBankStatementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BankStatementService_ReconcileLedgerTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReconcileLedgerTransactionsRequest)
 	if err := dec(in); err != nil {
@@ -233,6 +349,24 @@ func _BankStatementService_ReconcileLedgerTransactions_Handler(srv interface{}, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BankStatementServiceServer).ReconcileLedgerTransactions(ctx, req.(*ReconcileLedgerTransactionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BankStatementService_UnreconcileLedgerTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnreconcileLedgerTransactionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BankStatementServiceServer).UnreconcileLedgerTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BankStatementService_UnreconcileLedgerTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BankStatementServiceServer).UnreconcileLedgerTransactions(ctx, req.(*UnreconcileLedgerTransactionsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -275,8 +409,20 @@ var BankStatementService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BankStatementService_CreateBankStatement_Handler,
 		},
 		{
+			MethodName: "UpdateBankStatement",
+			Handler:    _BankStatementService_UpdateBankStatement_Handler,
+		},
+		{
+			MethodName: "DeactivateBankStatement",
+			Handler:    _BankStatementService_DeactivateBankStatement_Handler,
+		},
+		{
 			MethodName: "ReconcileLedgerTransactions",
 			Handler:    _BankStatementService_ReconcileLedgerTransactions_Handler,
+		},
+		{
+			MethodName: "UnreconcileLedgerTransactions",
+			Handler:    _BankStatementService_UnreconcileLedgerTransactions_Handler,
 		},
 		{
 			MethodName: "ListUnreconciledLedgerTransactions",

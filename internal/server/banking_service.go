@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -100,11 +101,16 @@ func (s *bankStatementService) CreateBankStatement(ctx context.Context, req *ava
 		return nil, status.Errorf(codes.InvalidArgument, "invalid closing_balance: %v", err)
 	}
 
+	statementDate := datepb.ToPgDate(req.GetStatementDate())
+	if err := s.checkOpeningBalanceChaining(ctx, req.GetLedgerAccountId(), 0, statementDate, opening, req.GetAllowOpeningMismatch()); err != nil {
+		return nil, err
+	}
+
 	created, err := s.store.Queries.CreateBankStatement(ctx, sqlcgen.CreateBankStatementParams{
 		BusinessID:      req.GetBusinessId(),
 		LedgerAccountID: req.GetLedgerAccountId(),
 		StatementName:   req.GetStatementName(),
-		StatementDate:   datepb.ToPgDate(req.GetStatementDate()),
+		StatementDate:   statementDate,
 		OpeningBalance:  opening,
 		ClosingBalance:  closing,
 		CreatedByUserID: &u.ID,
@@ -117,6 +123,139 @@ func (s *bankStatementService) CreateBankStatement(ctx context.Context, req *ava
 		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
 	}
 	return &avav1.CreateBankStatementResponse{BankStatement: pb}, nil
+}
+
+// checkOpeningBalanceChaining rejects an opening balance that doesn't match
+// the prior statement's closing balance for the same account, unless
+// allowMismatch is set (no prior statement - the first one on an account -
+// or a deliberate mid-history import both need the override). Compares
+// against the closest statement strictly before statementDate, skipping
+// excludeID (the statement being updated, so a date moved later never
+// chains against its own closing balance; 0 on create).
+func (s *bankStatementService) checkOpeningBalanceChaining(ctx context.Context, ledgerAccountID int32, excludeID int64, statementDate pgtype.Date, opening pgtype.Numeric, allowMismatch bool) error {
+	if allowMismatch || !opening.Valid {
+		return nil
+	}
+	prior, err := s.store.Queries.GetLatestBankStatementForAccount(ctx, sqlcgen.GetLatestBankStatementForAccountParams{
+		LedgerAccountID: ledgerAccountID,
+		BeforeDate:      statementDate,
+		ExcludeID:       excludeID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return translatePgError(err)
+	}
+	if !prior.ClosingBalance.Valid {
+		return nil
+	}
+	openingDec, err := ledgermath.NumericToDecimal(opening)
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, "invalid opening_balance: %v", err)
+	}
+	priorClosingDec, err := ledgermath.NumericToDecimal(prior.ClosingBalance)
+	if err != nil {
+		return status.Errorf(codes.Internal, "reading prior statement's closing_balance: %v", err)
+	}
+	if !openingDec.Equal(priorClosingDec) {
+		return status.Errorf(codes.InvalidArgument,
+			"opening_balance %s does not match statement %d's closing_balance %s for this account - pass allow_opening_mismatch to override",
+			openingDec, prior.ID, priorClosingDec)
+	}
+	return nil
+}
+
+func (s *bankStatementService) UpdateBankStatement(ctx context.Context, req *avav1.UpdateBankStatementRequest) (*avav1.UpdateBankStatementResponse, error) {
+	existing, err := s.store.Queries.GetBankStatement(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+
+	opening, err := moneypb.ToNumeric(req.OpeningBalance)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid opening_balance: %v", err)
+	}
+	closing, err := moneypb.ToNumeric(req.ClosingBalance)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid closing_balance: %v", err)
+	}
+	statementDate := datepb.ToPgDate(req.GetStatementDate())
+
+	// Only re-run the chaining check when something it depends on is
+	// changing - a rename or closing-balance fix on a statement that was
+	// imported with allow_opening_mismatch must not be re-judged on its
+	// (still deliberately mismatched) opening balance.
+	if opening.Valid || statementDate.Valid {
+		effectiveOpening, effectiveDate := opening, statementDate
+		if !effectiveOpening.Valid {
+			effectiveOpening = existing.OpeningBalance
+		}
+		if !effectiveDate.Valid {
+			effectiveDate = existing.StatementDate
+		}
+		if err := s.checkOpeningBalanceChaining(ctx, existing.LedgerAccountID, existing.ID, effectiveDate, effectiveOpening, req.GetAllowOpeningMismatch()); err != nil {
+			return nil, err
+		}
+	}
+
+	updated, err := s.store.Queries.UpdateBankStatement(ctx, sqlcgen.UpdateBankStatementParams{
+		ID:              req.GetId(),
+		StatementName:   req.StatementName,
+		StatementDate:   statementDate,
+		OpeningBalance:  opening,
+		ClosingBalance:  closing,
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
+	if err != nil {
+		return nil, translateUpdateError(err, "bank statement", req.GetId(), req.GetResourceVersion())
+	}
+	pb, err := s.bankStatementToProto(ctx, updated)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+	}
+	return &avav1.UpdateBankStatementResponse{BankStatement: pb}, nil
+}
+
+func (s *bankStatementService) DeactivateBankStatement(ctx context.Context, req *avav1.DeactivateBankStatementRequest) (*avav1.DeactivateBankStatementResponse, error) {
+	existing, err := s.store.Queries.GetBankStatement(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+
+	lineCount, err := s.store.Queries.CountBankStatementLines(ctx, existing.ID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	if lineCount > 0 {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"bank statement %d still has %d reconciled line(s) - unreconcile them first", existing.ID, lineCount)
+	}
+
+	deactivated, err := s.store.Queries.DeactivateBankStatement(ctx, sqlcgen.DeactivateBankStatementParams{
+		ID:              req.GetId(),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
+	if err != nil {
+		return nil, translateUpdateError(err, "bank statement", req.GetId(), req.GetResourceVersion())
+	}
+	pb, err := s.bankStatementToProto(ctx, deactivated)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+	}
+	return &avav1.DeactivateBankStatementResponse{BankStatement: pb}, nil
 }
 
 func (s *bankStatementService) ReconcileLedgerTransactions(ctx context.Context, req *avav1.ReconcileLedgerTransactionsRequest) (*avav1.ReconcileLedgerTransactionsResponse, error) {
@@ -173,6 +312,43 @@ func (s *bankStatementService) ReconcileLedgerTransactions(ctx context.Context, 
 		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
 	}
 	return &avav1.ReconcileLedgerTransactionsResponse{BankStatement: pb}, nil
+}
+
+func (s *bankStatementService) UnreconcileLedgerTransactions(ctx context.Context, req *avav1.UnreconcileLedgerTransactionsRequest) (*avav1.UnreconcileLedgerTransactionsResponse, error) {
+	bs, err := s.store.Queries.GetBankStatement(ctx, req.GetBankStatementId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetBankStatementId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, bs.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+	if len(req.GetLedgerTransactionIds()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "at least one ledger_transaction_id is required")
+	}
+
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		for _, txnID := range req.GetLedgerTransactionIds() {
+			if err := q.DeleteBankStatementLine(ctx, sqlcgen.DeleteBankStatementLineParams{
+				BankStatementID:     bs.ID,
+				LedgerTransactionID: txnID,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, closeErrorStatus(err)
+	}
+
+	pb, err := s.bankStatementToProto(ctx, bs)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+	}
+	return &avav1.UnreconcileLedgerTransactionsResponse{BankStatement: pb}, nil
 }
 
 func (s *bankStatementService) ListUnreconciledLedgerTransactions(ctx context.Context, req *avav1.ListUnreconciledLedgerTransactionsRequest) (*avav1.ListUnreconciledLedgerTransactionsResponse, error) {
@@ -238,6 +414,7 @@ func (s *bankStatementService) bankStatementToProto(ctx context.Context, bs sqlc
 		ClosingBalance:  closing,
 		CreatedByUserId: bs.CreatedByUserID,
 		CreatedAt:       timestampProto(bs.CreatedAt),
+		ResourceVersion: bs.ResourceVersion,
 	}
 	for _, l := range lines {
 		pb.Lines = append(pb.Lines, &avav1.BankStatementLine{
@@ -277,6 +454,14 @@ func (s *bankStatementService) bankStatementToProto(ctx context.Context, bs sqlc
 	}
 	reconciled := openingDec.Add(ledgermath.NetBalance(accountType.NormalBalance, debit, credit))
 	pb.ReconciledBalance = decimalToProto(reconciled)
+
+	if bs.ClosingBalance.Valid {
+		closingDec, err := ledgermath.NumericToDecimal(bs.ClosingBalance)
+		if err != nil {
+			return nil, err
+		}
+		pb.Difference = decimalToProto(closingDec.Sub(reconciled))
+	}
 
 	return pb, nil
 }

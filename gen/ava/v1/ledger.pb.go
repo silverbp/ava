@@ -899,8 +899,11 @@ type LedgerTransaction struct {
 	CreatedByUserId *int64                 `protobuf:"varint,6,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	Entries         []*LedgerEntry         `protobuf:"bytes,8,rep,name=entries,proto3" json:"entries,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Set when this transaction is a reversal: the id of the transaction it
+	// mirrors. At most one reversal exists per transaction.
+	ReversesLedgerTransactionId *int64 `protobuf:"varint,9,opt,name=reverses_ledger_transaction_id,json=reversesLedgerTransactionId,proto3,oneof" json:"reverses_ledger_transaction_id,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *LedgerTransaction) Reset() {
@@ -987,6 +990,13 @@ func (x *LedgerTransaction) GetEntries() []*LedgerEntry {
 		return x.Entries
 	}
 	return nil
+}
+
+func (x *LedgerTransaction) GetReversesLedgerTransactionId() int64 {
+	if x != nil && x.ReversesLedgerTransactionId != nil {
+		return *x.ReversesLedgerTransactionId
+	}
+	return 0
 }
 
 type GetLedgerTransactionRequest struct {
@@ -1379,6 +1389,106 @@ func (x *CreateLedgerTransactionResponse) GetTransaction() *LedgerTransaction {
 	return nil
 }
 
+type ReverseLedgerTransactionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Date to post the reversal on. Defaults to the original's transaction_date;
+	// set it to a date in the open period when the original falls in a closed
+	// one. Must not be earlier than the original's date.
+	ReversalDate  *date.Date `protobuf:"bytes,2,opt,name=reversal_date,json=reversalDate,proto3,oneof" json:"reversal_date,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReverseLedgerTransactionRequest) Reset() {
+	*x = ReverseLedgerTransactionRequest{}
+	mi := &file_ava_v1_ledger_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReverseLedgerTransactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReverseLedgerTransactionRequest) ProtoMessage() {}
+
+func (x *ReverseLedgerTransactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_ledger_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReverseLedgerTransactionRequest.ProtoReflect.Descriptor instead.
+func (*ReverseLedgerTransactionRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_ledger_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ReverseLedgerTransactionRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ReverseLedgerTransactionRequest) GetReversalDate() *date.Date {
+	if x != nil {
+		return x.ReversalDate
+	}
+	return nil
+}
+
+type ReverseLedgerTransactionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The new, reversing transaction - not the original, which is unchanged.
+	Transaction   *LedgerTransaction `protobuf:"bytes,1,opt,name=transaction,proto3" json:"transaction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReverseLedgerTransactionResponse) Reset() {
+	*x = ReverseLedgerTransactionResponse{}
+	mi := &file_ava_v1_ledger_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReverseLedgerTransactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReverseLedgerTransactionResponse) ProtoMessage() {}
+
+func (x *ReverseLedgerTransactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_ledger_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReverseLedgerTransactionResponse.ProtoReflect.Descriptor instead.
+func (*ReverseLedgerTransactionResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_ledger_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ReverseLedgerTransactionResponse) GetTransaction() *LedgerTransaction {
+	if x != nil {
+		return x.Transaction
+	}
+	return nil
+}
+
 var File_ava_v1_ledger_proto protoreflect.FileDescriptor
 
 const file_ava_v1_ledger_proto_rawDesc = "" +
@@ -1476,7 +1586,7 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\fdebit_amount\x18\x04 \x01(\v2\x0f.ava.v1.DecimalR\vdebitAmount\x124\n" +
 	"\rcredit_amount\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\fcreditAmount\x12%\n" +
 	"\vdescription\x18\x06 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
-	"\f_description\"\xb1\x03\n" +
+	"\f_description\"\x9e\x04\n" +
 	"\x11LedgerTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -1487,10 +1597,12 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\x12created_by_user_id\x18\x06 \x01(\x03H\x02R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12-\n" +
-	"\aentries\x18\b \x03(\v2\x13.ava.v1.LedgerEntryR\aentriesB\x0e\n" +
+	"\aentries\x18\b \x03(\v2\x13.ava.v1.LedgerEntryR\aentries\x12H\n" +
+	"\x1ereverses_ledger_transaction_id\x18\t \x01(\x03H\x03R\x1breversesLedgerTransactionId\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x13\n" +
 	"\x11_reference_numberB\x15\n" +
-	"\x13_created_by_user_id\"-\n" +
+	"\x13_created_by_user_idB!\n" +
+	"\x1f_reverses_ledger_transaction_id\"-\n" +
 	"\x1bGetLedgerTransactionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"[\n" +
 	"\x1cGetLedgerTransactionResponse\x12;\n" +
@@ -1521,17 +1633,24 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\f_descriptionB\x13\n" +
 	"\x11_reference_number\"^\n" +
 	"\x1fCreateLedgerTransactionResponse\x12;\n" +
+	"\vtransaction\x18\x01 \x01(\v2\x19.ava.v1.LedgerTransactionR\vtransaction\"\x80\x01\n" +
+	"\x1fReverseLedgerTransactionRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12;\n" +
+	"\rreversal_date\x18\x02 \x01(\v2\x11.google.type.DateH\x00R\freversalDate\x88\x01\x01B\x10\n" +
+	"\x0e_reversal_date\"_\n" +
+	" ReverseLedgerTransactionResponse\x12;\n" +
 	"\vtransaction\x18\x01 \x01(\v2\x19.ava.v1.LedgerTransactionR\vtransaction2\xf6\x03\n" +
 	"\x14LedgerAccountService\x12U\n" +
 	"\x10GetLedgerAccount\x12\x1f.ava.v1.GetLedgerAccountRequest\x1a .ava.v1.GetLedgerAccountResponse\x12[\n" +
 	"\x12ListLedgerAccounts\x12!.ava.v1.ListLedgerAccountsRequest\x1a\".ava.v1.ListLedgerAccountsResponse\x12^\n" +
 	"\x13CreateLedgerAccount\x12\".ava.v1.CreateLedgerAccountRequest\x1a#.ava.v1.CreateLedgerAccountResponse\x12^\n" +
 	"\x13UpdateLedgerAccount\x12\".ava.v1.UpdateLedgerAccountRequest\x1a#.ava.v1.UpdateLedgerAccountResponse\x12j\n" +
-	"\x17DeactivateLedgerAccount\x12&.ava.v1.DeactivateLedgerAccountRequest\x1a'.ava.v1.DeactivateLedgerAccountResponse2\xd2\x02\n" +
+	"\x17DeactivateLedgerAccount\x12&.ava.v1.DeactivateLedgerAccountRequest\x1a'.ava.v1.DeactivateLedgerAccountResponse2\xc1\x03\n" +
 	"\x18LedgerTransactionService\x12a\n" +
 	"\x14GetLedgerTransaction\x12#.ava.v1.GetLedgerTransactionRequest\x1a$.ava.v1.GetLedgerTransactionResponse\x12g\n" +
 	"\x16ListLedgerTransactions\x12%.ava.v1.ListLedgerTransactionsRequest\x1a&.ava.v1.ListLedgerTransactionsResponse\x12j\n" +
-	"\x17CreateLedgerTransaction\x12&.ava.v1.CreateLedgerTransactionRequest\x1a'.ava.v1.CreateLedgerTransactionResponseB*Z(github.com/silverbp/ava/gen/ava/v1;avav1b\x06proto3"
+	"\x17CreateLedgerTransaction\x12&.ava.v1.CreateLedgerTransactionRequest\x1a'.ava.v1.CreateLedgerTransactionResponse\x12m\n" +
+	"\x18ReverseLedgerTransaction\x12'.ava.v1.ReverseLedgerTransactionRequest\x1a(.ava.v1.ReverseLedgerTransactionResponseB*Z(github.com/silverbp/ava/gen/ava/v1;avav1b\x06proto3"
 
 var (
 	file_ava_v1_ledger_proto_rawDescOnce sync.Once
@@ -1545,73 +1664,79 @@ func file_ava_v1_ledger_proto_rawDescGZIP() []byte {
 	return file_ava_v1_ledger_proto_rawDescData
 }
 
-var file_ava_v1_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_ava_v1_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_ava_v1_ledger_proto_goTypes = []any{
-	(*LedgerAccount)(nil),                   // 0: ava.v1.LedgerAccount
-	(*GetLedgerAccountRequest)(nil),         // 1: ava.v1.GetLedgerAccountRequest
-	(*GetLedgerAccountResponse)(nil),        // 2: ava.v1.GetLedgerAccountResponse
-	(*ListLedgerAccountsRequest)(nil),       // 3: ava.v1.ListLedgerAccountsRequest
-	(*ListLedgerAccountsResponse)(nil),      // 4: ava.v1.ListLedgerAccountsResponse
-	(*CreateLedgerAccountRequest)(nil),      // 5: ava.v1.CreateLedgerAccountRequest
-	(*CreateLedgerAccountResponse)(nil),     // 6: ava.v1.CreateLedgerAccountResponse
-	(*UpdateLedgerAccountRequest)(nil),      // 7: ava.v1.UpdateLedgerAccountRequest
-	(*UpdateLedgerAccountResponse)(nil),     // 8: ava.v1.UpdateLedgerAccountResponse
-	(*DeactivateLedgerAccountRequest)(nil),  // 9: ava.v1.DeactivateLedgerAccountRequest
-	(*DeactivateLedgerAccountResponse)(nil), // 10: ava.v1.DeactivateLedgerAccountResponse
-	(*LedgerEntry)(nil),                     // 11: ava.v1.LedgerEntry
-	(*LedgerTransaction)(nil),               // 12: ava.v1.LedgerTransaction
-	(*GetLedgerTransactionRequest)(nil),     // 13: ava.v1.GetLedgerTransactionRequest
-	(*GetLedgerTransactionResponse)(nil),    // 14: ava.v1.GetLedgerTransactionResponse
-	(*ListLedgerTransactionsRequest)(nil),   // 15: ava.v1.ListLedgerTransactionsRequest
-	(*ListLedgerTransactionsResponse)(nil),  // 16: ava.v1.ListLedgerTransactionsResponse
-	(*NewLedgerEntry)(nil),                  // 17: ava.v1.NewLedgerEntry
-	(*CreateLedgerTransactionRequest)(nil),  // 18: ava.v1.CreateLedgerTransactionRequest
-	(*CreateLedgerTransactionResponse)(nil), // 19: ava.v1.CreateLedgerTransactionResponse
-	(*timestamppb.Timestamp)(nil),           // 20: google.protobuf.Timestamp
-	(*Decimal)(nil),                         // 21: ava.v1.Decimal
-	(*date.Date)(nil),                       // 22: google.type.Date
+	(*LedgerAccount)(nil),                    // 0: ava.v1.LedgerAccount
+	(*GetLedgerAccountRequest)(nil),          // 1: ava.v1.GetLedgerAccountRequest
+	(*GetLedgerAccountResponse)(nil),         // 2: ava.v1.GetLedgerAccountResponse
+	(*ListLedgerAccountsRequest)(nil),        // 3: ava.v1.ListLedgerAccountsRequest
+	(*ListLedgerAccountsResponse)(nil),       // 4: ava.v1.ListLedgerAccountsResponse
+	(*CreateLedgerAccountRequest)(nil),       // 5: ava.v1.CreateLedgerAccountRequest
+	(*CreateLedgerAccountResponse)(nil),      // 6: ava.v1.CreateLedgerAccountResponse
+	(*UpdateLedgerAccountRequest)(nil),       // 7: ava.v1.UpdateLedgerAccountRequest
+	(*UpdateLedgerAccountResponse)(nil),      // 8: ava.v1.UpdateLedgerAccountResponse
+	(*DeactivateLedgerAccountRequest)(nil),   // 9: ava.v1.DeactivateLedgerAccountRequest
+	(*DeactivateLedgerAccountResponse)(nil),  // 10: ava.v1.DeactivateLedgerAccountResponse
+	(*LedgerEntry)(nil),                      // 11: ava.v1.LedgerEntry
+	(*LedgerTransaction)(nil),                // 12: ava.v1.LedgerTransaction
+	(*GetLedgerTransactionRequest)(nil),      // 13: ava.v1.GetLedgerTransactionRequest
+	(*GetLedgerTransactionResponse)(nil),     // 14: ava.v1.GetLedgerTransactionResponse
+	(*ListLedgerTransactionsRequest)(nil),    // 15: ava.v1.ListLedgerTransactionsRequest
+	(*ListLedgerTransactionsResponse)(nil),   // 16: ava.v1.ListLedgerTransactionsResponse
+	(*NewLedgerEntry)(nil),                   // 17: ava.v1.NewLedgerEntry
+	(*CreateLedgerTransactionRequest)(nil),   // 18: ava.v1.CreateLedgerTransactionRequest
+	(*CreateLedgerTransactionResponse)(nil),  // 19: ava.v1.CreateLedgerTransactionResponse
+	(*ReverseLedgerTransactionRequest)(nil),  // 20: ava.v1.ReverseLedgerTransactionRequest
+	(*ReverseLedgerTransactionResponse)(nil), // 21: ava.v1.ReverseLedgerTransactionResponse
+	(*timestamppb.Timestamp)(nil),            // 22: google.protobuf.Timestamp
+	(*Decimal)(nil),                          // 23: ava.v1.Decimal
+	(*date.Date)(nil),                        // 24: google.type.Date
 }
 var file_ava_v1_ledger_proto_depIdxs = []int32{
-	20, // 0: ava.v1.LedgerAccount.created_at:type_name -> google.protobuf.Timestamp
-	20, // 1: ava.v1.LedgerAccount.updated_at:type_name -> google.protobuf.Timestamp
+	22, // 0: ava.v1.LedgerAccount.created_at:type_name -> google.protobuf.Timestamp
+	22, // 1: ava.v1.LedgerAccount.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: ava.v1.GetLedgerAccountResponse.account:type_name -> ava.v1.LedgerAccount
 	0,  // 3: ava.v1.ListLedgerAccountsResponse.accounts:type_name -> ava.v1.LedgerAccount
 	0,  // 4: ava.v1.CreateLedgerAccountResponse.account:type_name -> ava.v1.LedgerAccount
 	0,  // 5: ava.v1.UpdateLedgerAccountResponse.account:type_name -> ava.v1.LedgerAccount
 	0,  // 6: ava.v1.DeactivateLedgerAccountResponse.account:type_name -> ava.v1.LedgerAccount
-	21, // 7: ava.v1.LedgerEntry.debit_amount:type_name -> ava.v1.Decimal
-	21, // 8: ava.v1.LedgerEntry.credit_amount:type_name -> ava.v1.Decimal
-	22, // 9: ava.v1.LedgerTransaction.transaction_date:type_name -> google.type.Date
-	20, // 10: ava.v1.LedgerTransaction.created_at:type_name -> google.protobuf.Timestamp
+	23, // 7: ava.v1.LedgerEntry.debit_amount:type_name -> ava.v1.Decimal
+	23, // 8: ava.v1.LedgerEntry.credit_amount:type_name -> ava.v1.Decimal
+	24, // 9: ava.v1.LedgerTransaction.transaction_date:type_name -> google.type.Date
+	22, // 10: ava.v1.LedgerTransaction.created_at:type_name -> google.protobuf.Timestamp
 	11, // 11: ava.v1.LedgerTransaction.entries:type_name -> ava.v1.LedgerEntry
 	12, // 12: ava.v1.GetLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
 	12, // 13: ava.v1.ListLedgerTransactionsResponse.transactions:type_name -> ava.v1.LedgerTransaction
-	21, // 14: ava.v1.NewLedgerEntry.debit_amount:type_name -> ava.v1.Decimal
-	21, // 15: ava.v1.NewLedgerEntry.credit_amount:type_name -> ava.v1.Decimal
-	22, // 16: ava.v1.CreateLedgerTransactionRequest.transaction_date:type_name -> google.type.Date
+	23, // 14: ava.v1.NewLedgerEntry.debit_amount:type_name -> ava.v1.Decimal
+	23, // 15: ava.v1.NewLedgerEntry.credit_amount:type_name -> ava.v1.Decimal
+	24, // 16: ava.v1.CreateLedgerTransactionRequest.transaction_date:type_name -> google.type.Date
 	17, // 17: ava.v1.CreateLedgerTransactionRequest.entries:type_name -> ava.v1.NewLedgerEntry
 	12, // 18: ava.v1.CreateLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
-	1,  // 19: ava.v1.LedgerAccountService.GetLedgerAccount:input_type -> ava.v1.GetLedgerAccountRequest
-	3,  // 20: ava.v1.LedgerAccountService.ListLedgerAccounts:input_type -> ava.v1.ListLedgerAccountsRequest
-	5,  // 21: ava.v1.LedgerAccountService.CreateLedgerAccount:input_type -> ava.v1.CreateLedgerAccountRequest
-	7,  // 22: ava.v1.LedgerAccountService.UpdateLedgerAccount:input_type -> ava.v1.UpdateLedgerAccountRequest
-	9,  // 23: ava.v1.LedgerAccountService.DeactivateLedgerAccount:input_type -> ava.v1.DeactivateLedgerAccountRequest
-	13, // 24: ava.v1.LedgerTransactionService.GetLedgerTransaction:input_type -> ava.v1.GetLedgerTransactionRequest
-	15, // 25: ava.v1.LedgerTransactionService.ListLedgerTransactions:input_type -> ava.v1.ListLedgerTransactionsRequest
-	18, // 26: ava.v1.LedgerTransactionService.CreateLedgerTransaction:input_type -> ava.v1.CreateLedgerTransactionRequest
-	2,  // 27: ava.v1.LedgerAccountService.GetLedgerAccount:output_type -> ava.v1.GetLedgerAccountResponse
-	4,  // 28: ava.v1.LedgerAccountService.ListLedgerAccounts:output_type -> ava.v1.ListLedgerAccountsResponse
-	6,  // 29: ava.v1.LedgerAccountService.CreateLedgerAccount:output_type -> ava.v1.CreateLedgerAccountResponse
-	8,  // 30: ava.v1.LedgerAccountService.UpdateLedgerAccount:output_type -> ava.v1.UpdateLedgerAccountResponse
-	10, // 31: ava.v1.LedgerAccountService.DeactivateLedgerAccount:output_type -> ava.v1.DeactivateLedgerAccountResponse
-	14, // 32: ava.v1.LedgerTransactionService.GetLedgerTransaction:output_type -> ava.v1.GetLedgerTransactionResponse
-	16, // 33: ava.v1.LedgerTransactionService.ListLedgerTransactions:output_type -> ava.v1.ListLedgerTransactionsResponse
-	19, // 34: ava.v1.LedgerTransactionService.CreateLedgerTransaction:output_type -> ava.v1.CreateLedgerTransactionResponse
-	27, // [27:35] is the sub-list for method output_type
-	19, // [19:27] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	24, // 19: ava.v1.ReverseLedgerTransactionRequest.reversal_date:type_name -> google.type.Date
+	12, // 20: ava.v1.ReverseLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
+	1,  // 21: ava.v1.LedgerAccountService.GetLedgerAccount:input_type -> ava.v1.GetLedgerAccountRequest
+	3,  // 22: ava.v1.LedgerAccountService.ListLedgerAccounts:input_type -> ava.v1.ListLedgerAccountsRequest
+	5,  // 23: ava.v1.LedgerAccountService.CreateLedgerAccount:input_type -> ava.v1.CreateLedgerAccountRequest
+	7,  // 24: ava.v1.LedgerAccountService.UpdateLedgerAccount:input_type -> ava.v1.UpdateLedgerAccountRequest
+	9,  // 25: ava.v1.LedgerAccountService.DeactivateLedgerAccount:input_type -> ava.v1.DeactivateLedgerAccountRequest
+	13, // 26: ava.v1.LedgerTransactionService.GetLedgerTransaction:input_type -> ava.v1.GetLedgerTransactionRequest
+	15, // 27: ava.v1.LedgerTransactionService.ListLedgerTransactions:input_type -> ava.v1.ListLedgerTransactionsRequest
+	18, // 28: ava.v1.LedgerTransactionService.CreateLedgerTransaction:input_type -> ava.v1.CreateLedgerTransactionRequest
+	20, // 29: ava.v1.LedgerTransactionService.ReverseLedgerTransaction:input_type -> ava.v1.ReverseLedgerTransactionRequest
+	2,  // 30: ava.v1.LedgerAccountService.GetLedgerAccount:output_type -> ava.v1.GetLedgerAccountResponse
+	4,  // 31: ava.v1.LedgerAccountService.ListLedgerAccounts:output_type -> ava.v1.ListLedgerAccountsResponse
+	6,  // 32: ava.v1.LedgerAccountService.CreateLedgerAccount:output_type -> ava.v1.CreateLedgerAccountResponse
+	8,  // 33: ava.v1.LedgerAccountService.UpdateLedgerAccount:output_type -> ava.v1.UpdateLedgerAccountResponse
+	10, // 34: ava.v1.LedgerAccountService.DeactivateLedgerAccount:output_type -> ava.v1.DeactivateLedgerAccountResponse
+	14, // 35: ava.v1.LedgerTransactionService.GetLedgerTransaction:output_type -> ava.v1.GetLedgerTransactionResponse
+	16, // 36: ava.v1.LedgerTransactionService.ListLedgerTransactions:output_type -> ava.v1.ListLedgerTransactionsResponse
+	19, // 37: ava.v1.LedgerTransactionService.CreateLedgerTransaction:output_type -> ava.v1.CreateLedgerTransactionResponse
+	21, // 38: ava.v1.LedgerTransactionService.ReverseLedgerTransaction:output_type -> ava.v1.ReverseLedgerTransactionResponse
+	30, // [30:39] is the sub-list for method output_type
+	21, // [21:30] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_ledger_proto_init() }
@@ -1627,13 +1752,14 @@ func file_ava_v1_ledger_proto_init() {
 	file_ava_v1_ledger_proto_msgTypes[12].OneofWrappers = []any{}
 	file_ava_v1_ledger_proto_msgTypes[17].OneofWrappers = []any{}
 	file_ava_v1_ledger_proto_msgTypes[18].OneofWrappers = []any{}
+	file_ava_v1_ledger_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_ledger_proto_rawDesc), len(file_ava_v1_ledger_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

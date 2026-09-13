@@ -325,6 +325,7 @@ const (
 	InvoiceService_GetInvoice_FullMethodName             = "/ava.v1.InvoiceService/GetInvoice"
 	InvoiceService_ListInvoices_FullMethodName           = "/ava.v1.InvoiceService/ListInvoices"
 	InvoiceService_CreateInvoice_FullMethodName          = "/ava.v1.InvoiceService/CreateInvoice"
+	InvoiceService_UpdateInvoice_FullMethodName          = "/ava.v1.InvoiceService/UpdateInvoice"
 	InvoiceService_UpdateInvoiceStatus_FullMethodName    = "/ava.v1.InvoiceService/UpdateInvoiceStatus"
 	InvoiceService_UpdateInvoiceLineItems_FullMethodName = "/ava.v1.InvoiceService/UpdateInvoiceLineItems"
 	InvoiceService_GetInvoicePdf_FullMethodName          = "/ava.v1.InvoiceService/GetInvoicePdf"
@@ -346,7 +347,24 @@ type InvoiceServiceClient interface {
 	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
 	ListInvoices(ctx context.Context, in *ListInvoicesRequest, opts ...grpc.CallOption) (*ListInvoicesResponse, error)
 	CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error)
+	// UpdateInvoice edits header fields with no ledger impact: notes, terms,
+	// due_date. Deliberately not editable here: invoice_date (it's the GL
+	// posting date - changing it would need a repost and interacts with the
+	// period lock), contact_id (changes which AR/AP account the invoice
+	// posts against, and would invalidate any existing payment_application),
+	// and invoice_number (collides with next_invoice_number continuity).
+	// Those stay cancel-and-recreate. Rejected with FAILED_PRECONDITION on a
+	// CANCELLED invoice.
+	UpdateInvoice(ctx context.Context, in *UpdateInvoiceRequest, opts ...grpc.CallOption) (*UpdateInvoiceResponse, error)
+	// UpdateInvoiceStatus transitioning to CANCELLED reverses the invoice's
+	// ledger entries (a new transaction, debits/credits swapped - the
+	// original posting is untouched) and zeroes balance_due. Rejected with
+	// FAILED_PRECONDITION if any payment is still applied - void those first.
 	UpdateInvoiceStatus(ctx context.Context, in *UpdateInvoiceStatusRequest, opts ...grpc.CallOption) (*UpdateInvoiceStatusResponse, error)
+	// UpdateInvoiceLineItems is rejected with FAILED_PRECONDITION on a
+	// CANCELLED invoice (its posting has already been reversed; re-posting
+	// would leave the reversal mismatched) and on a PAID one (void the payment
+	// first).
 	UpdateInvoiceLineItems(ctx context.Context, in *UpdateInvoiceLineItemsRequest, opts ...grpc.CallOption) (*UpdateInvoiceLineItemsResponse, error)
 	GetInvoicePdf(ctx context.Context, in *GetInvoicePdfRequest, opts ...grpc.CallOption) (*GetInvoicePdfResponse, error)
 }
@@ -383,6 +401,16 @@ func (c *invoiceServiceClient) CreateInvoice(ctx context.Context, in *CreateInvo
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateInvoiceResponse)
 	err := c.cc.Invoke(ctx, InvoiceService_CreateInvoice_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invoiceServiceClient) UpdateInvoice(ctx context.Context, in *UpdateInvoiceRequest, opts ...grpc.CallOption) (*UpdateInvoiceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateInvoiceResponse)
+	err := c.cc.Invoke(ctx, InvoiceService_UpdateInvoice_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +463,24 @@ type InvoiceServiceServer interface {
 	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
 	ListInvoices(context.Context, *ListInvoicesRequest) (*ListInvoicesResponse, error)
 	CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error)
+	// UpdateInvoice edits header fields with no ledger impact: notes, terms,
+	// due_date. Deliberately not editable here: invoice_date (it's the GL
+	// posting date - changing it would need a repost and interacts with the
+	// period lock), contact_id (changes which AR/AP account the invoice
+	// posts against, and would invalidate any existing payment_application),
+	// and invoice_number (collides with next_invoice_number continuity).
+	// Those stay cancel-and-recreate. Rejected with FAILED_PRECONDITION on a
+	// CANCELLED invoice.
+	UpdateInvoice(context.Context, *UpdateInvoiceRequest) (*UpdateInvoiceResponse, error)
+	// UpdateInvoiceStatus transitioning to CANCELLED reverses the invoice's
+	// ledger entries (a new transaction, debits/credits swapped - the
+	// original posting is untouched) and zeroes balance_due. Rejected with
+	// FAILED_PRECONDITION if any payment is still applied - void those first.
 	UpdateInvoiceStatus(context.Context, *UpdateInvoiceStatusRequest) (*UpdateInvoiceStatusResponse, error)
+	// UpdateInvoiceLineItems is rejected with FAILED_PRECONDITION on a
+	// CANCELLED invoice (its posting has already been reversed; re-posting
+	// would leave the reversal mismatched) and on a PAID one (void the payment
+	// first).
 	UpdateInvoiceLineItems(context.Context, *UpdateInvoiceLineItemsRequest) (*UpdateInvoiceLineItemsResponse, error)
 	GetInvoicePdf(context.Context, *GetInvoicePdfRequest) (*GetInvoicePdfResponse, error)
 	mustEmbedUnimplementedInvoiceServiceServer()
@@ -456,6 +501,9 @@ func (UnimplementedInvoiceServiceServer) ListInvoices(context.Context, *ListInvo
 }
 func (UnimplementedInvoiceServiceServer) CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateInvoice not implemented")
+}
+func (UnimplementedInvoiceServiceServer) UpdateInvoice(context.Context, *UpdateInvoiceRequest) (*UpdateInvoiceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateInvoice not implemented")
 }
 func (UnimplementedInvoiceServiceServer) UpdateInvoiceStatus(context.Context, *UpdateInvoiceStatusRequest) (*UpdateInvoiceStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateInvoiceStatus not implemented")
@@ -541,6 +589,24 @@ func _InvoiceService_CreateInvoice_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InvoiceService_UpdateInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateInvoiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvoiceServiceServer).UpdateInvoice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InvoiceService_UpdateInvoice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvoiceServiceServer).UpdateInvoice(ctx, req.(*UpdateInvoiceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _InvoiceService_UpdateInvoiceStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateInvoiceStatusRequest)
 	if err := dec(in); err != nil {
@@ -615,6 +681,10 @@ var InvoiceService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _InvoiceService_CreateInvoice_Handler,
 		},
 		{
+			MethodName: "UpdateInvoice",
+			Handler:    _InvoiceService_UpdateInvoice_Handler,
+		},
+		{
 			MethodName: "UpdateInvoiceStatus",
 			Handler:    _InvoiceService_UpdateInvoiceStatus_Handler,
 		},
@@ -635,6 +705,7 @@ const (
 	PaymentService_GetPayment_FullMethodName    = "/ava.v1.PaymentService/GetPayment"
 	PaymentService_ListPayments_FullMethodName  = "/ava.v1.PaymentService/ListPayments"
 	PaymentService_CreatePayment_FullMethodName = "/ava.v1.PaymentService/CreatePayment"
+	PaymentService_VoidPayment_FullMethodName   = "/ava.v1.PaymentService/VoidPayment"
 )
 
 // PaymentServiceClient is the client API for PaymentService service.
@@ -647,11 +718,19 @@ const (
 // invoice, since a real deposit often covers several at once. Applying is
 // independent of posting; CreatePayment additionally posts to the ledger
 // under the same condition as invoices — ledger_account_id (the cash/bank
-// account) set, and the contact has its own ledger_account_id.
+// account) set, and the contact has its own ledger_account_id. An
+// application is rejected if it would exceed the invoice's own remaining
+// balance_due, not just the payment's own amount, and only a SENT, OVERDUE
+// or PAID invoice accepts one - send a DRAFT first.
 type PaymentServiceClient interface {
 	GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...grpc.CallOption) (*GetPaymentResponse, error)
 	ListPayments(ctx context.Context, in *ListPaymentsRequest, opts ...grpc.CallOption) (*ListPaymentsResponse, error)
 	CreatePayment(ctx context.Context, in *CreatePaymentRequest, opts ...grpc.CallOption) (*CreatePaymentResponse, error)
+	// VoidPayment reverses a payment: every payment_application is removed
+	// and its invoice's paid_amount/balance_due/status restored, then (if the
+	// payment was posted) a reversing ledger transaction is posted and the
+	// payment itself soft-deleted. Rejected if already void.
+	VoidPayment(ctx context.Context, in *VoidPaymentRequest, opts ...grpc.CallOption) (*VoidPaymentResponse, error)
 }
 
 type paymentServiceClient struct {
@@ -692,6 +771,16 @@ func (c *paymentServiceClient) CreatePayment(ctx context.Context, in *CreatePaym
 	return out, nil
 }
 
+func (c *paymentServiceClient) VoidPayment(ctx context.Context, in *VoidPaymentRequest, opts ...grpc.CallOption) (*VoidPaymentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VoidPaymentResponse)
+	err := c.cc.Invoke(ctx, PaymentService_VoidPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PaymentServiceServer is the server API for PaymentService service.
 // All implementations must embed UnimplementedPaymentServiceServer
 // for forward compatibility.
@@ -702,11 +791,19 @@ func (c *paymentServiceClient) CreatePayment(ctx context.Context, in *CreatePaym
 // invoice, since a real deposit often covers several at once. Applying is
 // independent of posting; CreatePayment additionally posts to the ledger
 // under the same condition as invoices — ledger_account_id (the cash/bank
-// account) set, and the contact has its own ledger_account_id.
+// account) set, and the contact has its own ledger_account_id. An
+// application is rejected if it would exceed the invoice's own remaining
+// balance_due, not just the payment's own amount, and only a SENT, OVERDUE
+// or PAID invoice accepts one - send a DRAFT first.
 type PaymentServiceServer interface {
 	GetPayment(context.Context, *GetPaymentRequest) (*GetPaymentResponse, error)
 	ListPayments(context.Context, *ListPaymentsRequest) (*ListPaymentsResponse, error)
 	CreatePayment(context.Context, *CreatePaymentRequest) (*CreatePaymentResponse, error)
+	// VoidPayment reverses a payment: every payment_application is removed
+	// and its invoice's paid_amount/balance_due/status restored, then (if the
+	// payment was posted) a reversing ledger transaction is posted and the
+	// payment itself soft-deleted. Rejected if already void.
+	VoidPayment(context.Context, *VoidPaymentRequest) (*VoidPaymentResponse, error)
 	mustEmbedUnimplementedPaymentServiceServer()
 }
 
@@ -725,6 +822,9 @@ func (UnimplementedPaymentServiceServer) ListPayments(context.Context, *ListPaym
 }
 func (UnimplementedPaymentServiceServer) CreatePayment(context.Context, *CreatePaymentRequest) (*CreatePaymentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreatePayment not implemented")
+}
+func (UnimplementedPaymentServiceServer) VoidPayment(context.Context, *VoidPaymentRequest) (*VoidPaymentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VoidPayment not implemented")
 }
 func (UnimplementedPaymentServiceServer) mustEmbedUnimplementedPaymentServiceServer() {}
 func (UnimplementedPaymentServiceServer) testEmbeddedByValue()                        {}
@@ -801,6 +901,24 @@ func _PaymentService_CreatePayment_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaymentService_VoidPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VoidPaymentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).VoidPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_VoidPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).VoidPayment(ctx, req.(*VoidPaymentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PaymentService_ServiceDesc is the grpc.ServiceDesc for PaymentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -819,6 +937,10 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreatePayment",
 			Handler:    _PaymentService_CreatePayment_Handler,
+		},
+		{
+			MethodName: "VoidPayment",
+			Handler:    _PaymentService_VoidPayment_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

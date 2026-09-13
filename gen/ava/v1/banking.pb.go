@@ -111,8 +111,14 @@ type BankStatement struct {
 	Lines             []*BankStatementLine   `protobuf:"bytes,9,rep,name=lines,proto3" json:"lines,omitempty"`
 	CreatedByUserId   *int64                 `protobuf:"varint,10,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// difference = closing_balance - reconciled_balance; zero once every line
+	// on the real bank statement has been reconciled. Unset when
+	// closing_balance itself is unset.
+	Difference *Decimal `protobuf:"bytes,12,opt,name=difference,proto3" json:"difference,omitempty"`
+	// See Business.resource_version.
+	ResourceVersion int64 `protobuf:"varint,13,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *BankStatement) Reset() {
@@ -220,6 +226,20 @@ func (x *BankStatement) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *BankStatement) GetDifference() *Decimal {
+	if x != nil {
+		return x.Difference
+	}
+	return nil
+}
+
+func (x *BankStatement) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
 }
 
 type GetBankStatementRequest struct {
@@ -406,8 +426,11 @@ type CreateBankStatementRequest struct {
 	StatementDate   *date.Date             `protobuf:"bytes,4,opt,name=statement_date,json=statementDate,proto3" json:"statement_date,omitempty"`
 	OpeningBalance  *Decimal               `protobuf:"bytes,5,opt,name=opening_balance,json=openingBalance,proto3" json:"opening_balance,omitempty"`
 	ClosingBalance  *Decimal               `protobuf:"bytes,6,opt,name=closing_balance,json=closingBalance,proto3" json:"closing_balance,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Skip the opening-balance-must-match-prior-closing chaining check - for
+	// the first statement on an account, or a deliberate mid-history import.
+	AllowOpeningMismatch bool `protobuf:"varint,7,opt,name=allow_opening_mismatch,json=allowOpeningMismatch,proto3" json:"allow_opening_mismatch,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CreateBankStatementRequest) Reset() {
@@ -482,6 +505,13 @@ func (x *CreateBankStatementRequest) GetClosingBalance() *Decimal {
 	return nil
 }
 
+func (x *CreateBankStatementRequest) GetAllowOpeningMismatch() bool {
+	if x != nil {
+		return x.AllowOpeningMismatch
+	}
+	return false
+}
+
 type CreateBankStatementResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BankStatement *BankStatement         `protobuf:"bytes,1,opt,name=bank_statement,json=bankStatement,proto3" json:"bank_statement,omitempty"`
@@ -526,6 +556,244 @@ func (x *CreateBankStatementResponse) GetBankStatement() *BankStatement {
 	return nil
 }
 
+type UpdateBankStatementRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	StatementName        *string                `protobuf:"bytes,2,opt,name=statement_name,json=statementName,proto3,oneof" json:"statement_name,omitempty"`
+	StatementDate        *date.Date             `protobuf:"bytes,3,opt,name=statement_date,json=statementDate,proto3,oneof" json:"statement_date,omitempty"`
+	OpeningBalance       *Decimal               `protobuf:"bytes,4,opt,name=opening_balance,json=openingBalance,proto3,oneof" json:"opening_balance,omitempty"`
+	ClosingBalance       *Decimal               `protobuf:"bytes,5,opt,name=closing_balance,json=closingBalance,proto3,oneof" json:"closing_balance,omitempty"`
+	AllowOpeningMismatch bool                   `protobuf:"varint,6,opt,name=allow_opening_mismatch,json=allowOpeningMismatch,proto3" json:"allow_opening_mismatch,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,7,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UpdateBankStatementRequest) Reset() {
+	*x = UpdateBankStatementRequest{}
+	mi := &file_ava_v1_banking_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBankStatementRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBankStatementRequest) ProtoMessage() {}
+
+func (x *UpdateBankStatementRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_banking_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBankStatementRequest.ProtoReflect.Descriptor instead.
+func (*UpdateBankStatementRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateBankStatementRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateBankStatementRequest) GetStatementName() string {
+	if x != nil && x.StatementName != nil {
+		return *x.StatementName
+	}
+	return ""
+}
+
+func (x *UpdateBankStatementRequest) GetStatementDate() *date.Date {
+	if x != nil {
+		return x.StatementDate
+	}
+	return nil
+}
+
+func (x *UpdateBankStatementRequest) GetOpeningBalance() *Decimal {
+	if x != nil {
+		return x.OpeningBalance
+	}
+	return nil
+}
+
+func (x *UpdateBankStatementRequest) GetClosingBalance() *Decimal {
+	if x != nil {
+		return x.ClosingBalance
+	}
+	return nil
+}
+
+func (x *UpdateBankStatementRequest) GetAllowOpeningMismatch() bool {
+	if x != nil {
+		return x.AllowOpeningMismatch
+	}
+	return false
+}
+
+func (x *UpdateBankStatementRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
+}
+
+type UpdateBankStatementResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BankStatement *BankStatement         `protobuf:"bytes,1,opt,name=bank_statement,json=bankStatement,proto3" json:"bank_statement,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBankStatementResponse) Reset() {
+	*x = UpdateBankStatementResponse{}
+	mi := &file_ava_v1_banking_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBankStatementResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBankStatementResponse) ProtoMessage() {}
+
+func (x *UpdateBankStatementResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_banking_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBankStatementResponse.ProtoReflect.Descriptor instead.
+func (*UpdateBankStatementResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *UpdateBankStatementResponse) GetBankStatement() *BankStatement {
+	if x != nil {
+		return x.BankStatement
+	}
+	return nil
+}
+
+type DeactivateBankStatementRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Optimistic-concurrency precondition - see Business.resource_version. Pass the
+	// resource_version from the copy you read to fail with ABORTED if it's since changed;
+	// leave unset (0) to write unconditionally.
+	ResourceVersion int64 `protobuf:"varint,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DeactivateBankStatementRequest) Reset() {
+	*x = DeactivateBankStatementRequest{}
+	mi := &file_ava_v1_banking_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeactivateBankStatementRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeactivateBankStatementRequest) ProtoMessage() {}
+
+func (x *DeactivateBankStatementRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_banking_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeactivateBankStatementRequest.ProtoReflect.Descriptor instead.
+func (*DeactivateBankStatementRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DeactivateBankStatementRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DeactivateBankStatementRequest) GetResourceVersion() int64 {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return 0
+}
+
+type DeactivateBankStatementResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BankStatement *BankStatement         `protobuf:"bytes,1,opt,name=bank_statement,json=bankStatement,proto3" json:"bank_statement,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeactivateBankStatementResponse) Reset() {
+	*x = DeactivateBankStatementResponse{}
+	mi := &file_ava_v1_banking_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeactivateBankStatementResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeactivateBankStatementResponse) ProtoMessage() {}
+
+func (x *DeactivateBankStatementResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_banking_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeactivateBankStatementResponse.ProtoReflect.Descriptor instead.
+func (*DeactivateBankStatementResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DeactivateBankStatementResponse) GetBankStatement() *BankStatement {
+	if x != nil {
+		return x.BankStatement
+	}
+	return nil
+}
+
 type ReconcileLedgerTransactionsRequest struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	BankStatementId      int64                  `protobuf:"varint,1,opt,name=bank_statement_id,json=bankStatementId,proto3" json:"bank_statement_id,omitempty"`
@@ -536,7 +804,7 @@ type ReconcileLedgerTransactionsRequest struct {
 
 func (x *ReconcileLedgerTransactionsRequest) Reset() {
 	*x = ReconcileLedgerTransactionsRequest{}
-	mi := &file_ava_v1_banking_proto_msgTypes[8]
+	mi := &file_ava_v1_banking_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -548,7 +816,7 @@ func (x *ReconcileLedgerTransactionsRequest) String() string {
 func (*ReconcileLedgerTransactionsRequest) ProtoMessage() {}
 
 func (x *ReconcileLedgerTransactionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_banking_proto_msgTypes[8]
+	mi := &file_ava_v1_banking_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -561,7 +829,7 @@ func (x *ReconcileLedgerTransactionsRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ReconcileLedgerTransactionsRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileLedgerTransactionsRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_banking_proto_rawDescGZIP(), []int{8}
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReconcileLedgerTransactionsRequest) GetBankStatementId() int64 {
@@ -587,7 +855,7 @@ type ReconcileLedgerTransactionsResponse struct {
 
 func (x *ReconcileLedgerTransactionsResponse) Reset() {
 	*x = ReconcileLedgerTransactionsResponse{}
-	mi := &file_ava_v1_banking_proto_msgTypes[9]
+	mi := &file_ava_v1_banking_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -599,7 +867,7 @@ func (x *ReconcileLedgerTransactionsResponse) String() string {
 func (*ReconcileLedgerTransactionsResponse) ProtoMessage() {}
 
 func (x *ReconcileLedgerTransactionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_banking_proto_msgTypes[9]
+	mi := &file_ava_v1_banking_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -612,10 +880,106 @@ func (x *ReconcileLedgerTransactionsResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ReconcileLedgerTransactionsResponse.ProtoReflect.Descriptor instead.
 func (*ReconcileLedgerTransactionsResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_banking_proto_rawDescGZIP(), []int{9}
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReconcileLedgerTransactionsResponse) GetBankStatement() *BankStatement {
+	if x != nil {
+		return x.BankStatement
+	}
+	return nil
+}
+
+type UnreconcileLedgerTransactionsRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	BankStatementId      int64                  `protobuf:"varint,1,opt,name=bank_statement_id,json=bankStatementId,proto3" json:"bank_statement_id,omitempty"`
+	LedgerTransactionIds []int64                `protobuf:"varint,2,rep,packed,name=ledger_transaction_ids,json=ledgerTransactionIds,proto3" json:"ledger_transaction_ids,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *UnreconcileLedgerTransactionsRequest) Reset() {
+	*x = UnreconcileLedgerTransactionsRequest{}
+	mi := &file_ava_v1_banking_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnreconcileLedgerTransactionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnreconcileLedgerTransactionsRequest) ProtoMessage() {}
+
+func (x *UnreconcileLedgerTransactionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_banking_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnreconcileLedgerTransactionsRequest.ProtoReflect.Descriptor instead.
+func (*UnreconcileLedgerTransactionsRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UnreconcileLedgerTransactionsRequest) GetBankStatementId() int64 {
+	if x != nil {
+		return x.BankStatementId
+	}
+	return 0
+}
+
+func (x *UnreconcileLedgerTransactionsRequest) GetLedgerTransactionIds() []int64 {
+	if x != nil {
+		return x.LedgerTransactionIds
+	}
+	return nil
+}
+
+type UnreconcileLedgerTransactionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BankStatement *BankStatement         `protobuf:"bytes,1,opt,name=bank_statement,json=bankStatement,proto3" json:"bank_statement,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnreconcileLedgerTransactionsResponse) Reset() {
+	*x = UnreconcileLedgerTransactionsResponse{}
+	mi := &file_ava_v1_banking_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnreconcileLedgerTransactionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnreconcileLedgerTransactionsResponse) ProtoMessage() {}
+
+func (x *UnreconcileLedgerTransactionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_banking_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnreconcileLedgerTransactionsResponse.ProtoReflect.Descriptor instead.
+func (*UnreconcileLedgerTransactionsResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *UnreconcileLedgerTransactionsResponse) GetBankStatement() *BankStatement {
 	if x != nil {
 		return x.BankStatement
 	}
@@ -632,7 +996,7 @@ type ListUnreconciledLedgerTransactionsRequest struct {
 
 func (x *ListUnreconciledLedgerTransactionsRequest) Reset() {
 	*x = ListUnreconciledLedgerTransactionsRequest{}
-	mi := &file_ava_v1_banking_proto_msgTypes[10]
+	mi := &file_ava_v1_banking_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -644,7 +1008,7 @@ func (x *ListUnreconciledLedgerTransactionsRequest) String() string {
 func (*ListUnreconciledLedgerTransactionsRequest) ProtoMessage() {}
 
 func (x *ListUnreconciledLedgerTransactionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_banking_proto_msgTypes[10]
+	mi := &file_ava_v1_banking_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -657,7 +1021,7 @@ func (x *ListUnreconciledLedgerTransactionsRequest) ProtoReflect() protoreflect.
 
 // Deprecated: Use ListUnreconciledLedgerTransactionsRequest.ProtoReflect.Descriptor instead.
 func (*ListUnreconciledLedgerTransactionsRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_banking_proto_rawDescGZIP(), []int{10}
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListUnreconciledLedgerTransactionsRequest) GetLedgerAccountId() int32 {
@@ -683,7 +1047,7 @@ type ListUnreconciledLedgerTransactionsResponse struct {
 
 func (x *ListUnreconciledLedgerTransactionsResponse) Reset() {
 	*x = ListUnreconciledLedgerTransactionsResponse{}
-	mi := &file_ava_v1_banking_proto_msgTypes[11]
+	mi := &file_ava_v1_banking_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +1059,7 @@ func (x *ListUnreconciledLedgerTransactionsResponse) String() string {
 func (*ListUnreconciledLedgerTransactionsResponse) ProtoMessage() {}
 
 func (x *ListUnreconciledLedgerTransactionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_banking_proto_msgTypes[11]
+	mi := &file_ava_v1_banking_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +1072,7 @@ func (x *ListUnreconciledLedgerTransactionsResponse) ProtoReflect() protoreflect
 
 // Deprecated: Use ListUnreconciledLedgerTransactionsResponse.ProtoReflect.Descriptor instead.
 func (*ListUnreconciledLedgerTransactionsResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_banking_proto_rawDescGZIP(), []int{11}
+	return file_ava_v1_banking_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListUnreconciledLedgerTransactionsResponse) GetTransactions() []*LedgerTransaction {
@@ -727,7 +1091,7 @@ const file_ava_v1_banking_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12*\n" +
 	"\x11bank_statement_id\x18\x02 \x01(\x03R\x0fbankStatementId\x122\n" +
 	"\x15ledger_transaction_id\x18\x03 \x01(\x03R\x13ledgerTransactionId\x12)\n" +
-	"\x10display_sequence\x18\x04 \x01(\x05R\x0fdisplaySequence\"\xb6\x04\n" +
+	"\x10display_sequence\x18\x04 \x01(\x05R\x0fdisplaySequence\"\x92\x05\n" +
 	"\rBankStatement\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vbusiness_id\x18\x02 \x01(\x03R\n" +
@@ -742,7 +1106,11 @@ const file_ava_v1_banking_proto_rawDesc = "" +
 	"\x12created_by_user_id\x18\n" +
 	" \x01(\x03H\x00R\x0fcreatedByUserId\x88\x01\x01\x129\n" +
 	"\n" +
-	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\x15\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12/\n" +
+	"\n" +
+	"difference\x18\f \x01(\v2\x0f.ava.v1.DecimalR\n" +
+	"difference\x12)\n" +
+	"\x10resource_version\x18\r \x01(\x03R\x0fresourceVersionB\x15\n" +
 	"\x13_created_by_user_id\")\n" +
 	"\x17GetBankStatementRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"X\n" +
@@ -752,7 +1120,7 @@ const file_ava_v1_banking_proto_rawDesc = "" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\"\\\n" +
 	"\x1aListBankStatementsResponse\x12>\n" +
-	"\x0fbank_statements\x18\x01 \x03(\v2\x15.ava.v1.BankStatementR\x0ebankStatements\"\xbe\x02\n" +
+	"\x0fbank_statements\x18\x01 \x03(\v2\x15.ava.v1.BankStatementR\x0ebankStatements\"\xf4\x02\n" +
 	"\x1aCreateBankStatementRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12*\n" +
@@ -760,24 +1128,52 @@ const file_ava_v1_banking_proto_rawDesc = "" +
 	"\x0estatement_name\x18\x03 \x01(\tR\rstatementName\x128\n" +
 	"\x0estatement_date\x18\x04 \x01(\v2\x11.google.type.DateR\rstatementDate\x128\n" +
 	"\x0fopening_balance\x18\x05 \x01(\v2\x0f.ava.v1.DecimalR\x0eopeningBalance\x128\n" +
-	"\x0fclosing_balance\x18\x06 \x01(\v2\x0f.ava.v1.DecimalR\x0eclosingBalance\"[\n" +
+	"\x0fclosing_balance\x18\x06 \x01(\v2\x0f.ava.v1.DecimalR\x0eclosingBalance\x124\n" +
+	"\x16allow_opening_mismatch\x18\a \x01(\bR\x14allowOpeningMismatch\"[\n" +
 	"\x1bCreateBankStatementResponse\x12<\n" +
+	"\x0ebank_statement\x18\x01 \x01(\v2\x15.ava.v1.BankStatementR\rbankStatement\"\xc4\x03\n" +
+	"\x1aUpdateBankStatementRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12*\n" +
+	"\x0estatement_name\x18\x02 \x01(\tH\x00R\rstatementName\x88\x01\x01\x12=\n" +
+	"\x0estatement_date\x18\x03 \x01(\v2\x11.google.type.DateH\x01R\rstatementDate\x88\x01\x01\x12=\n" +
+	"\x0fopening_balance\x18\x04 \x01(\v2\x0f.ava.v1.DecimalH\x02R\x0eopeningBalance\x88\x01\x01\x12=\n" +
+	"\x0fclosing_balance\x18\x05 \x01(\v2\x0f.ava.v1.DecimalH\x03R\x0eclosingBalance\x88\x01\x01\x124\n" +
+	"\x16allow_opening_mismatch\x18\x06 \x01(\bR\x14allowOpeningMismatch\x12)\n" +
+	"\x10resource_version\x18\a \x01(\x03R\x0fresourceVersionB\x11\n" +
+	"\x0f_statement_nameB\x11\n" +
+	"\x0f_statement_dateB\x12\n" +
+	"\x10_opening_balanceB\x12\n" +
+	"\x10_closing_balance\"[\n" +
+	"\x1bUpdateBankStatementResponse\x12<\n" +
+	"\x0ebank_statement\x18\x01 \x01(\v2\x15.ava.v1.BankStatementR\rbankStatement\"[\n" +
+	"\x1eDeactivateBankStatementRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12)\n" +
+	"\x10resource_version\x18\x02 \x01(\x03R\x0fresourceVersion\"_\n" +
+	"\x1fDeactivateBankStatementResponse\x12<\n" +
 	"\x0ebank_statement\x18\x01 \x01(\v2\x15.ava.v1.BankStatementR\rbankStatement\"\x86\x01\n" +
 	"\"ReconcileLedgerTransactionsRequest\x12*\n" +
 	"\x11bank_statement_id\x18\x01 \x01(\x03R\x0fbankStatementId\x124\n" +
 	"\x16ledger_transaction_ids\x18\x02 \x03(\x03R\x14ledgerTransactionIds\"c\n" +
 	"#ReconcileLedgerTransactionsResponse\x12<\n" +
+	"\x0ebank_statement\x18\x01 \x01(\v2\x15.ava.v1.BankStatementR\rbankStatement\"\x88\x01\n" +
+	"$UnreconcileLedgerTransactionsRequest\x12*\n" +
+	"\x11bank_statement_id\x18\x01 \x01(\x03R\x0fbankStatementId\x124\n" +
+	"\x16ledger_transaction_ids\x18\x02 \x03(\x03R\x14ledgerTransactionIds\"e\n" +
+	"%UnreconcileLedgerTransactionsResponse\x12<\n" +
 	"\x0ebank_statement\x18\x01 \x01(\v2\x15.ava.v1.BankStatementR\rbankStatement\"\x8d\x01\n" +
 	")ListUnreconciledLedgerTransactionsRequest\x12*\n" +
 	"\x11ledger_account_id\x18\x01 \x01(\x05R\x0fledgerAccountId\x124\n" +
 	"\fthrough_date\x18\x02 \x01(\v2\x11.google.type.DateR\vthroughDate\"k\n" +
 	"*ListUnreconciledLedgerTransactionsResponse\x12=\n" +
-	"\ftransactions\x18\x01 \x03(\v2\x19.ava.v1.LedgerTransactionR\ftransactions2\xb0\x04\n" +
+	"\ftransactions\x18\x01 \x03(\v2\x19.ava.v1.LedgerTransactionR\ftransactions2\xfa\x06\n" +
 	"\x14BankStatementService\x12U\n" +
 	"\x10GetBankStatement\x12\x1f.ava.v1.GetBankStatementRequest\x1a .ava.v1.GetBankStatementResponse\x12[\n" +
 	"\x12ListBankStatements\x12!.ava.v1.ListBankStatementsRequest\x1a\".ava.v1.ListBankStatementsResponse\x12^\n" +
-	"\x13CreateBankStatement\x12\".ava.v1.CreateBankStatementRequest\x1a#.ava.v1.CreateBankStatementResponse\x12v\n" +
-	"\x1bReconcileLedgerTransactions\x12*.ava.v1.ReconcileLedgerTransactionsRequest\x1a+.ava.v1.ReconcileLedgerTransactionsResponse\x12\x8b\x01\n" +
+	"\x13CreateBankStatement\x12\".ava.v1.CreateBankStatementRequest\x1a#.ava.v1.CreateBankStatementResponse\x12^\n" +
+	"\x13UpdateBankStatement\x12\".ava.v1.UpdateBankStatementRequest\x1a#.ava.v1.UpdateBankStatementResponse\x12j\n" +
+	"\x17DeactivateBankStatement\x12&.ava.v1.DeactivateBankStatementRequest\x1a'.ava.v1.DeactivateBankStatementResponse\x12v\n" +
+	"\x1bReconcileLedgerTransactions\x12*.ava.v1.ReconcileLedgerTransactionsRequest\x1a+.ava.v1.ReconcileLedgerTransactionsResponse\x12|\n" +
+	"\x1dUnreconcileLedgerTransactions\x12,.ava.v1.UnreconcileLedgerTransactionsRequest\x1a-.ava.v1.UnreconcileLedgerTransactionsResponse\x12\x8b\x01\n" +
 	"\"ListUnreconciledLedgerTransactions\x121.ava.v1.ListUnreconciledLedgerTransactionsRequest\x1a2.ava.v1.ListUnreconciledLedgerTransactionsResponseB*Z(github.com/silverbp/ava/gen/ava/v1;avav1b\x06proto3"
 
 var (
@@ -792,7 +1188,7 @@ func file_ava_v1_banking_proto_rawDescGZIP() []byte {
 	return file_ava_v1_banking_proto_rawDescData
 }
 
-var file_ava_v1_banking_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_ava_v1_banking_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_ava_v1_banking_proto_goTypes = []any{
 	(*BankStatementLine)(nil),                          // 0: ava.v1.BankStatementLine
 	(*BankStatement)(nil),                              // 1: ava.v1.BankStatement
@@ -802,46 +1198,65 @@ var file_ava_v1_banking_proto_goTypes = []any{
 	(*ListBankStatementsResponse)(nil),                 // 5: ava.v1.ListBankStatementsResponse
 	(*CreateBankStatementRequest)(nil),                 // 6: ava.v1.CreateBankStatementRequest
 	(*CreateBankStatementResponse)(nil),                // 7: ava.v1.CreateBankStatementResponse
-	(*ReconcileLedgerTransactionsRequest)(nil),         // 8: ava.v1.ReconcileLedgerTransactionsRequest
-	(*ReconcileLedgerTransactionsResponse)(nil),        // 9: ava.v1.ReconcileLedgerTransactionsResponse
-	(*ListUnreconciledLedgerTransactionsRequest)(nil),  // 10: ava.v1.ListUnreconciledLedgerTransactionsRequest
-	(*ListUnreconciledLedgerTransactionsResponse)(nil), // 11: ava.v1.ListUnreconciledLedgerTransactionsResponse
-	(*date.Date)(nil),                                  // 12: google.type.Date
-	(*Decimal)(nil),                                    // 13: ava.v1.Decimal
-	(*timestamppb.Timestamp)(nil),                      // 14: google.protobuf.Timestamp
-	(*LedgerTransaction)(nil),                          // 15: ava.v1.LedgerTransaction
+	(*UpdateBankStatementRequest)(nil),                 // 8: ava.v1.UpdateBankStatementRequest
+	(*UpdateBankStatementResponse)(nil),                // 9: ava.v1.UpdateBankStatementResponse
+	(*DeactivateBankStatementRequest)(nil),             // 10: ava.v1.DeactivateBankStatementRequest
+	(*DeactivateBankStatementResponse)(nil),            // 11: ava.v1.DeactivateBankStatementResponse
+	(*ReconcileLedgerTransactionsRequest)(nil),         // 12: ava.v1.ReconcileLedgerTransactionsRequest
+	(*ReconcileLedgerTransactionsResponse)(nil),        // 13: ava.v1.ReconcileLedgerTransactionsResponse
+	(*UnreconcileLedgerTransactionsRequest)(nil),       // 14: ava.v1.UnreconcileLedgerTransactionsRequest
+	(*UnreconcileLedgerTransactionsResponse)(nil),      // 15: ava.v1.UnreconcileLedgerTransactionsResponse
+	(*ListUnreconciledLedgerTransactionsRequest)(nil),  // 16: ava.v1.ListUnreconciledLedgerTransactionsRequest
+	(*ListUnreconciledLedgerTransactionsResponse)(nil), // 17: ava.v1.ListUnreconciledLedgerTransactionsResponse
+	(*date.Date)(nil),                                  // 18: google.type.Date
+	(*Decimal)(nil),                                    // 19: ava.v1.Decimal
+	(*timestamppb.Timestamp)(nil),                      // 20: google.protobuf.Timestamp
+	(*LedgerTransaction)(nil),                          // 21: ava.v1.LedgerTransaction
 }
 var file_ava_v1_banking_proto_depIdxs = []int32{
-	12, // 0: ava.v1.BankStatement.statement_date:type_name -> google.type.Date
-	13, // 1: ava.v1.BankStatement.opening_balance:type_name -> ava.v1.Decimal
-	13, // 2: ava.v1.BankStatement.closing_balance:type_name -> ava.v1.Decimal
-	13, // 3: ava.v1.BankStatement.reconciled_balance:type_name -> ava.v1.Decimal
+	18, // 0: ava.v1.BankStatement.statement_date:type_name -> google.type.Date
+	19, // 1: ava.v1.BankStatement.opening_balance:type_name -> ava.v1.Decimal
+	19, // 2: ava.v1.BankStatement.closing_balance:type_name -> ava.v1.Decimal
+	19, // 3: ava.v1.BankStatement.reconciled_balance:type_name -> ava.v1.Decimal
 	0,  // 4: ava.v1.BankStatement.lines:type_name -> ava.v1.BankStatementLine
-	14, // 5: ava.v1.BankStatement.created_at:type_name -> google.protobuf.Timestamp
-	1,  // 6: ava.v1.GetBankStatementResponse.bank_statement:type_name -> ava.v1.BankStatement
-	1,  // 7: ava.v1.ListBankStatementsResponse.bank_statements:type_name -> ava.v1.BankStatement
-	12, // 8: ava.v1.CreateBankStatementRequest.statement_date:type_name -> google.type.Date
-	13, // 9: ava.v1.CreateBankStatementRequest.opening_balance:type_name -> ava.v1.Decimal
-	13, // 10: ava.v1.CreateBankStatementRequest.closing_balance:type_name -> ava.v1.Decimal
-	1,  // 11: ava.v1.CreateBankStatementResponse.bank_statement:type_name -> ava.v1.BankStatement
-	1,  // 12: ava.v1.ReconcileLedgerTransactionsResponse.bank_statement:type_name -> ava.v1.BankStatement
-	12, // 13: ava.v1.ListUnreconciledLedgerTransactionsRequest.through_date:type_name -> google.type.Date
-	15, // 14: ava.v1.ListUnreconciledLedgerTransactionsResponse.transactions:type_name -> ava.v1.LedgerTransaction
-	2,  // 15: ava.v1.BankStatementService.GetBankStatement:input_type -> ava.v1.GetBankStatementRequest
-	4,  // 16: ava.v1.BankStatementService.ListBankStatements:input_type -> ava.v1.ListBankStatementsRequest
-	6,  // 17: ava.v1.BankStatementService.CreateBankStatement:input_type -> ava.v1.CreateBankStatementRequest
-	8,  // 18: ava.v1.BankStatementService.ReconcileLedgerTransactions:input_type -> ava.v1.ReconcileLedgerTransactionsRequest
-	10, // 19: ava.v1.BankStatementService.ListUnreconciledLedgerTransactions:input_type -> ava.v1.ListUnreconciledLedgerTransactionsRequest
-	3,  // 20: ava.v1.BankStatementService.GetBankStatement:output_type -> ava.v1.GetBankStatementResponse
-	5,  // 21: ava.v1.BankStatementService.ListBankStatements:output_type -> ava.v1.ListBankStatementsResponse
-	7,  // 22: ava.v1.BankStatementService.CreateBankStatement:output_type -> ava.v1.CreateBankStatementResponse
-	9,  // 23: ava.v1.BankStatementService.ReconcileLedgerTransactions:output_type -> ava.v1.ReconcileLedgerTransactionsResponse
-	11, // 24: ava.v1.BankStatementService.ListUnreconciledLedgerTransactions:output_type -> ava.v1.ListUnreconciledLedgerTransactionsResponse
-	20, // [20:25] is the sub-list for method output_type
-	15, // [15:20] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	20, // 5: ava.v1.BankStatement.created_at:type_name -> google.protobuf.Timestamp
+	19, // 6: ava.v1.BankStatement.difference:type_name -> ava.v1.Decimal
+	1,  // 7: ava.v1.GetBankStatementResponse.bank_statement:type_name -> ava.v1.BankStatement
+	1,  // 8: ava.v1.ListBankStatementsResponse.bank_statements:type_name -> ava.v1.BankStatement
+	18, // 9: ava.v1.CreateBankStatementRequest.statement_date:type_name -> google.type.Date
+	19, // 10: ava.v1.CreateBankStatementRequest.opening_balance:type_name -> ava.v1.Decimal
+	19, // 11: ava.v1.CreateBankStatementRequest.closing_balance:type_name -> ava.v1.Decimal
+	1,  // 12: ava.v1.CreateBankStatementResponse.bank_statement:type_name -> ava.v1.BankStatement
+	18, // 13: ava.v1.UpdateBankStatementRequest.statement_date:type_name -> google.type.Date
+	19, // 14: ava.v1.UpdateBankStatementRequest.opening_balance:type_name -> ava.v1.Decimal
+	19, // 15: ava.v1.UpdateBankStatementRequest.closing_balance:type_name -> ava.v1.Decimal
+	1,  // 16: ava.v1.UpdateBankStatementResponse.bank_statement:type_name -> ava.v1.BankStatement
+	1,  // 17: ava.v1.DeactivateBankStatementResponse.bank_statement:type_name -> ava.v1.BankStatement
+	1,  // 18: ava.v1.ReconcileLedgerTransactionsResponse.bank_statement:type_name -> ava.v1.BankStatement
+	1,  // 19: ava.v1.UnreconcileLedgerTransactionsResponse.bank_statement:type_name -> ava.v1.BankStatement
+	18, // 20: ava.v1.ListUnreconciledLedgerTransactionsRequest.through_date:type_name -> google.type.Date
+	21, // 21: ava.v1.ListUnreconciledLedgerTransactionsResponse.transactions:type_name -> ava.v1.LedgerTransaction
+	2,  // 22: ava.v1.BankStatementService.GetBankStatement:input_type -> ava.v1.GetBankStatementRequest
+	4,  // 23: ava.v1.BankStatementService.ListBankStatements:input_type -> ava.v1.ListBankStatementsRequest
+	6,  // 24: ava.v1.BankStatementService.CreateBankStatement:input_type -> ava.v1.CreateBankStatementRequest
+	8,  // 25: ava.v1.BankStatementService.UpdateBankStatement:input_type -> ava.v1.UpdateBankStatementRequest
+	10, // 26: ava.v1.BankStatementService.DeactivateBankStatement:input_type -> ava.v1.DeactivateBankStatementRequest
+	12, // 27: ava.v1.BankStatementService.ReconcileLedgerTransactions:input_type -> ava.v1.ReconcileLedgerTransactionsRequest
+	14, // 28: ava.v1.BankStatementService.UnreconcileLedgerTransactions:input_type -> ava.v1.UnreconcileLedgerTransactionsRequest
+	16, // 29: ava.v1.BankStatementService.ListUnreconciledLedgerTransactions:input_type -> ava.v1.ListUnreconciledLedgerTransactionsRequest
+	3,  // 30: ava.v1.BankStatementService.GetBankStatement:output_type -> ava.v1.GetBankStatementResponse
+	5,  // 31: ava.v1.BankStatementService.ListBankStatements:output_type -> ava.v1.ListBankStatementsResponse
+	7,  // 32: ava.v1.BankStatementService.CreateBankStatement:output_type -> ava.v1.CreateBankStatementResponse
+	9,  // 33: ava.v1.BankStatementService.UpdateBankStatement:output_type -> ava.v1.UpdateBankStatementResponse
+	11, // 34: ava.v1.BankStatementService.DeactivateBankStatement:output_type -> ava.v1.DeactivateBankStatementResponse
+	13, // 35: ava.v1.BankStatementService.ReconcileLedgerTransactions:output_type -> ava.v1.ReconcileLedgerTransactionsResponse
+	15, // 36: ava.v1.BankStatementService.UnreconcileLedgerTransactions:output_type -> ava.v1.UnreconcileLedgerTransactionsResponse
+	17, // 37: ava.v1.BankStatementService.ListUnreconciledLedgerTransactions:output_type -> ava.v1.ListUnreconciledLedgerTransactionsResponse
+	30, // [30:38] is the sub-list for method output_type
+	22, // [22:30] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_banking_proto_init() }
@@ -852,13 +1267,14 @@ func file_ava_v1_banking_proto_init() {
 	file_ava_v1_common_proto_init()
 	file_ava_v1_ledger_proto_init()
 	file_ava_v1_banking_proto_msgTypes[1].OneofWrappers = []any{}
+	file_ava_v1_banking_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_banking_proto_rawDesc), len(file_ava_v1_banking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

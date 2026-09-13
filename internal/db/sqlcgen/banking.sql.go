@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countBankStatementLines = `-- name: CountBankStatementLines :one
+SELECT COUNT(*) FROM bank_statement_line WHERE bank_statement_id = $1
+`
+
+func (q *Queries) CountBankStatementLines(ctx context.Context, bankStatementID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countBankStatementLines, bankStatementID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBankStatement = `-- name: CreateBankStatement :one
 
 INSERT INTO bank_statement (
@@ -19,7 +30,7 @@ INSERT INTO bank_statement (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at, resource_version
 `
 
 type CreateBankStatementParams struct {
@@ -57,6 +68,7 @@ func (q *Queries) CreateBankStatement(ctx context.Context, arg CreateBankStateme
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
@@ -86,8 +98,59 @@ func (q *Queries) CreateBankStatementLine(ctx context.Context, arg CreateBankSta
 	return i, err
 }
 
+const deactivateBankStatement = `-- name: DeactivateBankStatement :one
+UPDATE bank_statement SET deleted_at = NOW(), updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+    AND ($2::bigint IS NULL OR resource_version = $2)
+RETURNING id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at, resource_version
+`
+
+type DeactivateBankStatementParams struct {
+	ID              int64  `json:"id"`
+	ResourceVersion *int64 `json:"resource_version"`
+}
+
+func (q *Queries) DeactivateBankStatement(ctx context.Context, arg DeactivateBankStatementParams) (BankStatement, error) {
+	row := q.db.QueryRow(ctx, deactivateBankStatement, arg.ID, arg.ResourceVersion)
+	var i BankStatement
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.LedgerAccountID,
+		&i.StatementName,
+		&i.StatementDate,
+		&i.OpeningBalance,
+		&i.ClosingBalance,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ResourceVersion,
+	)
+	return i, err
+}
+
+const deleteBankStatementLine = `-- name: DeleteBankStatementLine :exec
+DELETE FROM bank_statement_line
+WHERE bank_statement_id = $1 AND ledger_transaction_id = $2
+`
+
+type DeleteBankStatementLineParams struct {
+	BankStatementID     int64 `json:"bank_statement_id"`
+	LedgerTransactionID int64 `json:"ledger_transaction_id"`
+}
+
+// Hard delete, not soft: the unique index on (bank_statement_id,
+// ledger_transaction_id) would otherwise block re-reconciling the same
+// transaction, and a line carries no financial content of its own to keep
+// history of.
+func (q *Queries) DeleteBankStatementLine(ctx context.Context, arg DeleteBankStatementLineParams) error {
+	_, err := q.db.Exec(ctx, deleteBankStatementLine, arg.BankStatementID, arg.LedgerTransactionID)
+	return err
+}
+
 const getBankStatement = `-- name: GetBankStatement :one
-SELECT id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at FROM bank_statement WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at, resource_version FROM bank_statement WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetBankStatement(ctx context.Context, id int64) (BankStatement, error) {
@@ -105,6 +168,48 @@ func (q *Queries) GetBankStatement(ctx context.Context, id int64) (BankStatement
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ResourceVersion,
+	)
+	return i, err
+}
+
+const getLatestBankStatementForAccount = `-- name: GetLatestBankStatementForAccount :one
+SELECT id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at, resource_version FROM bank_statement
+WHERE ledger_account_id = $1
+    AND statement_date < $2
+    AND id <> $3
+    AND deleted_at IS NULL
+ORDER BY statement_date DESC, id DESC
+LIMIT 1
+`
+
+type GetLatestBankStatementForAccountParams struct {
+	LedgerAccountID int32       `json:"ledger_account_id"`
+	BeforeDate      pgtype.Date `json:"before_date"`
+	ExcludeID       int64       `json:"exclude_id"`
+}
+
+// Most recent non-deleted statement for an account, strictly before a given
+// date - the chaining check in Create/UpdateBankStatement compares its
+// opening balance against this one's closing balance. exclude_id keeps an
+// update from chaining a statement against itself when its date moves later
+// (pass 0 on create).
+func (q *Queries) GetLatestBankStatementForAccount(ctx context.Context, arg GetLatestBankStatementForAccountParams) (BankStatement, error) {
+	row := q.db.QueryRow(ctx, getLatestBankStatementForAccount, arg.LedgerAccountID, arg.BeforeDate, arg.ExcludeID)
+	var i BankStatement
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.LedgerAccountID,
+		&i.StatementName,
+		&i.StatementDate,
+		&i.OpeningBalance,
+		&i.ClosingBalance,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ResourceVersion,
 	)
 	return i, err
 }
@@ -161,7 +266,7 @@ func (q *Queries) ListBankStatementLines(ctx context.Context, bankStatementID in
 }
 
 const listBankStatements = `-- name: ListBankStatements :many
-SELECT id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at FROM bank_statement WHERE business_id = $1 AND deleted_at IS NULL ORDER BY statement_date DESC
+SELECT id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at, resource_version FROM bank_statement WHERE business_id = $1 AND deleted_at IS NULL ORDER BY statement_date DESC
 `
 
 func (q *Queries) ListBankStatements(ctx context.Context, businessID int64) ([]BankStatement, error) {
@@ -185,6 +290,7 @@ func (q *Queries) ListBankStatements(ctx context.Context, businessID int64) ([]B
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.ResourceVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -197,7 +303,7 @@ func (q *Queries) ListBankStatements(ctx context.Context, businessID int64) ([]B
 }
 
 const listUnreconciledLedgerTransactions = `-- name: ListUnreconciledLedgerTransactions :many
-SELECT DISTINCT lt.id, lt.business_id, lt.transaction_date, lt.description, lt.reference_number, lt.created_by_user_id, lt.created_at, lt.updated_at, lt.deleted_at
+SELECT DISTINCT lt.id, lt.business_id, lt.transaction_date, lt.description, lt.reference_number, lt.reverses_ledger_transaction_id, lt.created_by_user_id, lt.created_at, lt.updated_at, lt.deleted_at
 FROM ledger_transaction lt
 JOIN ledger_entry le ON le.ledger_transaction_id = lt.id AND le.deleted_at IS NULL
 WHERE le.account_id = $1
@@ -207,6 +313,7 @@ WHERE le.account_id = $1
         SELECT 1 FROM bank_statement_line bsl
         JOIN bank_statement bs ON bs.id = bsl.bank_statement_id
         WHERE bsl.ledger_transaction_id = lt.id AND bs.ledger_account_id = $1
+            AND bs.deleted_at IS NULL
     )
 ORDER BY lt.transaction_date
 `
@@ -235,6 +342,7 @@ func (q *Queries) ListUnreconciledLedgerTransactions(ctx context.Context, arg Li
 			&i.TransactionDate,
 			&i.Description,
 			&i.ReferenceNumber,
+			&i.ReversesLedgerTransactionID,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -277,5 +385,53 @@ func (q *Queries) SumReconciledActivity(ctx context.Context, arg SumReconciledAc
 	row := q.db.QueryRow(ctx, sumReconciledActivity, arg.AccountID, arg.BankStatementID)
 	var i SumReconciledActivityRow
 	err := row.Scan(&i.TotalDebit, &i.TotalCredit)
+	return i, err
+}
+
+const updateBankStatement = `-- name: UpdateBankStatement :one
+UPDATE bank_statement SET
+    statement_name = COALESCE($1, statement_name),
+    statement_date = COALESCE($2, statement_date),
+    opening_balance = COALESCE($3, opening_balance),
+    closing_balance = COALESCE($4, closing_balance),
+    updated_at = NOW()
+WHERE id = $5 AND deleted_at IS NULL
+    AND ($6::bigint IS NULL OR resource_version = $6)
+RETURNING id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at, resource_version
+`
+
+type UpdateBankStatementParams struct {
+	StatementName   *string        `json:"statement_name"`
+	StatementDate   pgtype.Date    `json:"statement_date"`
+	OpeningBalance  pgtype.Numeric `json:"opening_balance"`
+	ClosingBalance  pgtype.Numeric `json:"closing_balance"`
+	ID              int64          `json:"id"`
+	ResourceVersion *int64         `json:"resource_version"`
+}
+
+func (q *Queries) UpdateBankStatement(ctx context.Context, arg UpdateBankStatementParams) (BankStatement, error) {
+	row := q.db.QueryRow(ctx, updateBankStatement,
+		arg.StatementName,
+		arg.StatementDate,
+		arg.OpeningBalance,
+		arg.ClosingBalance,
+		arg.ID,
+		arg.ResourceVersion,
+	)
+	var i BankStatement
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.LedgerAccountID,
+		&i.StatementName,
+		&i.StatementDate,
+		&i.OpeningBalance,
+		&i.ClosingBalance,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ResourceVersion,
+	)
 	return i, err
 }

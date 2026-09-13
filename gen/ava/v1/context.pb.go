@@ -516,6 +516,94 @@ func (x *CreateEntityContextResponse) GetEntityContext() *EntityContext {
 	return nil
 }
 
+type DeleteEntityContextRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteEntityContextRequest) Reset() {
+	*x = DeleteEntityContextRequest{}
+	mi := &file_ava_v1_context_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteEntityContextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteEntityContextRequest) ProtoMessage() {}
+
+func (x *DeleteEntityContextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_context_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteEntityContextRequest.ProtoReflect.Descriptor instead.
+func (*DeleteEntityContextRequest) Descriptor() ([]byte, []int) {
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteEntityContextRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteEntityContextResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntityContext *EntityContext         `protobuf:"bytes,1,opt,name=entity_context,json=entityContext,proto3" json:"entity_context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteEntityContextResponse) Reset() {
+	*x = DeleteEntityContextResponse{}
+	mi := &file_ava_v1_context_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteEntityContextResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteEntityContextResponse) ProtoMessage() {}
+
+func (x *DeleteEntityContextResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ava_v1_context_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteEntityContextResponse.ProtoReflect.Descriptor instead.
+func (*DeleteEntityContextResponse) Descriptor() ([]byte, []int) {
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DeleteEntityContextResponse) GetEntityContext() *EntityContext {
+	if x != nil {
+		return x.EntityContext
+	}
+	return nil
+}
+
 // No storage_url/storage_key here by design - the object-storage backend
 // stays entirely server-side (see AttachmentService above). Read the file
 // itself via DownloadAttachment.
@@ -537,7 +625,7 @@ type Attachment struct {
 
 func (x *Attachment) Reset() {
 	*x = Attachment{}
-	mi := &file_ava_v1_context_proto_msgTypes[7]
+	mi := &file_ava_v1_context_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -549,7 +637,7 @@ func (x *Attachment) String() string {
 func (*Attachment) ProtoMessage() {}
 
 func (x *Attachment) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[7]
+	mi := &file_ava_v1_context_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -562,7 +650,7 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
 func (*Attachment) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{7}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Attachment) GetId() int64 {
@@ -644,7 +732,7 @@ type GetAttachmentRequest struct {
 
 func (x *GetAttachmentRequest) Reset() {
 	*x = GetAttachmentRequest{}
-	mi := &file_ava_v1_context_proto_msgTypes[8]
+	mi := &file_ava_v1_context_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -656,7 +744,7 @@ func (x *GetAttachmentRequest) String() string {
 func (*GetAttachmentRequest) ProtoMessage() {}
 
 func (x *GetAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[8]
+	mi := &file_ava_v1_context_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,7 +757,7 @@ func (x *GetAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*GetAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{8}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetAttachmentRequest) GetId() int64 {
@@ -688,7 +776,7 @@ type GetAttachmentResponse struct {
 
 func (x *GetAttachmentResponse) Reset() {
 	*x = GetAttachmentResponse{}
-	mi := &file_ava_v1_context_proto_msgTypes[9]
+	mi := &file_ava_v1_context_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +788,7 @@ func (x *GetAttachmentResponse) String() string {
 func (*GetAttachmentResponse) ProtoMessage() {}
 
 func (x *GetAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[9]
+	mi := &file_ava_v1_context_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +801,7 @@ func (x *GetAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*GetAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{9}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetAttachmentResponse) GetAttachment() *Attachment {
@@ -734,7 +822,7 @@ type ListAttachmentsRequest struct {
 
 func (x *ListAttachmentsRequest) Reset() {
 	*x = ListAttachmentsRequest{}
-	mi := &file_ava_v1_context_proto_msgTypes[10]
+	mi := &file_ava_v1_context_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -746,7 +834,7 @@ func (x *ListAttachmentsRequest) String() string {
 func (*ListAttachmentsRequest) ProtoMessage() {}
 
 func (x *ListAttachmentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[10]
+	mi := &file_ava_v1_context_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -759,7 +847,7 @@ func (x *ListAttachmentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAttachmentsRequest.ProtoReflect.Descriptor instead.
 func (*ListAttachmentsRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{10}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListAttachmentsRequest) GetBusinessId() int64 {
@@ -792,7 +880,7 @@ type ListAttachmentsResponse struct {
 
 func (x *ListAttachmentsResponse) Reset() {
 	*x = ListAttachmentsResponse{}
-	mi := &file_ava_v1_context_proto_msgTypes[11]
+	mi := &file_ava_v1_context_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +892,7 @@ func (x *ListAttachmentsResponse) String() string {
 func (*ListAttachmentsResponse) ProtoMessage() {}
 
 func (x *ListAttachmentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[11]
+	mi := &file_ava_v1_context_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,7 +905,7 @@ func (x *ListAttachmentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAttachmentsResponse.ProtoReflect.Descriptor instead.
 func (*ListAttachmentsResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{11}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListAttachmentsResponse) GetAttachments() []*Attachment {
@@ -843,7 +931,7 @@ type UploadAttachmentRequest struct {
 
 func (x *UploadAttachmentRequest) Reset() {
 	*x = UploadAttachmentRequest{}
-	mi := &file_ava_v1_context_proto_msgTypes[12]
+	mi := &file_ava_v1_context_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -855,7 +943,7 @@ func (x *UploadAttachmentRequest) String() string {
 func (*UploadAttachmentRequest) ProtoMessage() {}
 
 func (x *UploadAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[12]
+	mi := &file_ava_v1_context_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +956,7 @@ func (x *UploadAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*UploadAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{12}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UploadAttachmentRequest) GetData() isUploadAttachmentRequest_Data {
@@ -926,7 +1014,7 @@ type UploadAttachmentMetadata struct {
 
 func (x *UploadAttachmentMetadata) Reset() {
 	*x = UploadAttachmentMetadata{}
-	mi := &file_ava_v1_context_proto_msgTypes[13]
+	mi := &file_ava_v1_context_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -938,7 +1026,7 @@ func (x *UploadAttachmentMetadata) String() string {
 func (*UploadAttachmentMetadata) ProtoMessage() {}
 
 func (x *UploadAttachmentMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[13]
+	mi := &file_ava_v1_context_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -951,7 +1039,7 @@ func (x *UploadAttachmentMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadAttachmentMetadata.ProtoReflect.Descriptor instead.
 func (*UploadAttachmentMetadata) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{13}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UploadAttachmentMetadata) GetBusinessId() int64 {
@@ -1005,7 +1093,7 @@ type UploadAttachmentResponse struct {
 
 func (x *UploadAttachmentResponse) Reset() {
 	*x = UploadAttachmentResponse{}
-	mi := &file_ava_v1_context_proto_msgTypes[14]
+	mi := &file_ava_v1_context_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1017,7 +1105,7 @@ func (x *UploadAttachmentResponse) String() string {
 func (*UploadAttachmentResponse) ProtoMessage() {}
 
 func (x *UploadAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[14]
+	mi := &file_ava_v1_context_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1030,7 +1118,7 @@ func (x *UploadAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*UploadAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{14}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UploadAttachmentResponse) GetAttachment() *Attachment {
@@ -1049,7 +1137,7 @@ type DownloadAttachmentRequest struct {
 
 func (x *DownloadAttachmentRequest) Reset() {
 	*x = DownloadAttachmentRequest{}
-	mi := &file_ava_v1_context_proto_msgTypes[15]
+	mi := &file_ava_v1_context_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1061,7 +1149,7 @@ func (x *DownloadAttachmentRequest) String() string {
 func (*DownloadAttachmentRequest) ProtoMessage() {}
 
 func (x *DownloadAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[15]
+	mi := &file_ava_v1_context_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1074,7 +1162,7 @@ func (x *DownloadAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*DownloadAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{15}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DownloadAttachmentRequest) GetId() int64 {
@@ -1093,7 +1181,7 @@ type DownloadAttachmentResponse struct {
 
 func (x *DownloadAttachmentResponse) Reset() {
 	*x = DownloadAttachmentResponse{}
-	mi := &file_ava_v1_context_proto_msgTypes[16]
+	mi := &file_ava_v1_context_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1105,7 +1193,7 @@ func (x *DownloadAttachmentResponse) String() string {
 func (*DownloadAttachmentResponse) ProtoMessage() {}
 
 func (x *DownloadAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[16]
+	mi := &file_ava_v1_context_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1118,7 +1206,7 @@ func (x *DownloadAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*DownloadAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{16}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DownloadAttachmentResponse) GetChunk() []byte {
@@ -1137,7 +1225,7 @@ type DeleteAttachmentRequest struct {
 
 func (x *DeleteAttachmentRequest) Reset() {
 	*x = DeleteAttachmentRequest{}
-	mi := &file_ava_v1_context_proto_msgTypes[17]
+	mi := &file_ava_v1_context_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1149,7 +1237,7 @@ func (x *DeleteAttachmentRequest) String() string {
 func (*DeleteAttachmentRequest) ProtoMessage() {}
 
 func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[17]
+	mi := &file_ava_v1_context_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1162,7 +1250,7 @@ func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{17}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteAttachmentRequest) GetId() int64 {
@@ -1181,7 +1269,7 @@ type DeleteAttachmentResponse struct {
 
 func (x *DeleteAttachmentResponse) Reset() {
 	*x = DeleteAttachmentResponse{}
-	mi := &file_ava_v1_context_proto_msgTypes[18]
+	mi := &file_ava_v1_context_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1193,7 +1281,7 @@ func (x *DeleteAttachmentResponse) String() string {
 func (*DeleteAttachmentResponse) ProtoMessage() {}
 
 func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ava_v1_context_proto_msgTypes[18]
+	mi := &file_ava_v1_context_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1206,7 +1294,7 @@ func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_ava_v1_context_proto_rawDescGZIP(), []int{18}
+	return file_ava_v1_context_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteAttachmentResponse) GetAttachment() *Attachment {
@@ -1276,6 +1364,10 @@ const file_ava_v1_context_proto_rawDesc = "" +
 	"\a_sourceB\r\n" +
 	"\v_confidence\"[\n" +
 	"\x1bCreateEntityContextResponse\x12<\n" +
+	"\x0eentity_context\x18\x01 \x01(\v2\x15.ava.v1.EntityContextR\rentityContext\",\n" +
+	"\x1aDeleteEntityContextRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"[\n" +
+	"\x1bDeleteEntityContextResponse\x12<\n" +
 	"\x0eentity_context\x18\x01 \x01(\v2\x15.ava.v1.EntityContextR\rentityContext\"\xec\x03\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
@@ -1340,11 +1432,12 @@ const file_ava_v1_context_proto_rawDesc = "" +
 	"\x18DeleteAttachmentResponse\x122\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x12.ava.v1.AttachmentR\n" +
-	"attachment2\xa7\x02\n" +
+	"attachment2\x87\x03\n" +
 	"\x14EntityContextService\x12U\n" +
 	"\x10GetEntityContext\x12\x1f.ava.v1.GetEntityContextRequest\x1a .ava.v1.GetEntityContextResponse\x12X\n" +
 	"\x11ListEntityContext\x12 .ava.v1.ListEntityContextRequest\x1a!.ava.v1.ListEntityContextResponse\x12^\n" +
-	"\x13CreateEntityContext\x12\".ava.v1.CreateEntityContextRequest\x1a#.ava.v1.CreateEntityContextResponse2\xc4\x03\n" +
+	"\x13CreateEntityContext\x12\".ava.v1.CreateEntityContextRequest\x1a#.ava.v1.CreateEntityContextResponse\x12^\n" +
+	"\x13DeleteEntityContext\x12\".ava.v1.DeleteEntityContextRequest\x1a#.ava.v1.DeleteEntityContextResponse2\xc4\x03\n" +
 	"\x11AttachmentService\x12L\n" +
 	"\rGetAttachment\x12\x1c.ava.v1.GetAttachmentRequest\x1a\x1d.ava.v1.GetAttachmentResponse\x12R\n" +
 	"\x0fListAttachments\x12\x1e.ava.v1.ListAttachmentsRequest\x1a\x1f.ava.v1.ListAttachmentsResponse\x12W\n" +
@@ -1364,7 +1457,7 @@ func file_ava_v1_context_proto_rawDescGZIP() []byte {
 	return file_ava_v1_context_proto_rawDescData
 }
 
-var file_ava_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_ava_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_ava_v1_context_proto_goTypes = []any{
 	(*EntityContext)(nil),               // 0: ava.v1.EntityContext
 	(*GetEntityContextRequest)(nil),     // 1: ava.v1.GetEntityContextRequest
@@ -1373,55 +1466,60 @@ var file_ava_v1_context_proto_goTypes = []any{
 	(*ListEntityContextResponse)(nil),   // 4: ava.v1.ListEntityContextResponse
 	(*CreateEntityContextRequest)(nil),  // 5: ava.v1.CreateEntityContextRequest
 	(*CreateEntityContextResponse)(nil), // 6: ava.v1.CreateEntityContextResponse
-	(*Attachment)(nil),                  // 7: ava.v1.Attachment
-	(*GetAttachmentRequest)(nil),        // 8: ava.v1.GetAttachmentRequest
-	(*GetAttachmentResponse)(nil),       // 9: ava.v1.GetAttachmentResponse
-	(*ListAttachmentsRequest)(nil),      // 10: ava.v1.ListAttachmentsRequest
-	(*ListAttachmentsResponse)(nil),     // 11: ava.v1.ListAttachmentsResponse
-	(*UploadAttachmentRequest)(nil),     // 12: ava.v1.UploadAttachmentRequest
-	(*UploadAttachmentMetadata)(nil),    // 13: ava.v1.UploadAttachmentMetadata
-	(*UploadAttachmentResponse)(nil),    // 14: ava.v1.UploadAttachmentResponse
-	(*DownloadAttachmentRequest)(nil),   // 15: ava.v1.DownloadAttachmentRequest
-	(*DownloadAttachmentResponse)(nil),  // 16: ava.v1.DownloadAttachmentResponse
-	(*DeleteAttachmentRequest)(nil),     // 17: ava.v1.DeleteAttachmentRequest
-	(*DeleteAttachmentResponse)(nil),    // 18: ava.v1.DeleteAttachmentResponse
-	(*Decimal)(nil),                     // 19: ava.v1.Decimal
-	(*timestamppb.Timestamp)(nil),       // 20: google.protobuf.Timestamp
+	(*DeleteEntityContextRequest)(nil),  // 7: ava.v1.DeleteEntityContextRequest
+	(*DeleteEntityContextResponse)(nil), // 8: ava.v1.DeleteEntityContextResponse
+	(*Attachment)(nil),                  // 9: ava.v1.Attachment
+	(*GetAttachmentRequest)(nil),        // 10: ava.v1.GetAttachmentRequest
+	(*GetAttachmentResponse)(nil),       // 11: ava.v1.GetAttachmentResponse
+	(*ListAttachmentsRequest)(nil),      // 12: ava.v1.ListAttachmentsRequest
+	(*ListAttachmentsResponse)(nil),     // 13: ava.v1.ListAttachmentsResponse
+	(*UploadAttachmentRequest)(nil),     // 14: ava.v1.UploadAttachmentRequest
+	(*UploadAttachmentMetadata)(nil),    // 15: ava.v1.UploadAttachmentMetadata
+	(*UploadAttachmentResponse)(nil),    // 16: ava.v1.UploadAttachmentResponse
+	(*DownloadAttachmentRequest)(nil),   // 17: ava.v1.DownloadAttachmentRequest
+	(*DownloadAttachmentResponse)(nil),  // 18: ava.v1.DownloadAttachmentResponse
+	(*DeleteAttachmentRequest)(nil),     // 19: ava.v1.DeleteAttachmentRequest
+	(*DeleteAttachmentResponse)(nil),    // 20: ava.v1.DeleteAttachmentResponse
+	(*Decimal)(nil),                     // 21: ava.v1.Decimal
+	(*timestamppb.Timestamp)(nil),       // 22: google.protobuf.Timestamp
 }
 var file_ava_v1_context_proto_depIdxs = []int32{
-	19, // 0: ava.v1.EntityContext.confidence:type_name -> ava.v1.Decimal
-	20, // 1: ava.v1.EntityContext.created_at:type_name -> google.protobuf.Timestamp
+	21, // 0: ava.v1.EntityContext.confidence:type_name -> ava.v1.Decimal
+	22, // 1: ava.v1.EntityContext.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: ava.v1.GetEntityContextResponse.entity_context:type_name -> ava.v1.EntityContext
 	0,  // 3: ava.v1.ListEntityContextResponse.entity_contexts:type_name -> ava.v1.EntityContext
-	19, // 4: ava.v1.CreateEntityContextRequest.confidence:type_name -> ava.v1.Decimal
+	21, // 4: ava.v1.CreateEntityContextRequest.confidence:type_name -> ava.v1.Decimal
 	0,  // 5: ava.v1.CreateEntityContextResponse.entity_context:type_name -> ava.v1.EntityContext
-	20, // 6: ava.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
-	7,  // 7: ava.v1.GetAttachmentResponse.attachment:type_name -> ava.v1.Attachment
-	7,  // 8: ava.v1.ListAttachmentsResponse.attachments:type_name -> ava.v1.Attachment
-	13, // 9: ava.v1.UploadAttachmentRequest.metadata:type_name -> ava.v1.UploadAttachmentMetadata
-	7,  // 10: ava.v1.UploadAttachmentResponse.attachment:type_name -> ava.v1.Attachment
-	7,  // 11: ava.v1.DeleteAttachmentResponse.attachment:type_name -> ava.v1.Attachment
-	1,  // 12: ava.v1.EntityContextService.GetEntityContext:input_type -> ava.v1.GetEntityContextRequest
-	3,  // 13: ava.v1.EntityContextService.ListEntityContext:input_type -> ava.v1.ListEntityContextRequest
-	5,  // 14: ava.v1.EntityContextService.CreateEntityContext:input_type -> ava.v1.CreateEntityContextRequest
-	8,  // 15: ava.v1.AttachmentService.GetAttachment:input_type -> ava.v1.GetAttachmentRequest
-	10, // 16: ava.v1.AttachmentService.ListAttachments:input_type -> ava.v1.ListAttachmentsRequest
-	12, // 17: ava.v1.AttachmentService.UploadAttachment:input_type -> ava.v1.UploadAttachmentRequest
-	15, // 18: ava.v1.AttachmentService.DownloadAttachment:input_type -> ava.v1.DownloadAttachmentRequest
-	17, // 19: ava.v1.AttachmentService.DeleteAttachment:input_type -> ava.v1.DeleteAttachmentRequest
-	2,  // 20: ava.v1.EntityContextService.GetEntityContext:output_type -> ava.v1.GetEntityContextResponse
-	4,  // 21: ava.v1.EntityContextService.ListEntityContext:output_type -> ava.v1.ListEntityContextResponse
-	6,  // 22: ava.v1.EntityContextService.CreateEntityContext:output_type -> ava.v1.CreateEntityContextResponse
-	9,  // 23: ava.v1.AttachmentService.GetAttachment:output_type -> ava.v1.GetAttachmentResponse
-	11, // 24: ava.v1.AttachmentService.ListAttachments:output_type -> ava.v1.ListAttachmentsResponse
-	14, // 25: ava.v1.AttachmentService.UploadAttachment:output_type -> ava.v1.UploadAttachmentResponse
-	16, // 26: ava.v1.AttachmentService.DownloadAttachment:output_type -> ava.v1.DownloadAttachmentResponse
-	18, // 27: ava.v1.AttachmentService.DeleteAttachment:output_type -> ava.v1.DeleteAttachmentResponse
-	20, // [20:28] is the sub-list for method output_type
-	12, // [12:20] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0,  // 6: ava.v1.DeleteEntityContextResponse.entity_context:type_name -> ava.v1.EntityContext
+	22, // 7: ava.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 8: ava.v1.GetAttachmentResponse.attachment:type_name -> ava.v1.Attachment
+	9,  // 9: ava.v1.ListAttachmentsResponse.attachments:type_name -> ava.v1.Attachment
+	15, // 10: ava.v1.UploadAttachmentRequest.metadata:type_name -> ava.v1.UploadAttachmentMetadata
+	9,  // 11: ava.v1.UploadAttachmentResponse.attachment:type_name -> ava.v1.Attachment
+	9,  // 12: ava.v1.DeleteAttachmentResponse.attachment:type_name -> ava.v1.Attachment
+	1,  // 13: ava.v1.EntityContextService.GetEntityContext:input_type -> ava.v1.GetEntityContextRequest
+	3,  // 14: ava.v1.EntityContextService.ListEntityContext:input_type -> ava.v1.ListEntityContextRequest
+	5,  // 15: ava.v1.EntityContextService.CreateEntityContext:input_type -> ava.v1.CreateEntityContextRequest
+	7,  // 16: ava.v1.EntityContextService.DeleteEntityContext:input_type -> ava.v1.DeleteEntityContextRequest
+	10, // 17: ava.v1.AttachmentService.GetAttachment:input_type -> ava.v1.GetAttachmentRequest
+	12, // 18: ava.v1.AttachmentService.ListAttachments:input_type -> ava.v1.ListAttachmentsRequest
+	14, // 19: ava.v1.AttachmentService.UploadAttachment:input_type -> ava.v1.UploadAttachmentRequest
+	17, // 20: ava.v1.AttachmentService.DownloadAttachment:input_type -> ava.v1.DownloadAttachmentRequest
+	19, // 21: ava.v1.AttachmentService.DeleteAttachment:input_type -> ava.v1.DeleteAttachmentRequest
+	2,  // 22: ava.v1.EntityContextService.GetEntityContext:output_type -> ava.v1.GetEntityContextResponse
+	4,  // 23: ava.v1.EntityContextService.ListEntityContext:output_type -> ava.v1.ListEntityContextResponse
+	6,  // 24: ava.v1.EntityContextService.CreateEntityContext:output_type -> ava.v1.CreateEntityContextResponse
+	8,  // 25: ava.v1.EntityContextService.DeleteEntityContext:output_type -> ava.v1.DeleteEntityContextResponse
+	11, // 26: ava.v1.AttachmentService.GetAttachment:output_type -> ava.v1.GetAttachmentResponse
+	13, // 27: ava.v1.AttachmentService.ListAttachments:output_type -> ava.v1.ListAttachmentsResponse
+	16, // 28: ava.v1.AttachmentService.UploadAttachment:output_type -> ava.v1.UploadAttachmentResponse
+	18, // 29: ava.v1.AttachmentService.DownloadAttachment:output_type -> ava.v1.DownloadAttachmentResponse
+	20, // 30: ava.v1.AttachmentService.DeleteAttachment:output_type -> ava.v1.DeleteAttachmentResponse
+	22, // [22:31] is the sub-list for method output_type
+	13, // [13:22] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_context_proto_init() }
@@ -1432,19 +1530,19 @@ func file_ava_v1_context_proto_init() {
 	file_ava_v1_common_proto_init()
 	file_ava_v1_context_proto_msgTypes[0].OneofWrappers = []any{}
 	file_ava_v1_context_proto_msgTypes[5].OneofWrappers = []any{}
-	file_ava_v1_context_proto_msgTypes[7].OneofWrappers = []any{}
-	file_ava_v1_context_proto_msgTypes[12].OneofWrappers = []any{
+	file_ava_v1_context_proto_msgTypes[9].OneofWrappers = []any{}
+	file_ava_v1_context_proto_msgTypes[14].OneofWrappers = []any{
 		(*UploadAttachmentRequest_Metadata)(nil),
 		(*UploadAttachmentRequest_Chunk)(nil),
 	}
-	file_ava_v1_context_proto_msgTypes[13].OneofWrappers = []any{}
+	file_ava_v1_context_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ava_v1_context_proto_rawDesc), len(file_ava_v1_context_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

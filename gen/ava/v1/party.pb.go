@@ -1101,9 +1101,10 @@ type Item struct {
 	// an item is catalog data, not a historical transaction, so there's no
 	// need to also snapshot a decimal rate alongside the reference.
 	DefaultTaxRateId *int64 `protobuf:"varint,15,opt,name=default_tax_rate_id,json=defaultTaxRateId,proto3,oneof" json:"default_tax_rate_id,omitempty"`
-	// Which revenue/expense ledger_account a line normally posts to - a
-	// default, not enforced; invoice_line_item.ledger_account_id can still
-	// override it per line.
+	// The revenue/expense ledger_account every invoice line for this item
+	// posts to (snapshotted onto invoice_line_item.ledger_account_id at
+	// posting time; not overridable per line). Required by CreateItem; only
+	// nullable here because pre-catalog rows may predate the rule.
 	DefaultLedgerAccountId *int32                 `protobuf:"varint,16,opt,name=default_ledger_account_id,json=defaultLedgerAccountId,proto3,oneof" json:"default_ledger_account_id,omitempty"`
 	IsActive               bool                   `protobuf:"varint,11,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	CreatedByUserId        *int64                 `protobuf:"varint,12,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`

@@ -33,6 +33,15 @@ func parseDateFlag(s string) (*typepb.Date, error) {
 	return &typepb.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}, nil
 }
 
+// parseOptionalDateFlag is parseDateFlag for a flag that may be left unset:
+// "" yields nil (the RPC's "use the default" value) rather than an error.
+func parseOptionalDateFlag(s string) (*typepb.Date, error) {
+	if s == "" {
+		return nil, nil
+	}
+	return parseDateFlag(s)
+}
+
 // formatDate renders a google.type.Date back to YYYY-MM-DD for table
 // output.
 func formatDate(d *typepb.Date) string {

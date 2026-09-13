@@ -21,6 +21,7 @@ import (
 	"github.com/silverbp/ava/internal/db"
 	"github.com/silverbp/ava/internal/db/sqlcgen"
 	"github.com/silverbp/ava/internal/ledgermath"
+	"github.com/silverbp/ava/internal/ledgerpost"
 	"github.com/silverbp/ava/internal/moneypb"
 	"github.com/silverbp/ava/internal/pdf"
 )
@@ -1055,7 +1056,69 @@ func (s *invoiceService) CreateInvoice(ctx context.Context, req *avav1.CreateInv
 	return &avav1.CreateInvoiceResponse{Invoice: pb}, nil
 }
 
+// UpdateInvoice edits notes/terms/due_date - see the proto doc for why
+// invoice_date, contact_id, and invoice_number stay off this RPC.
+func (s *invoiceService) UpdateInvoice(ctx context.Context, req *avav1.UpdateInvoiceRequest) (*avav1.UpdateInvoiceResponse, error) {
+	existing, err := s.store.Queries.GetInvoice(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "invoice %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+	if existing.Status == "CANCELLED" {
+		return nil, status.Errorf(codes.FailedPrecondition, "invoice %d is cancelled and can no longer be edited", existing.ID)
+	}
+
+	updated, err := s.store.Queries.UpdateInvoiceHeader(ctx, sqlcgen.UpdateInvoiceHeaderParams{
+		ID:              req.GetId(),
+		Notes:           req.Notes,
+		Terms:           req.Terms,
+		DueDate:         datepb.ToPgDate(req.GetDueDate()),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
+	if err != nil {
+		return nil, translateUpdateError(err, "invoice", req.GetId(), req.GetResourceVersion())
+	}
+	lineItems, err := s.store.Queries.ListInvoiceLineItems(ctx, updated.ID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	pb, err := invoiceToProto(updated, lineItems)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting invoice: %v", err)
+	}
+	return &avav1.UpdateInvoiceResponse{Invoice: pb}, nil
+}
+
+// invoiceStatusTransitions is the allowed set of next statuses per current
+// status for UpdateInvoiceStatus. PAID is never a valid target here - it's
+// set automatically by ApplyPaymentToInvoice/UnapplyPaymentFromInvoice as
+// balance_due crosses zero, not chosen directly. CANCELLED and PAID are
+// both terminal for this RPC: a cancelled invoice stays cancelled, and a
+// paid one is corrected by voiding the payment (which itself moves the
+// invoice off PAID) rather than by transitioning status directly.
+var invoiceStatusTransitions = map[string]map[string]bool{
+	"DRAFT":   {"SENT": true, "CANCELLED": true},
+	"SENT":    {"OVERDUE": true, "CANCELLED": true},
+	"OVERDUE": {"SENT": true, "CANCELLED": true},
+}
+
+// isValidInvoiceStatusTransition looks up invoiceStatusTransitions; a nil
+// inner map (an unlisted `from`, e.g. PAID or CANCELLED) reads as false,
+// same as an unlisted `to`.
+func isValidInvoiceStatusTransition(from, to string) bool {
+	return invoiceStatusTransitions[from][to]
+}
+
 func (s *invoiceService) UpdateInvoiceStatus(ctx context.Context, req *avav1.UpdateInvoiceStatusRequest) (*avav1.UpdateInvoiceStatusResponse, error) {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
+	}
 	existing, err := s.store.Queries.GetInvoice(ctx, req.GetId())
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -1067,15 +1130,114 @@ func (s *invoiceService) UpdateInvoiceStatus(ctx context.Context, req *avav1.Upd
 		return nil, err
 	}
 
-	updated, err := s.store.Queries.UpdateInvoiceStatus(ctx, sqlcgen.UpdateInvoiceStatusParams{
-		ID:              req.GetId(),
-		Status:          req.GetStatus(),
-		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	target := req.GetStatus()
+	if target == "CANCELLED" {
+		// Cancelling: reject while a payment is still applied - void it
+		// first, so the payment side (paid_amount/balance_due/
+		// payment_application) never drifts from a cancelled invoice's
+		// ledger reversal. Checked before the transition table so a PAID
+		// invoice (which by construction has an application) gets this
+		// actionable hint rather than the generic "cannot move" error.
+		appCount, err := s.store.Queries.CountPaymentApplicationsForInvoice(ctx, existing.ID)
+		if err != nil {
+			return nil, translatePgError(err)
+		}
+		if appCount > 0 {
+			return nil, status.Errorf(codes.FailedPrecondition,
+				"invoice %d still has %d payment application(s) - void the payment(s) first", existing.ID, appCount)
+		}
+	}
+	if !isValidInvoiceStatusTransition(existing.Status, target) {
+		return nil, status.Errorf(codes.FailedPrecondition, "invoice %d cannot move from status %s to %s", existing.ID, existing.Status, target)
+	}
+
+	if target != "CANCELLED" {
+		updated, err := s.store.Queries.UpdateInvoiceStatus(ctx, sqlcgen.UpdateInvoiceStatusParams{
+			ID:              req.GetId(),
+			Status:          target,
+			FromStatus:      existing.Status,
+			ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+		})
+		if err != nil {
+			return nil, s.invoiceStatusUpdateError(ctx, err, existing, target, req.GetResourceVersion())
+		}
+		return invoiceStatusResponse(ctx, s.store, updated)
+	}
+
+	reversalDate, err := resolveReversalDate(existing.InvoiceDate, req.ReversalDate, "invoice_date")
+	if err != nil {
+		return nil, err
+	}
+
+	var updated sqlcgen.Invoice
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		var err error
+		// The from_status predicate is what makes this safe against a
+		// concurrent cancel: whichever call's UPDATE matches first wins the
+		// row lock and flips the status, and the other matches zero rows
+		// here instead of also posting a reversal.
+		updated, err = q.UpdateInvoiceStatus(ctx, sqlcgen.UpdateInvoiceStatusParams{
+			ID:              req.GetId(),
+			Status:          "CANCELLED",
+			FromStatus:      existing.Status,
+			ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+		})
+		if err != nil {
+			return s.invoiceStatusUpdateError(ctx, err, existing, "CANCELLED", req.GetResourceVersion())
+		}
+		if existing.LedgerTransactionID == nil {
+			return nil
+		}
+		description := fmt.Sprintf("Cancellation of invoice %d (%s)", existing.ID, existing.InvoiceNumber)
+		if _, err := ledgerpost.ReverseTransaction(ctx, q, existing.BusinessID, *existing.LedgerTransactionID, reversalDate, description, &u.ID); err != nil {
+			return err
+		}
+		zero, err := ledgermath.DecimalToNumeric(decimal.Zero)
+		if err != nil {
+			return err
+		}
+		// Second write to this row in the same transaction - unconditional,
+		// same reasoning as UpdateInvoiceLineItems (the first write above
+		// already took the version check and the row lock).
+		updated, err = q.UpdateInvoiceTotals(ctx, sqlcgen.UpdateInvoiceTotalsParams{
+			ID:              existing.ID,
+			Subtotal:        existing.Subtotal,
+			TotalTaxAmount:  existing.TotalTaxAmount,
+			TotalAmount:     existing.TotalAmount,
+			BalanceDue:      zero,
+			ResourceVersion: nil,
+		})
+		return err
 	})
 	if err != nil {
-		return nil, translateUpdateError(err, "invoice", req.GetId(), req.GetResourceVersion())
+		return nil, closeErrorStatus(err)
 	}
-	lineItems, err := s.store.Queries.ListInvoiceLineItems(ctx, updated.ID)
+	return invoiceStatusResponse(ctx, s.store, updated)
+}
+
+// invoiceStatusUpdateError maps UpdateInvoiceStatus matching no row. With a
+// resource_version precondition that's translateUpdateError's usual ABORTED
+// (any concurrent write bumps the version). Without one, the row is either
+// gone (NotFound) or its status moved under us - the from_status predicate
+// stopped this call from acting on a stale read, so report that as ABORTED
+// with the status it moved to, and let the caller re-read.
+func (s *invoiceService) invoiceStatusUpdateError(ctx context.Context, err error, existing sqlcgen.Invoice, to string, expected int64) error {
+	if !errors.Is(err, pgx.ErrNoRows) || expected != 0 {
+		return translateUpdateError(err, "invoice", existing.ID, expected)
+	}
+	current, err := s.store.Queries.GetInvoice(ctx, existing.ID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return status.Errorf(codes.NotFound, "invoice %d not found", existing.ID)
+		}
+		return translatePgError(err)
+	}
+	return status.Errorf(codes.Aborted,
+		"invoice %d moved from %s to %s concurrently; re-read it before transitioning to %s", existing.ID, existing.Status, current.Status, to)
+}
+
+func invoiceStatusResponse(ctx context.Context, store *db.Store, updated sqlcgen.Invoice) (*avav1.UpdateInvoiceStatusResponse, error) {
+	lineItems, err := store.Queries.ListInvoiceLineItems(ctx, updated.ID)
 	if err != nil {
 		return nil, translatePgError(err)
 	}
@@ -1108,6 +1270,16 @@ func (s *invoiceService) UpdateInvoiceLineItems(ctx context.Context, req *avav1.
 	}
 	if len(req.GetLineItems()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one line item is required")
+	}
+	// A cancelled invoice's posting has already been mirrored by its
+	// reversal; re-posting under the same ledger_transaction_id would leave
+	// the reversal out of step with it (and put balance_due back on a
+	// CANCELLED row). A paid one is corrected by voiding the payment first.
+	switch existing.Status {
+	case "CANCELLED":
+		return nil, status.Errorf(codes.FailedPrecondition, "invoice %d is cancelled and can no longer be edited", existing.ID)
+	case "PAID":
+		return nil, status.Errorf(codes.FailedPrecondition, "invoice %d is paid - void its payment(s) before changing its lines", existing.ID)
 	}
 
 	paidAmount, err := ledgermath.NumericToDecimal(existing.PaidAmount)
@@ -1762,6 +1934,7 @@ func (s *paymentService) CreatePayment(ctx context.Context, req *avav1.CreatePay
 	// but never over-applied).
 	appliedAmounts := make([]decimal.Decimal, len(req.GetApplications()))
 	total := decimal.Zero
+	perInvoiceTotal := make(map[int64]decimal.Decimal)
 	for i, app := range req.GetApplications() {
 		if app.GetInvoiceId() == 0 {
 			return nil, status.Error(codes.InvalidArgument, "applications[].invoice_id is required")
@@ -1772,9 +1945,47 @@ func (s *paymentService) CreatePayment(ctx context.Context, req *avav1.CreatePay
 		}
 		appliedAmounts[i] = applied
 		total = total.Add(applied)
+		perInvoiceTotal[app.GetInvoiceId()] = perInvoiceTotal[app.GetInvoiceId()].Add(applied)
 	}
 	if total.GreaterThan(amount) {
 		return nil, status.Error(codes.InvalidArgument, "sum of applications[].applied_amount exceeds amount")
+	}
+
+	// Each application must also fit the invoice's own remaining
+	// balance_due, not just this payment's amount - two separate payments
+	// could otherwise over-apply the same invoice and drive balance_due
+	// negative. This is a friendlier pre-check; ApplyPaymentToInvoice's own
+	// `balance_due >= amount` guard is what actually enforces it under
+	// concurrent requests.
+	for invoiceID, requested := range perInvoiceTotal {
+		inv, err := s.store.Queries.GetInvoice(ctx, invoiceID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, status.Errorf(codes.NotFound, "invoice %d not found", invoiceID)
+			}
+			return nil, translatePgError(err)
+		}
+		if inv.BusinessID != req.GetBusinessId() {
+			return nil, status.Errorf(codes.InvalidArgument, "invoice %d belongs to a different business", invoiceID)
+		}
+		// Only a sent invoice takes a payment: DRAFT so that voiding the
+		// payment later can always restore SENT (UnapplyPaymentFromInvoice
+		// has no record of the pre-payment status), CANCELLED because there
+		// is nothing left to pay. ApplyPaymentToInvoice enforces the same.
+		switch inv.Status {
+		case "DRAFT":
+			return nil, status.Errorf(codes.FailedPrecondition, "invoice %d is still DRAFT - send it before applying a payment", invoiceID)
+		case "CANCELLED":
+			return nil, status.Errorf(codes.FailedPrecondition, "invoice %d is cancelled", invoiceID)
+		}
+		balanceDue, err := ledgermath.NumericToDecimal(inv.BalanceDue)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "reading invoice %d balance_due: %v", invoiceID, err)
+		}
+		if requested.GreaterThan(balanceDue) {
+			return nil, status.Errorf(codes.FailedPrecondition,
+				"applications against invoice %d total %s, more than its remaining balance_due %s", invoiceID, requested, balanceDue)
+		}
 	}
 
 	var payment sqlcgen.Payment
@@ -1813,6 +2024,15 @@ func (s *paymentService) CreatePayment(ctx context.Context, req *avav1.CreatePay
 			}
 			applications = append(applications, application)
 			if _, err := q.ApplyPaymentToInvoice(ctx, sqlcgen.ApplyPaymentToInvoiceParams{ID: app.GetInvoiceId(), Amount: appliedNum}); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					// The pre-check above passed but the guarded UPDATE matched
+					// nothing: the invoice was paid down, cancelled, or deleted
+					// concurrently. Same precondition failure as the pre-check
+					// reports, so the same code (closeErrorStatus passes a
+					// status through unchanged).
+					return status.Errorf(codes.FailedPrecondition,
+						"invoice %d can no longer take this application - its balance_due or status changed concurrently; re-read it and retry", app.GetInvoiceId())
+				}
 				return err
 			}
 		}
@@ -1843,6 +2063,74 @@ func (s *paymentService) CreatePayment(ctx context.Context, req *avav1.CreatePay
 // maybePostPayment posts payment to the ledger iff both ledger_account_id
 // (the cash/bank account) and the contact's own ledger_account_id are set;
 // returns (nil, nil) — not an error — otherwise, leaving it unposted.
+// VoidPayment reverses a payment end to end: every payment_application is
+// removed and its invoice's paid_amount/balance_due/status restored
+// (UnapplyPaymentFromInvoice), then - if the payment was posted - a
+// reversing ledger transaction is posted (ledgerpost.ReverseTransaction, the
+// original posting untouched), and finally the payment itself is
+// soft-deleted. GetPayment already filters deleted_at IS NULL, so voiding an
+// already-void payment surfaces as NotFound here rather than a distinct
+// "already void" error.
+func (s *paymentService) VoidPayment(ctx context.Context, req *avav1.VoidPaymentRequest) (*avav1.VoidPaymentResponse, error) {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
+	}
+	payment, err := s.store.Queries.GetPayment(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "payment %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, payment.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+	applications, err := s.store.Queries.ListPaymentApplicationsForPayment(ctx, payment.ID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+
+	reversalDate, err := resolveReversalDate(payment.PaymentDate, req.ReversalDate, "payment_date")
+	if err != nil {
+		return nil, err
+	}
+
+	// Snapshot before voiding - what VoidPaymentResponse returns, since the
+	// payment row (and its applications) won't be readable through the
+	// normal Get/List queries once soft-deleted.
+	pb, err := paymentToProto(payment, applications)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting payment: %v", err)
+	}
+
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		for _, app := range applications {
+			if _, err := q.UnapplyPaymentFromInvoice(ctx, sqlcgen.UnapplyPaymentFromInvoiceParams{ID: app.InvoiceID, Amount: app.AppliedAmount}); err != nil {
+				return err
+			}
+		}
+		if err := q.DeletePaymentApplicationsForPayment(ctx, payment.ID); err != nil {
+			return err
+		}
+		if payment.LedgerTransactionID != nil {
+			description := fmt.Sprintf("Void of payment %d (%s)", payment.ID, payment.PaymentNumber)
+			if _, err := ledgerpost.ReverseTransaction(ctx, q, payment.BusinessID, *payment.LedgerTransactionID, reversalDate, description, &u.ID); err != nil {
+				return err
+			}
+		}
+		if _, err := q.SoftDeletePayment(ctx, payment.ID); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, closeErrorStatus(err)
+	}
+
+	return &avav1.VoidPaymentResponse{Payment: pb}, nil
+}
+
 func maybePostPayment(ctx context.Context, q *sqlcgen.Queries, businessID int64, payment sqlcgen.Payment, createdByUserID *int64) (*int64, error) {
 	if payment.LedgerAccountID == nil {
 		return nil, nil

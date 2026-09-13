@@ -29,6 +29,7 @@ func newContextCmd() *cobra.Command {
 	root.AddCommand(newContextGetCmd())
 	root.AddCommand(newContextGetAttachmentCmd())
 	root.AddCommand(newContextNoteCmd())
+	root.AddCommand(newContextRemoveNoteCmd())
 	root.AddCommand(newContextAttachCmd())
 	root.AddCommand(newContextDownloadCmd())
 	root.AddCommand(newContextRemoveAttachmentCmd())
@@ -90,6 +91,37 @@ func newContextGetAttachmentCmd() *cobra.Command {
 		Summary:  "Get one attachment's metadata by id",
 		Detail:   "Metadata only - use `context download` to read its file content.",
 		Examples: []resource.Example{{Cmd: "avactl context get-attachment 9"}},
+	}.Apply(cmd)
+	return cmd
+}
+
+func newContextRemoveNoteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:  "remove-note <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			n, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid entity-context id %q: %w", args[0], err)
+			}
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			resp, err := avav1.NewEntityContextServiceClient(conn).DeleteEntityContext(cmd.Context(), &avav1.DeleteEntityContextRequest{Id: n})
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetEntityContext(), nil)
+		},
+	}
+	resource.Doc{
+		Summary: "Delete a context/note row outright",
+		Detail: "For a note that shouldn't have been created at all. To correct a stale note " +
+			"without losing the trail, use `context note --supersedes <id>` instead.",
+		Examples: []resource.Example{{Cmd: "avactl context remove-note 7"}},
 	}.Apply(cmd)
 	return cmd
 }

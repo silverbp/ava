@@ -18,6 +18,8 @@ UPDATE invoice SET
     status = CASE WHEN balance_due - $1 <= 0 THEN 'PAID' ELSE status END,
     updated_at = NOW()
 WHERE id = $2 AND deleted_at IS NULL
+    AND status IN ('SENT', 'OVERDUE', 'PAID')
+    AND balance_due >= $1
 RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
@@ -26,6 +28,15 @@ type ApplyPaymentToInvoiceParams struct {
 	ID     int64          `json:"id"`
 }
 
+// The `balance_due >= amount` guard makes over-application impossible even
+// under concurrent CreatePayment calls against the same invoice - a
+// pre-check in the server can give a friendlier error, but this is what
+// actually enforces it: :one on zero rows fails with pgx.ErrNoRows, which
+// the caller treats as "would over-apply / no longer payable", not "not
+// found" (the caller already holds the row from an earlier GetInvoice in
+// the same request). Only a SENT or OVERDUE invoice is payable: a DRAFT
+// must be sent first (so UnapplyPaymentFromInvoice can always restore SENT),
+// and a CANCELLED one has nothing to pay.
 func (q *Queries) ApplyPaymentToInvoice(ctx context.Context, arg ApplyPaymentToInvoiceParams) (Invoice, error) {
 	row := q.db.QueryRow(ctx, applyPaymentToInvoice, arg.Amount, arg.ID)
 	var i Invoice
@@ -54,6 +65,42 @@ func (q *Queries) ApplyPaymentToInvoice(ctx context.Context, arg ApplyPaymentToI
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const countDocumentsForLedgerTransaction = `-- name: CountDocumentsForLedgerTransaction :one
+SELECT
+    (SELECT COUNT(*) FROM invoice WHERE ledger_transaction_id = $1::bigint)
+    + (SELECT COUNT(*) FROM payment WHERE ledger_transaction_id = $1::bigint) AS document_count
+`
+
+// Whether any invoice or payment references this ledger transaction -
+// LedgerTransactionService.ReverseLedgerTransaction refuses a direct
+// reverse when this is nonzero, since correcting a document-linked
+// transaction through the document (invoice cancel / payment void) is what
+// keeps paid_amount/balance_due/payment_application in sync; a raw reverse
+// would fix the GL while leaving those stale. Deliberately no deleted_at
+// filter: a voided payment's original posting is still a document posting
+// (and already reversed by the void), never a raw one.
+func (q *Queries) CountDocumentsForLedgerTransaction(ctx context.Context, ledgerTransactionID int64) (int32, error) {
+	row := q.db.QueryRow(ctx, countDocumentsForLedgerTransaction, ledgerTransactionID)
+	var document_count int32
+	err := row.Scan(&document_count)
+	return document_count, err
+}
+
+const countPaymentApplicationsForInvoice = `-- name: CountPaymentApplicationsForInvoice :one
+SELECT COUNT(*) FROM payment_application WHERE invoice_id = $1
+`
+
+// Used by InvoiceService.UpdateInvoiceStatus to refuse cancelling an
+// invoice that still has a payment applied - void the payment(s) first, so
+// the payment side (paid_amount/balance_due/payment_application) never
+// drifts from a cancelled invoice's ledger reversal.
+func (q *Queries) CountPaymentApplicationsForInvoice(ctx context.Context, invoiceID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countPaymentApplicationsForInvoice, invoiceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createEstimate = `-- name: CreateEstimate :one
@@ -422,6 +469,15 @@ WHERE invoice_id = $1 AND deleted_at IS NULL
 
 func (q *Queries) DeleteInvoiceLineItems(ctx context.Context, invoiceID int64) error {
 	_, err := q.db.Exec(ctx, deleteInvoiceLineItems, invoiceID)
+	return err
+}
+
+const deletePaymentApplicationsForPayment = `-- name: DeletePaymentApplicationsForPayment :exec
+DELETE FROM payment_application WHERE payment_id = $1
+`
+
+func (q *Queries) DeletePaymentApplicationsForPayment(ctx context.Context, paymentID int64) error {
+	_, err := q.db.Exec(ctx, deletePaymentApplicationsForPayment, paymentID)
 	return err
 }
 
@@ -957,6 +1013,88 @@ func (q *Queries) SetPaymentLedgerTransaction(ctx context.Context, arg SetPaymen
 	return i, err
 }
 
+const softDeletePayment = `-- name: SoftDeletePayment :one
+UPDATE payment SET deleted_at = NOW(), updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, business_id, contact_id, payment_type, payment_number, payment_date, amount, payment_method, reference_number, notes, ledger_account_id, ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
+`
+
+func (q *Queries) SoftDeletePayment(ctx context.Context, id int64) (Payment, error) {
+	row := q.db.QueryRow(ctx, softDeletePayment, id)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.ContactID,
+		&i.PaymentType,
+		&i.PaymentNumber,
+		&i.PaymentDate,
+		&i.Amount,
+		&i.PaymentMethod,
+		&i.ReferenceNumber,
+		&i.Notes,
+		&i.LedgerAccountID,
+		&i.LedgerTransactionID,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const unapplyPaymentFromInvoice = `-- name: UnapplyPaymentFromInvoice :one
+UPDATE invoice SET
+    paid_amount = paid_amount - $1,
+    balance_due = balance_due + $1,
+    status = CASE WHEN status = 'PAID' THEN 'SENT' ELSE status END,
+    updated_at = NOW()
+WHERE id = $2 AND deleted_at IS NULL
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+`
+
+type UnapplyPaymentFromInvoiceParams struct {
+	Amount pgtype.Numeric `json:"amount"`
+	ID     int64          `json:"id"`
+}
+
+// Inverse of ApplyPaymentToInvoice: restores paid_amount/balance_due, and
+// moves a PAID invoice back to SENT since ApplyPaymentToInvoice's CASE only
+// ever sets PAID and can't be run backwards. Any other status is left alone
+// (a partial payment never changed it). OVERDUE is deliberately not derived
+// here from due_date - it's only ever set explicitly via UpdateInvoiceStatus
+// (`invoice mark-overdue`), and this query mustn't be the one place that
+// disagrees.
+func (q *Queries) UnapplyPaymentFromInvoice(ctx context.Context, arg UnapplyPaymentFromInvoiceParams) (Invoice, error) {
+	row := q.db.QueryRow(ctx, unapplyPaymentFromInvoice, arg.Amount, arg.ID)
+	var i Invoice
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.ContactID,
+		&i.InvoiceType,
+		&i.EstimateID,
+		&i.InvoiceNumber,
+		&i.InvoiceDate,
+		&i.DueDate,
+		&i.Subtotal,
+		&i.TotalTaxAmount,
+		&i.TotalAmount,
+		&i.PaidAmount,
+		&i.BalanceDue,
+		&i.Status,
+		&i.Notes,
+		&i.Terms,
+		&i.LedgerTransactionID,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResourceVersion,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const updateEstimateStatus = `-- name: UpdateEstimateStatus :one
 UPDATE estimate SET status = $1, updated_at = NOW()
 WHERE id = $2 AND deleted_at IS NULL
@@ -1046,21 +1184,90 @@ func (q *Queries) UpdateEstimateTotals(ctx context.Context, arg UpdateEstimateTo
 	return i, err
 }
 
+const updateInvoiceHeader = `-- name: UpdateInvoiceHeader :one
+UPDATE invoice SET
+    notes = COALESCE($1, notes),
+    terms = COALESCE($2, terms),
+    due_date = COALESCE($3, due_date),
+    updated_at = NOW()
+WHERE id = $4 AND deleted_at IS NULL
+    AND ($5::bigint IS NULL OR resource_version = $5)
+RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+`
+
+type UpdateInvoiceHeaderParams struct {
+	Notes           *string     `json:"notes"`
+	Terms           *string     `json:"terms"`
+	DueDate         pgtype.Date `json:"due_date"`
+	ID              int64       `json:"id"`
+	ResourceVersion *int64      `json:"resource_version"`
+}
+
+// Fields with no ledger impact only - see InvoiceService.UpdateInvoice for
+// what's deliberately excluded (invoice_date, contact_id, invoice_number)
+// and why.
+func (q *Queries) UpdateInvoiceHeader(ctx context.Context, arg UpdateInvoiceHeaderParams) (Invoice, error) {
+	row := q.db.QueryRow(ctx, updateInvoiceHeader,
+		arg.Notes,
+		arg.Terms,
+		arg.DueDate,
+		arg.ID,
+		arg.ResourceVersion,
+	)
+	var i Invoice
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.ContactID,
+		&i.InvoiceType,
+		&i.EstimateID,
+		&i.InvoiceNumber,
+		&i.InvoiceDate,
+		&i.DueDate,
+		&i.Subtotal,
+		&i.TotalTaxAmount,
+		&i.TotalAmount,
+		&i.PaidAmount,
+		&i.BalanceDue,
+		&i.Status,
+		&i.Notes,
+		&i.Terms,
+		&i.LedgerTransactionID,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResourceVersion,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const updateInvoiceStatus = `-- name: UpdateInvoiceStatus :one
 UPDATE invoice SET status = $1, updated_at = NOW()
 WHERE id = $2 AND deleted_at IS NULL
-    AND ($3::bigint IS NULL OR resource_version = $3)
+    AND status = $3
+    AND ($4::bigint IS NULL OR resource_version = $4)
 RETURNING id, business_id, contact_id, invoice_type, estimate_id, invoice_number, invoice_date, due_date, subtotal, total_tax_amount, total_amount, paid_amount, balance_due, status, notes, terms, ledger_transaction_id, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateInvoiceStatusParams struct {
 	Status          string `json:"status"`
 	ID              int64  `json:"id"`
+	FromStatus      string `json:"from_status"`
 	ResourceVersion *int64 `json:"resource_version"`
 }
 
+// from_status is the status the caller validated the transition against; the
+// predicate makes the transition atomic so two concurrent callers can't both
+// pass the check and both act on it (e.g. both post a cancellation reversal).
+// Zero rows means the row is gone, its version moved, or its status moved.
 func (q *Queries) UpdateInvoiceStatus(ctx context.Context, arg UpdateInvoiceStatusParams) (Invoice, error) {
-	row := q.db.QueryRow(ctx, updateInvoiceStatus, arg.Status, arg.ID, arg.ResourceVersion)
+	row := q.db.QueryRow(ctx, updateInvoiceStatus,
+		arg.Status,
+		arg.ID,
+		arg.FromStatus,
+		arg.ResourceVersion,
+	)
 	var i Invoice
 	err := row.Scan(
 		&i.ID,

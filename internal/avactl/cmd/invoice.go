@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	typepb "google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
@@ -45,9 +46,10 @@ func newInvoiceCmd() *cobra.Command {
 
 	root.AddCommand(newGetCmd(invoiceNoun, getInvoice, getInvoicePdf))
 	root.AddCommand(newInvoiceCreateCmd())
+	root.AddCommand(newInvoiceUpdateCmd())
 	root.AddCommand(newInvoiceUpdateLinesCmd())
 	root.AddCommand(newVersionedMutateCmd(invoiceNoun, "send", "Mark an invoice SENT", sendInvoice))
-	root.AddCommand(newVersionedMutateCmd(invoiceNoun, "cancel", "Cancel an invoice", cancelInvoice))
+	root.AddCommand(newInvoiceCancelCmd())
 	root.AddCommand(newVersionedMutateCmd(invoiceNoun, "mark-overdue", "Mark an invoice OVERDUE", markInvoiceOverdue))
 	return root
 }
@@ -88,12 +90,12 @@ func getInvoicePdf(ctx context.Context, conn *grpc.ClientConn, id string) ([]byt
 	return resp.GetContent(), nil
 }
 
-func setInvoiceStatus(ctx context.Context, conn *grpc.ClientConn, id, status string, resourceVersion int64) (proto.Message, error) {
+func setInvoiceStatus(ctx context.Context, conn *grpc.ClientConn, id, status string, resourceVersion int64, reversalDate *typepb.Date) (proto.Message, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid invoice id %q: %w", id, err)
 	}
-	resp, err := avav1.NewInvoiceServiceClient(conn).UpdateInvoiceStatus(ctx, &avav1.UpdateInvoiceStatusRequest{Id: n, Status: status, ResourceVersion: resourceVersion})
+	resp, err := avav1.NewInvoiceServiceClient(conn).UpdateInvoiceStatus(ctx, &avav1.UpdateInvoiceStatusRequest{Id: n, Status: status, ResourceVersion: resourceVersion, ReversalDate: reversalDate})
 	if err != nil {
 		return nil, err
 	}
@@ -101,15 +103,29 @@ func setInvoiceStatus(ctx context.Context, conn *grpc.ClientConn, id, status str
 }
 
 func sendInvoice(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
-	return setInvoiceStatus(ctx, conn, id, "SENT", resourceVersion)
-}
-
-func cancelInvoice(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
-	return setInvoiceStatus(ctx, conn, id, "CANCELLED", resourceVersion)
+	return setInvoiceStatus(ctx, conn, id, "SENT", resourceVersion, nil)
 }
 
 func markInvoiceOverdue(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
-	return setInvoiceStatus(ctx, conn, id, "OVERDUE", resourceVersion)
+	return setInvoiceStatus(ctx, conn, id, "OVERDUE", resourceVersion, nil)
+}
+
+// newInvoiceCancelCmd is the versioned status transition plus a --date for
+// the cancellation's reversing ledger transaction.
+func newInvoiceCancelCmd() *cobra.Command {
+	var date string
+	cmd := newVersionedMutateCmd(invoiceNoun, "cancel", "Cancel an invoice", func(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+		reversalDate, err := parseOptionalDateFlag(date)
+		if err != nil {
+			return nil, err
+		}
+		return setInvoiceStatus(ctx, conn, id, "CANCELLED", resourceVersion, reversalDate)
+	})
+	cmd.Flags().StringVar(&date, "date", "", "date to post the reversing ledger transaction on (YYYY-MM-DD); defaults to the invoice date - set it when the invoice falls in a closed period")
+	cmd.Long += "\n\nReverses the invoice's ledger posting (a new mirrored transaction; the original is untouched) " +
+		"and zeroes its balance due. Rejected while any payment is still applied - `payment void` those first."
+	cmd.Example += "\n  # invoice is in a closed period - post the reversal in the open one\n  avactl invoice cancel 42 --date 2026-02-01"
+	return cmd
 }
 
 func newInvoiceCreateCmd() *cobra.Command {
@@ -234,6 +250,59 @@ func newInvoiceLineItems(rawFields []map[string]string) ([]*avav1.NewInvoiceLine
 		})
 	}
 	return lineItems, nil
+}
+
+func newInvoiceUpdateCmd() *cobra.Command {
+	var resourceVersion int64
+	var notes, terms, due string
+
+	cmd := &cobra.Command{
+		Use:  "update <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid invoice id %q: %w", args[0], err)
+			}
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			req := &avav1.UpdateInvoiceRequest{Id: id, ResourceVersion: resourceVersion}
+			if cmd.Flags().Changed("notes") {
+				req.Notes = &notes
+			}
+			if cmd.Flags().Changed("terms") {
+				req.Terms = &terms
+			}
+			if cmd.Flags().Changed("due") {
+				dueArg, err := parseDateFlag(due)
+				if err != nil {
+					return err
+				}
+				req.DueDate = dueArg
+			}
+			resp, err := avav1.NewInvoiceServiceClient(conn).UpdateInvoice(cmd.Context(), req)
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetInvoice(), invoiceNoun.Columns)
+		},
+	}
+	cmd.Flags().StringVar(&notes, "notes", "", "new notes")
+	cmd.Flags().StringVar(&terms, "terms", "", "new terms")
+	cmd.Flags().StringVar(&due, "due", "", "new due date, YYYY-MM-DD")
+	addResourceVersionFlag(cmd, &resourceVersion)
+	resource.Doc{
+		Summary: "Edit an invoice's notes, terms, or due date",
+		Detail: "Only flags you pass are sent - omit a flag to leave that field unchanged. " +
+			"Fields with ledger impact (contact, invoice date, invoice number) aren't editable - " +
+			"cancel and recreate the invoice for those.",
+		Examples: []resource.Example{{Cmd: "avactl invoice update 42 --due 2026-03-01"}},
+	}.Apply(cmd)
+	return cmd
 }
 
 func newInvoiceUpdateLinesCmd() *cobra.Command {

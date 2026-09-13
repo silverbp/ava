@@ -52,6 +52,7 @@ type BankStatement struct {
 	CreatedAt       pgtype.Timestamp `json:"created_at"`
 	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
 	DeletedAt       pgtype.Timestamp `json:"deleted_at"`
+	ResourceVersion int64            `json:"resource_version"`
 }
 
 type BankStatementLine struct {
@@ -333,15 +334,16 @@ type LedgerEntry struct {
 }
 
 type LedgerTransaction struct {
-	ID              int64            `json:"id"`
-	BusinessID      int64            `json:"business_id"`
-	TransactionDate pgtype.Date      `json:"transaction_date"`
-	Description     *string          `json:"description"`
-	ReferenceNumber *string          `json:"reference_number"`
-	CreatedByUserID *int64           `json:"created_by_user_id"`
-	CreatedAt       pgtype.Timestamp `json:"created_at"`
-	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
-	DeletedAt       pgtype.Timestamp `json:"deleted_at"`
+	ID                          int64            `json:"id"`
+	BusinessID                  int64            `json:"business_id"`
+	TransactionDate             pgtype.Date      `json:"transaction_date"`
+	Description                 *string          `json:"description"`
+	ReferenceNumber             *string          `json:"reference_number"`
+	ReversesLedgerTransactionID *int64           `json:"reverses_ledger_transaction_id"`
+	CreatedByUserID             *int64           `json:"created_by_user_id"`
+	CreatedAt                   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                   pgtype.Timestamp `json:"updated_at"`
+	DeletedAt                   pgtype.Timestamp `json:"deleted_at"`
 }
 
 type Payment struct {

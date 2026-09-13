@@ -18,6 +18,7 @@ import (
 	"github.com/silverbp/ava/internal/datepb"
 	"github.com/silverbp/ava/internal/db"
 	"github.com/silverbp/ava/internal/db/sqlcgen"
+	"github.com/silverbp/ava/internal/ledgerpost"
 	"github.com/silverbp/ava/internal/moneypb"
 )
 
@@ -311,6 +312,75 @@ func (s *ledgerTransactionService) CreateLedgerTransaction(ctx context.Context, 
 	return &avav1.CreateLedgerTransactionResponse{Transaction: pb}, nil
 }
 
+func (s *ledgerTransactionService) ReverseLedgerTransaction(ctx context.Context, req *avav1.ReverseLedgerTransactionRequest) (*avav1.ReverseLedgerTransactionResponse, error) {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
+	}
+	existing, err := s.store.Queries.GetLedgerTransaction(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "ledger transaction %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+
+	if existing.ReversesLedgerTransactionID != nil {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"ledger transaction %d is itself the reversal of transaction %d - to reinstate that one, post it again rather than reversing the reversal", existing.ID, *existing.ReversesLedgerTransactionID)
+	}
+	if reversal, err := s.store.Queries.GetReversalOfLedgerTransaction(ctx, existing.ID); err == nil {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"ledger transaction %d has already been reversed by transaction %d", existing.ID, reversal.ID)
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, translatePgError(err)
+	}
+
+	documentCount, err := s.store.Queries.CountDocumentsForLedgerTransaction(ctx, existing.ID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	if documentCount > 0 {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"ledger transaction %d is linked from an invoice or payment - correct it through `invoice cancel` or `payment void` instead, which keep paid_amount/balance_due in sync", existing.ID)
+	}
+
+	reversalDate, err := resolveReversalDate(existing.TransactionDate, req.ReversalDate, "transaction_date")
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		reversedTxn sqlcgen.LedgerTransaction
+		entries     []sqlcgen.LedgerEntry
+	)
+	description := fmt.Sprintf("Reversal of ledger transaction %d", existing.ID)
+	// A concurrent reverse of the same id that commits first trips the
+	// partial unique index on reverses_ledger_transaction_id here, surfacing
+	// as AlreadyExists via closeErrorStatus rather than a second reversal.
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		var err error
+		reversedTxn, err = ledgerpost.ReverseTransaction(ctx, q, existing.BusinessID, existing.ID, reversalDate, description, &u.ID)
+		if err != nil {
+			return err
+		}
+		entries, err = q.ListLedgerEntriesByTransaction(ctx, reversedTxn.ID)
+		return err
+	})
+	if err != nil {
+		return nil, closeErrorStatus(err)
+	}
+
+	pb, err := ledgerTransactionToProto(reversedTxn, entries)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting ledger transaction: %v", err)
+	}
+	return &avav1.ReverseLedgerTransactionResponse{Transaction: pb}, nil
+}
+
 // validateEntriesBalance enforces SUM(debit) == SUM(credit) across a
 // transaction's entries. The DB CHECK on ledger_entry only guarantees each
 // individual row has exactly one side populated; nothing in the schema
@@ -378,6 +448,8 @@ func ledgerTransactionToProto(t sqlcgen.LedgerTransaction, entries []sqlcgen.Led
 		ReferenceNumber: t.ReferenceNumber,
 		CreatedByUserId: t.CreatedByUserID,
 		CreatedAt:       timestampProto(t.CreatedAt),
+
+		ReversesLedgerTransactionId: t.ReversesLedgerTransactionID,
 	}
 	for _, e := range entries {
 		pe, err := ledgerEntryToProto(e)

@@ -27,7 +27,9 @@ var bankStatementNoun = resource.Noun{
 		{Header: "ACCOUNT", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.BankStatement).GetLedgerAccountId()) }},
 		{Header: "CLOSING", Value: func(v proto.Message) string { return v.(*avav1.BankStatement).GetClosingBalance().GetValue() }},
 		{Header: "RECONCILED", Value: func(v proto.Message) string { return v.(*avav1.BankStatement).GetReconciledBalance().GetValue() }},
+		{Header: "DIFFERENCE", Value: func(v proto.Message) string { return v.(*avav1.BankStatement).GetDifference().GetValue() }},
 		{Header: "LINES", Value: func(v proto.Message) string { return fmt.Sprintf("%d", len(v.(*avav1.BankStatement).GetLines())) }},
+		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.BankStatement).GetResourceVersion()) }},
 	},
 }
 
@@ -36,7 +38,10 @@ func newBankStatementCmd() *cobra.Command {
 	root.AddCommand(newListCmd(bankStatementNoun, listBankStatements))
 	root.AddCommand(newGetCmd(bankStatementNoun, getBankStatement))
 	root.AddCommand(newBankStatementCreateCmd())
+	root.AddCommand(newBankStatementUpdateCmd())
+	root.AddCommand(newVersionedMutateCmd(bankStatementNoun, "deactivate", "Deactivate a bank statement", deactivateBankStatement))
 	root.AddCommand(newBankStatementReconcileCmd())
+	root.AddCommand(newBankStatementUnreconcileCmd())
 	root.AddCommand(newBankStatementUnreconciledCmd())
 	return root
 }
@@ -68,6 +73,7 @@ func listBankStatements(ctx context.Context, conn *grpc.ClientConn, businessID i
 func newBankStatementCreateCmd() *cobra.Command {
 	var account int32
 	var name, date, opening, closing string
+	var allowMismatch bool
 
 	cmd := &cobra.Command{
 		Use:  "create",
@@ -84,12 +90,13 @@ func newBankStatementCreateCmd() *cobra.Command {
 			defer conn.Close()
 
 			resp, err := avav1.NewBankStatementServiceClient(conn).CreateBankStatement(cmd.Context(), &avav1.CreateBankStatementRequest{
-				BusinessId:      businessID,
-				LedgerAccountId: account,
-				StatementName:   name,
-				StatementDate:   dateArg,
-				OpeningBalance:  &avav1.Decimal{Value: opening},
-				ClosingBalance:  &avav1.Decimal{Value: closing},
+				BusinessId:           businessID,
+				LedgerAccountId:      account,
+				StatementName:        name,
+				StatementDate:        dateArg,
+				OpeningBalance:       &avav1.Decimal{Value: opening},
+				ClosingBalance:       &avav1.Decimal{Value: closing},
+				AllowOpeningMismatch: allowMismatch,
 			})
 			if err != nil {
 				return err
@@ -102,12 +109,86 @@ func newBankStatementCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&date, "date", "", "statement date, YYYY-MM-DD (required)")
 	cmd.Flags().StringVar(&opening, "opening", "0", "opening balance per the bank statement")
 	cmd.Flags().StringVar(&closing, "closing", "0", "closing balance per the bank statement")
+	cmd.Flags().BoolVar(&allowMismatch, "allow-opening-mismatch", false,
+		"skip the check that opening must equal the prior statement's closing balance for this account (first statement on the account, or a mid-history import)")
 	_ = cmd.MarkFlagRequired("account")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("date")
 	resource.Doc{
-		Summary:  "Create a bank statement to reconcile against",
+		Summary: "Create a bank statement to reconcile against",
+		Detail: "Rejects an opening balance that doesn't match the prior statement's closing " +
+			"balance for the same account - pass --allow-opening-mismatch to override.",
 		Examples: []resource.Example{{Cmd: "avactl bank-statement create --account 10 --name \"Jan 2026\" --date 2026-01-31 --opening 1000.00 --closing 1500.00"}},
+	}.Apply(cmd)
+	return cmd
+}
+
+func deactivateBankStatement(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
+	n, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid bank-statement id %q: %w", id, err)
+	}
+	resp, err := avav1.NewBankStatementServiceClient(conn).DeactivateBankStatement(ctx, &avav1.DeactivateBankStatementRequest{Id: n, ResourceVersion: resourceVersion})
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetBankStatement(), nil
+}
+
+func newBankStatementUpdateCmd() *cobra.Command {
+	var resourceVersion int64
+	var name, date, opening, closing string
+	var allowMismatch bool
+
+	cmd := &cobra.Command{
+		Use:  "update <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid bank-statement id %q: %w", args[0], err)
+			}
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			req := &avav1.UpdateBankStatementRequest{Id: id, ResourceVersion: resourceVersion, AllowOpeningMismatch: allowMismatch}
+			if cmd.Flags().Changed("name") {
+				req.StatementName = &name
+			}
+			if cmd.Flags().Changed("date") {
+				dateArg, err := parseDateFlag(date)
+				if err != nil {
+					return err
+				}
+				req.StatementDate = dateArg
+			}
+			if cmd.Flags().Changed("opening") {
+				req.OpeningBalance = &avav1.Decimal{Value: opening}
+			}
+			if cmd.Flags().Changed("closing") {
+				req.ClosingBalance = &avav1.Decimal{Value: closing}
+			}
+			resp, err := avav1.NewBankStatementServiceClient(conn).UpdateBankStatement(cmd.Context(), req)
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetBankStatement(), bankStatementNoun.Columns)
+		},
+	}
+	cmd.Flags().StringVar(&name, "name", "", "new statement name/label")
+	cmd.Flags().StringVar(&date, "date", "", "new statement date, YYYY-MM-DD")
+	cmd.Flags().StringVar(&opening, "opening", "", "new opening balance")
+	cmd.Flags().StringVar(&closing, "closing", "", "new closing balance")
+	cmd.Flags().BoolVar(&allowMismatch, "allow-opening-mismatch", false,
+		"skip the check that opening must equal the prior statement's closing balance for this account")
+	addResourceVersionFlag(cmd, &resourceVersion)
+	resource.Doc{
+		Summary:  "Fix a bank statement's own fields",
+		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",
+		Examples: []resource.Example{{Cmd: "avactl bank-statement update 3 --opening 10000.00"}},
 	}.Apply(cmd)
 	return cmd
 }
@@ -146,6 +227,45 @@ func newBankStatementReconcileCmd() *cobra.Command {
 		Detail:  "Each transaction must already post to the statement's own ledger account.",
 		Examples: []resource.Example{
 			{Cmd: "avactl bank-statement reconcile 3 --transaction 12 --transaction 13"},
+		},
+	}.Apply(cmd)
+	return cmd
+}
+
+func newBankStatementUnreconcileCmd() *cobra.Command {
+	var transactionIDs []int64
+
+	cmd := &cobra.Command{
+		Use:  "unreconcile <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			statementID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid bank-statement id %q: %w", args[0], err)
+			}
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			resp, err := avav1.NewBankStatementServiceClient(conn).UnreconcileLedgerTransactions(cmd.Context(), &avav1.UnreconcileLedgerTransactionsRequest{
+				BankStatementId:      statementID,
+				LedgerTransactionIds: transactionIDs,
+			})
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetBankStatement(), bankStatementNoun.Columns)
+		},
+	}
+	cmd.Flags().Int64SliceVar(&transactionIDs, "transaction", nil, "ledger transaction id to unreconcile (repeatable, required)")
+	_ = cmd.MarkFlagRequired("transaction")
+	resource.Doc{
+		Summary: "Unlink ledger transactions from a bank statement",
+		Detail:  "Undoes a wrong `reconcile` call, or clears lines before `deactivate`. The transactions reappear in `unreconciled`.",
+		Examples: []resource.Example{
+			{Cmd: "avactl bank-statement unreconcile 3 --transaction 12"},
 		},
 	}.Apply(cmd)
 	return cmd

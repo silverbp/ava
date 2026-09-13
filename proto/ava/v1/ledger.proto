@@ -30,6 +30,16 @@ service LedgerTransactionService {
   rpc GetLedgerTransaction(GetLedgerTransactionRequest) returns (GetLedgerTransactionResponse);
   rpc ListLedgerTransactions(ListLedgerTransactionsRequest) returns (ListLedgerTransactionsResponse);
   rpc CreateLedgerTransaction(CreateLedgerTransactionRequest) returns (CreateLedgerTransactionResponse);
+  // ReverseLedgerTransaction posts a new transaction mirroring an existing
+  // one with every entry's debit/credit swapped - the guided correction for
+  // a transaction posted in error, since there is no void/edit. The
+  // original transaction and its entries are never touched. Rejected with
+  // FAILED_PRECONDITION when the transaction is linked from an invoice or
+  // payment (correct those through `invoice cancel` / `payment void`
+  // instead, which keep paid_amount/balance_due/payment_application in
+  // sync), when it has already been reversed, when it is itself a reversal,
+  // or when the reversal's date falls in a closed period.
+  rpc ReverseLedgerTransaction(ReverseLedgerTransactionRequest) returns (ReverseLedgerTransactionResponse);
 }
 
 message LedgerAccount {
@@ -137,6 +147,9 @@ message LedgerTransaction {
   optional int64 created_by_user_id = 6;
   google.protobuf.Timestamp created_at = 7;
   repeated LedgerEntry entries = 8;
+  // Set when this transaction is a reversal: the id of the transaction it
+  // mirrors. At most one reversal exists per transaction.
+  optional int64 reverses_ledger_transaction_id = 9;
 }
 
 message GetLedgerTransactionRequest {
@@ -176,5 +189,18 @@ message CreateLedgerTransactionRequest {
 }
 
 message CreateLedgerTransactionResponse {
+  LedgerTransaction transaction = 1;
+}
+
+message ReverseLedgerTransactionRequest {
+  int64 id = 1;
+  // Date to post the reversal on. Defaults to the original's transaction_date;
+  // set it to a date in the open period when the original falls in a closed
+  // one. Must not be earlier than the original's date.
+  optional google.type.Date reversal_date = 2;
+}
+
+message ReverseLedgerTransactionResponse {
+  // The new, reversing transaction - not the original, which is unchanged.
   LedgerTransaction transaction = 1;
 }

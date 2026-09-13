@@ -42,11 +42,18 @@ RETURNING *;
 
 -- name: CreateLedgerTransaction :one
 INSERT INTO ledger_transaction (
-    business_id, transaction_date, description, reference_number, created_by_user_id
+    business_id, transaction_date, description, reference_number, created_by_user_id,
+    reverses_ledger_transaction_id
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, sqlc.narg('reverses_ledger_transaction_id')
 )
 RETURNING *;
+
+-- name: GetReversalOfLedgerTransaction :one
+-- The transaction that reverses $1, if one has been posted. The partial
+-- unique index on reverses_ledger_transaction_id guarantees at most one.
+SELECT * FROM ledger_transaction
+WHERE reverses_ledger_transaction_id = sqlc.arg('original_id')::bigint AND deleted_at IS NULL;
 
 -- name: GetLedgerTransaction :one
 SELECT * FROM ledger_transaction WHERE id = $1 AND deleted_at IS NULL;

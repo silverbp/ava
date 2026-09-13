@@ -26,6 +26,13 @@ var ledgerTransactionNoun = resource.Noun{
 		{Header: "DATE", Value: func(v proto.Message) string { return formatDate(v.(*avav1.LedgerTransaction).GetTransactionDate()) }},
 		{Header: "DESCRIPTION", Value: func(v proto.Message) string { return v.(*avav1.LedgerTransaction).GetDescription() }},
 		{Header: "ENTRIES", Value: func(v proto.Message) string { return fmt.Sprintf("%d", len(v.(*avav1.LedgerTransaction).GetEntries())) }},
+		{Header: "REVERSES", Value: func(v proto.Message) string {
+			t := v.(*avav1.LedgerTransaction)
+			if t.ReversesLedgerTransactionId == nil {
+				return ""
+			}
+			return fmt.Sprintf("%d", t.GetReversesLedgerTransactionId())
+		}},
 	},
 }
 
@@ -34,7 +41,51 @@ func newLedgerTransactionCmd() *cobra.Command {
 	root.AddCommand(newListCmd(ledgerTransactionNoun, listLedgerTransactions))
 	root.AddCommand(newGetCmd(ledgerTransactionNoun, getLedgerTransaction))
 	root.AddCommand(newLedgerTransactionPostCmd())
+	root.AddCommand(newLedgerTransactionReverseCmd())
 	return root
+}
+
+func newLedgerTransactionReverseCmd() *cobra.Command {
+	var date string
+	cmd := &cobra.Command{
+		Use:  "reverse <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid ledger-transaction id %q: %w", args[0], err)
+			}
+			reversalDate, err := parseOptionalDateFlag(date)
+			if err != nil {
+				return err
+			}
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			resp, err := avav1.NewLedgerTransactionServiceClient(conn).ReverseLedgerTransaction(cmd.Context(), &avav1.ReverseLedgerTransactionRequest{Id: id, ReversalDate: reversalDate})
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetTransaction(), ledgerTransactionNoun.Columns)
+		},
+	}
+	cmd.Flags().StringVar(&date, "date", "", "date to post the reversal on (YYYY-MM-DD); defaults to the original's date - set it when the original falls in a closed period")
+	resource.Doc{
+		Summary: "Post a new transaction reversing an existing one",
+		Detail: "Mirrors every entry of the original transaction with debit and credit swapped; the " +
+			"original is never touched. A transaction can be reversed once, and a reversal can't itself " +
+			"be reversed. Rejected if the transaction is linked from an invoice or " +
+			"payment - correct those through `invoice cancel` / `payment void` instead, which keep " +
+			"paid_amount/balance_due in sync.",
+		Examples: []resource.Example{
+			{Cmd: "avactl ledger-transaction reverse 42"},
+			{Cmd: "avactl ledger-transaction reverse 42 --date 2026-02-01", Desc: "original is in a closed period - post the reversal in the open one"},
+		},
+	}.Apply(cmd)
+	return cmd
 }
 
 func getLedgerTransaction(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
@@ -112,10 +163,9 @@ func newLedgerTransactionPostCmd() *cobra.Command {
 	resource.Doc{
 		Summary: "Post a balanced double-entry transaction",
 		Detail: "Repeat --entry once per posting line. Posting is atomic - the API " +
-			"never produces an unbalanced or partially-posted transaction - and, as " +
-			"of today, permanent: there is no void/reverse RPC yet, so correcting a " +
-			"mistake means posting a new, reversing transaction rather than undoing " +
-			"this one.",
+			"never produces an unbalanced or partially-posted transaction - and " +
+			"permanent: there is no edit or delete, so correcting a mistake means " +
+			"`ledger-transaction reverse` rather than undoing this one.",
 		Examples: []resource.Example{{Cmd: "avactl ledger-transaction post --date 2026-01-15 " +
 			"--entry account=101,debit=500.00 --entry account=400,credit=500.00"}},
 	}.Apply(cmd)

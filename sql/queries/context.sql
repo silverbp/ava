@@ -26,6 +26,18 @@ ORDER BY created_at DESC;
 UPDATE entity_context SET superseded_by_id = $2, updated_at = NOW()
 WHERE id = $1;
 
+-- name: DeleteEntityContext :one
+UPDATE entity_context SET deleted_at = NOW(), updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
+-- name: ClearSupersededBy :exec
+-- Run alongside DeleteEntityContext: notes the deleted row superseded
+-- become current again, rather than staying hidden behind a dead pointer
+-- (ListEntityContextForEntity filters superseded_by_id IS NULL by default).
+UPDATE entity_context SET superseded_by_id = NULL, updated_at = NOW()
+WHERE superseded_by_id = sqlc.arg('deleted_id')::bigint AND deleted_at IS NULL;
+
 -- name: CreateAttachment :one
 INSERT INTO attachment (
     business_id, entity_type, entity_id, original_filename, storage_key,

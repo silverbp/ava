@@ -1,10 +1,6 @@
 # Ava Architecture Notes
 
-Design notes for application-layer work that isn't visible in the schema itself. Currently just
-one section: what's left to make period close (`migrations/00001_initial.up.sql`, `period_close` /
-`period_close_entry` / `enforce_period_lock`, documented in
-[`schema.md`](schema.md#1-core-ledger--chart-of-accounts)) actually usable. `cmd/ava` and
-`internal/` are still empty scaffolding — none of this exists in code yet.
+Design notes for application-layer work that isn't visible in the schema itself.
 
 ## Period close
 
@@ -88,3 +84,70 @@ MCP server as a consumer of this schema, period close is a natural candidate for
   container (full close doesn't self-lock; boundary-dated inserts rejected; post-close dates
   accepted; edits to locked entries rejected) but there's no test suite yet, since there's no
   application code to test against.
+
+## Corrections model
+
+`ledger_transaction`/`ledger_entry` have no built-in versioning or void flag — the schema enforces
+that each transaction balances, but has no opinion on how a mistake gets fixed. Two different
+correction patterns exist in the code today, and which one applies depends on where the mistake is
+being fixed from:
+
+1. **Editing a document's own lines, in an open period, supersedes its ledger entries in place.**
+   `UpdateInvoiceLineItems`/`UpdateEstimateLineItems` on an already-posted document call
+   `repostInvoiceLedger`: the existing `ledger_entry` rows under that document's
+   `ledger_transaction_id` are soft-deleted (`SoftDeleteLedgerEntriesByTransaction`, an `UPDATE ...
+   SET deleted_at`, never a hard `DELETE`) and replaced — the transaction id itself never changes.
+   This is the schema's own soft-delete-over-mutation convention (every mutable table gets
+   `deleted_at` instead of a real delete), applied to a ledger-entry edit rather than a document
+   edit. The superseded rows are retained, just filtered out of every read query
+   (`AND deleted_at IS NULL`) — there's currently no API surface to read them back.
+2. **Once a period is closed, pattern 1 is rejected outright.** `enforce_period_lock`'s trigger on
+   `ledger_entry` fires on `UPDATE OF debit_amount, credit_amount, account_id, deleted_at` — so the
+   soft-delete step of a repost is itself a locked write, and the whole edit fails with
+   `FAILED_PRECONDITION` once its transaction's date falls at or before the latest unreversed
+   `period_close.period_end`. The only correction left at that point is a genuine reversing
+   transaction (pattern 3) dated in the still-open period.
+3. **Everything else — a raw `ledger-transaction post`, a cancelled invoice, a voided payment, an
+   undone period close — is corrected with a new, mirrored transaction, never by editing or
+   deleting the original.** `internal/ledgerpost.ReverseTransaction` is the one shared primitive for
+   this: it reads the original transaction's entries and posts a new transaction with every debit
+   and credit swapped, leaving the original completely untouched, and stamps the new row's
+   `reverses_ledger_transaction_id` with the original's id. The partial unique index on that
+   column is what makes a reversal once-only at the database level - a retried or concurrent
+   second reversal of the same transaction fails on INSERT instead of doubling the correction.
+   Three callers share it:
+   - `ledger-transaction reverse` (`LedgerTransactionService.ReverseLedgerTransaction`) for a raw
+     posting mistake. It refuses a transaction linked from an invoice or payment
+     (`CountDocumentsForLedgerTransaction`, which deliberately counts voided payments too) —
+     correct those through the document instead (next bullet), since a bare ledger reversal would
+     fix the GL while leaving `paid_amount`/`balance_due`/`payment_application` stale. It also
+     refuses a transaction that already has a reversal, and a transaction that *is* a reversal
+     (reinstating a wrongly-reversed posting means posting it again, not reversing the reversal).
+   - `invoice cancel` (`UpdateInvoiceStatus` transitioning to `CANCELLED`) and `payment void`
+     (`VoidPayment`) — both reverse their own linked transaction *and* update the document-side
+     state that lives outside the ledger (`balance_due`→0 for a cancelled invoice;
+     `payment_application` rows removed and the invoice's `paid_amount`/`balance_due`/`status`
+     restored for a voided payment, where `PAID` goes back to `SENT` and any other status is left
+     alone). `invoice cancel` itself refuses while any payment is still applied — void those
+     first. A cancelled invoice is then frozen: `UpdateInvoice`/`UpdateInvoiceLineItems` refuse it,
+     since re-posting under the same `ledger_transaction_id` would leave the reversal mismatched.
+     Payments can only be applied to a `SENT`/`OVERDUE` invoice (never `DRAFT`), so the
+     restore-to-`SENT` on void is always right.
+
+   All three take an optional reversal date (`--date` on the CLI; `reversal_date` on the RPC),
+   defaulting to the original's own date and never allowed earlier than it. That's how a mistake
+   in a *closed* period gets corrected: `enforce_period_lock` rejects any new transaction dated at
+   or before the latest close, so the reversal is posted in the still-open period instead. Only
+   `close reverse` always reuses the original date, since it has just unlocked that period itself.
+   - `close reverse` (`internal/periodclose.Reverse`), the original motivating case: marks the
+     `period_close` row `reversed_at` (unlocking the period), then reverses every transaction the
+     close generated. Re-closing later generates fresh closing transactions, so the once-only
+     index never gets in its way.
+
+In short: an open-period document edit supersedes in place; anything closed, raw, or
+document-linked gets a new reversing transaction instead. If this ever chafes — e.g. a future
+requirement that *all* corrections leave the original untouched even in an open period — change
+pattern 1 to call `ledgerpost.ReverseTransaction` too rather than `repostInvoiceLedger`'s
+soft-delete-and-replace, but note that turns every document-edit id into a document → many
+transactions relationship, which today's `invoice.ledger_transaction_id` (a single nullable FK)
+doesn't model.

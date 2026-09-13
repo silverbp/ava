@@ -21,6 +21,12 @@ service EntityContextService {
   rpc GetEntityContext(GetEntityContextRequest) returns (GetEntityContextResponse);
   rpc ListEntityContext(ListEntityContextRequest) returns (ListEntityContextResponse);
   rpc CreateEntityContext(CreateEntityContextRequest) returns (CreateEntityContextResponse);
+  // DeleteEntityContext soft-deletes a context row outright - for a note
+  // that shouldn't have been created at all. The designed way to correct a
+  // *stale* note is still supersession (CreateEntityContext's
+  // supersedes_ids), which keeps the trail; this is for removing one
+  // entirely.
+  rpc DeleteEntityContext(DeleteEntityContextRequest) returns (DeleteEntityContextResponse);
 }
 
 // AttachmentService: same polymorphic entity_type/entity_id pattern, for
@@ -93,6 +99,14 @@ message CreateEntityContextRequest {
 }
 
 message CreateEntityContextResponse {
+  EntityContext entity_context = 1;
+}
+
+message DeleteEntityContextRequest {
+  int64 id = 1;
+}
+
+message DeleteEntityContextResponse {
   EntityContext entity_context = 1;
 }
 

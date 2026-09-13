@@ -28,6 +28,7 @@ erDiagram
     income_statement_category |o--o{ ledger_account : "income_statement_category_id"
     ledger_account |o--o{ ledger_account : "parent_account_id"
     business ||--o{ ledger_transaction : "business_id"
+    ledger_transaction |o--o| ledger_transaction : "reverses_ledger_transaction_id"
     business ||--o{ ledger_entry : "business_id"
     ledger_transaction ||--o{ ledger_entry : "ledger_transaction_id"
     ledger_account ||--o{ ledger_entry : "account_id"
@@ -79,6 +80,7 @@ erDiagram
         bigint business_id FK
         date transaction_date
         text description
+        bigint reverses_ledger_transaction_id FK "set on a reversal; unique"
     }
     ledger_entry {
         bigint id PK
@@ -123,6 +125,10 @@ erDiagram
   shared event (date, description, reference); `ledger_entry` is each individual debit or credit
   posting under it. A CHECK constraint enforces exactly one side populated per entry, so
   `SUM(debit) = SUM(credit)` is a checkable property of the data, not just a hope.
+  `reverses_ledger_transaction_id` is set on a reversing transaction (every reversal goes through
+  `internal/ledgerpost.ReverseTransaction`) to the transaction it mirrors; a partial unique index
+  on it means a transaction can be reversed at most once, and lets `ReverseLedgerTransaction`
+  refuse to reverse a reversal. See `docs/architecture.md`, "Corrections model".
 - **`currency_code`** — single-currency for now. `business.currency_code` is informational only
   (no `currency`/`exchange_rate` tables, no per-account or per-entry currency tracking).
   Everything is assumed USD; multi-currency was designed once already and deliberately stripped
@@ -344,7 +350,12 @@ erDiagram
   `ledger_account_id` set — an invoice posts atomically at creation, always.
   `UpdateInvoiceLineItems` regenerates the linked ledger transaction's entries in place (same
   `ledger_transaction_id`, entries replaced) when a posted invoice's lines change, rather than
-  rejecting the edit.
+  rejecting the edit — see `docs/architecture.md`, "Corrections model". One consequence of that:
+  the snapshot is re-taken every time a line's account is resolved, not just once. Changing an
+  item's `default_ledger_account_id` never rewrites an *untouched* historical invoice — but calling
+  `UpdateInvoiceLineItems` on an old invoice **after** changing the item's default moves that
+  invoice's line (and its posted entries) to the new account, same as any other invoice created
+  after the change. The snapshot protects against silent rewrites, not against a deliberate re-edit.
 - **Discounts are a negative line against a catalog item, not a header field.** A line's
   `quantity`/`unit_price`/`line_subtotal`/`line_total` carry no CHECK constraints, so a negative
   amount is representable end to end: `writeInvoiceLedgerEntries`'s `debitCreditFor` maps a

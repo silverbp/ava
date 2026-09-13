@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearSupersededBy = `-- name: ClearSupersededBy :exec
+UPDATE entity_context SET superseded_by_id = NULL, updated_at = NOW()
+WHERE superseded_by_id = $1::bigint AND deleted_at IS NULL
+`
+
+// Run alongside DeleteEntityContext: notes the deleted row superseded
+// become current again, rather than staying hidden behind a dead pointer
+// (ListEntityContextForEntity filters superseded_by_id IS NULL by default).
+func (q *Queries) ClearSupersededBy(ctx context.Context, deletedID int64) error {
+	_, err := q.db.Exec(ctx, clearSupersededBy, deletedID)
+	return err
+}
+
 const createAttachment = `-- name: CreateAttachment :one
 INSERT INTO attachment (
     business_id, entity_type, entity_id, original_filename, storage_key,
@@ -141,6 +154,34 @@ func (q *Queries) DeleteAttachment(ctx context.Context, id int64) (Attachment, e
 		&i.DisplaySequence,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const deleteEntityContext = `-- name: DeleteEntityContext :one
+UPDATE entity_context SET deleted_at = NOW(), updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, business_id, entity_type, entity_id, context_type, content, metadata, source, confidence, superseded_by_id, created_by_user_id, created_at, updated_at, deleted_at
+`
+
+func (q *Queries) DeleteEntityContext(ctx context.Context, id int64) (EntityContext, error) {
+	row := q.db.QueryRow(ctx, deleteEntityContext, id)
+	var i EntityContext
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.EntityType,
+		&i.EntityID,
+		&i.ContextType,
+		&i.Content,
+		&i.Metadata,
+		&i.Source,
+		&i.Confidence,
+		&i.SupersededByID,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.DeletedAt,
 	)
 	return i, err

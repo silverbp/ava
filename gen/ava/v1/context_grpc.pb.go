@@ -25,6 +25,7 @@ const (
 	EntityContextService_GetEntityContext_FullMethodName    = "/ava.v1.EntityContextService/GetEntityContext"
 	EntityContextService_ListEntityContext_FullMethodName   = "/ava.v1.EntityContextService/ListEntityContext"
 	EntityContextService_CreateEntityContext_FullMethodName = "/ava.v1.EntityContextService/CreateEntityContext"
+	EntityContextService_DeleteEntityContext_FullMethodName = "/ava.v1.EntityContextService/DeleteEntityContext"
 )
 
 // EntityContextServiceClient is the client API for EntityContextService service.
@@ -42,6 +43,12 @@ type EntityContextServiceClient interface {
 	GetEntityContext(ctx context.Context, in *GetEntityContextRequest, opts ...grpc.CallOption) (*GetEntityContextResponse, error)
 	ListEntityContext(ctx context.Context, in *ListEntityContextRequest, opts ...grpc.CallOption) (*ListEntityContextResponse, error)
 	CreateEntityContext(ctx context.Context, in *CreateEntityContextRequest, opts ...grpc.CallOption) (*CreateEntityContextResponse, error)
+	// DeleteEntityContext soft-deletes a context row outright - for a note
+	// that shouldn't have been created at all. The designed way to correct a
+	// *stale* note is still supersession (CreateEntityContext's
+	// supersedes_ids), which keeps the trail; this is for removing one
+	// entirely.
+	DeleteEntityContext(ctx context.Context, in *DeleteEntityContextRequest, opts ...grpc.CallOption) (*DeleteEntityContextResponse, error)
 }
 
 type entityContextServiceClient struct {
@@ -82,6 +89,16 @@ func (c *entityContextServiceClient) CreateEntityContext(ctx context.Context, in
 	return out, nil
 }
 
+func (c *entityContextServiceClient) DeleteEntityContext(ctx context.Context, in *DeleteEntityContextRequest, opts ...grpc.CallOption) (*DeleteEntityContextResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteEntityContextResponse)
+	err := c.cc.Invoke(ctx, EntityContextService_DeleteEntityContext_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EntityContextServiceServer is the server API for EntityContextService service.
 // All implementations must embed UnimplementedEntityContextServiceServer
 // for forward compatibility.
@@ -97,6 +114,12 @@ type EntityContextServiceServer interface {
 	GetEntityContext(context.Context, *GetEntityContextRequest) (*GetEntityContextResponse, error)
 	ListEntityContext(context.Context, *ListEntityContextRequest) (*ListEntityContextResponse, error)
 	CreateEntityContext(context.Context, *CreateEntityContextRequest) (*CreateEntityContextResponse, error)
+	// DeleteEntityContext soft-deletes a context row outright - for a note
+	// that shouldn't have been created at all. The designed way to correct a
+	// *stale* note is still supersession (CreateEntityContext's
+	// supersedes_ids), which keeps the trail; this is for removing one
+	// entirely.
+	DeleteEntityContext(context.Context, *DeleteEntityContextRequest) (*DeleteEntityContextResponse, error)
 	mustEmbedUnimplementedEntityContextServiceServer()
 }
 
@@ -115,6 +138,9 @@ func (UnimplementedEntityContextServiceServer) ListEntityContext(context.Context
 }
 func (UnimplementedEntityContextServiceServer) CreateEntityContext(context.Context, *CreateEntityContextRequest) (*CreateEntityContextResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateEntityContext not implemented")
+}
+func (UnimplementedEntityContextServiceServer) DeleteEntityContext(context.Context, *DeleteEntityContextRequest) (*DeleteEntityContextResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteEntityContext not implemented")
 }
 func (UnimplementedEntityContextServiceServer) mustEmbedUnimplementedEntityContextServiceServer() {}
 func (UnimplementedEntityContextServiceServer) testEmbeddedByValue()                              {}
@@ -191,6 +217,24 @@ func _EntityContextService_CreateEntityContext_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EntityContextService_DeleteEntityContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteEntityContextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EntityContextServiceServer).DeleteEntityContext(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EntityContextService_DeleteEntityContext_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EntityContextServiceServer).DeleteEntityContext(ctx, req.(*DeleteEntityContextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EntityContextService_ServiceDesc is the grpc.ServiceDesc for EntityContextService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -209,6 +253,10 @@ var EntityContextService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateEntityContext",
 			Handler:    _EntityContextService_CreateEntityContext_Handler,
+		},
+		{
+			MethodName: "DeleteEntityContext",
+			Handler:    _EntityContextService_DeleteEntityContext_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

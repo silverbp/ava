@@ -45,7 +45,50 @@ func newPaymentCmd() *cobra.Command {
 	root.AddCommand(newListCmd(paymentNoun, listPayments))
 	root.AddCommand(newGetCmd(paymentNoun, getPayment))
 	root.AddCommand(newPaymentCreateCmd())
+	root.AddCommand(newPaymentVoidCmd())
 	return root
+}
+
+func newPaymentVoidCmd() *cobra.Command {
+	var date string
+	cmd := &cobra.Command{
+		Use:  "void <id>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid payment id %q: %w", args[0], err)
+			}
+			reversalDate, err := parseOptionalDateFlag(date)
+			if err != nil {
+				return err
+			}
+			conn, _, _, err := dial()
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			resp, err := avav1.NewPaymentServiceClient(conn).VoidPayment(cmd.Context(), &avav1.VoidPaymentRequest{Id: id, ReversalDate: reversalDate})
+			if err != nil {
+				return err
+			}
+			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetPayment(), paymentNoun.Columns)
+		},
+	}
+	cmd.Flags().StringVar(&date, "date", "", "date to post the reversing ledger transaction on (YYYY-MM-DD); defaults to the payment date - set it when the payment falls in a closed period")
+	resource.Doc{
+		Summary: "Void a payment",
+		Detail: "Removes every application (restoring the invoice's paid_amount/balance_due/status), " +
+			"reverses the payment's ledger posting if it had one, then removes the payment itself. " +
+			"The output shows the payment as it stood immediately before voiding - a second `get`/`void` " +
+			"on the same id returns not-found.",
+		Examples: []resource.Example{
+			{Cmd: "avactl payment void 42"},
+			{Cmd: "avactl payment void 42 --date 2026-02-01", Desc: "payment is in a closed period - post the reversal in the open one"},
+		},
+	}.Apply(cmd)
+	return cmd
 }
 
 func getPayment(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {

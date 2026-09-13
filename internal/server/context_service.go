@@ -138,6 +138,42 @@ func (s *entityContextService) CreateEntityContext(ctx context.Context, req *ava
 	return &avav1.CreateEntityContextResponse{EntityContext: pb}, nil
 }
 
+func (s *entityContextService) DeleteEntityContext(ctx context.Context, req *avav1.DeleteEntityContextRequest) (*avav1.DeleteEntityContextResponse, error) {
+	existing, err := s.store.Queries.GetEntityContext(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "entity context %d not found", req.GetId())
+		}
+		return nil, translatePgError(err)
+	}
+	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
+		return nil, err
+	}
+	var deleted sqlcgen.EntityContext
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		var err error
+		deleted, err = q.DeleteEntityContext(ctx, req.GetId())
+		if err != nil {
+			return err
+		}
+		// Anything this note superseded becomes current again - otherwise
+		// it would stay hidden from the default listing behind a pointer to
+		// a deleted row.
+		return q.ClearSupersededBy(ctx, deleted.ID)
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "entity context %d not found", req.GetId())
+		}
+		return nil, closeErrorStatus(err)
+	}
+	pb, err := entityContextToProto(deleted)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting entity context: %v", err)
+	}
+	return &avav1.DeleteEntityContextResponse{EntityContext: pb}, nil
+}
+
 func entityContextToProto(ec sqlcgen.EntityContext) (*avav1.EntityContext, error) {
 	confidence, err := moneypb.ToProto(ec.Confidence)
 	if err != nil {

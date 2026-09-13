@@ -35,7 +35,24 @@ service InvoiceService {
   rpc GetInvoice(GetInvoiceRequest) returns (GetInvoiceResponse);
   rpc ListInvoices(ListInvoicesRequest) returns (ListInvoicesResponse);
   rpc CreateInvoice(CreateInvoiceRequest) returns (CreateInvoiceResponse);
+  // UpdateInvoice edits header fields with no ledger impact: notes, terms,
+  // due_date. Deliberately not editable here: invoice_date (it's the GL
+  // posting date - changing it would need a repost and interacts with the
+  // period lock), contact_id (changes which AR/AP account the invoice
+  // posts against, and would invalidate any existing payment_application),
+  // and invoice_number (collides with next_invoice_number continuity).
+  // Those stay cancel-and-recreate. Rejected with FAILED_PRECONDITION on a
+  // CANCELLED invoice.
+  rpc UpdateInvoice(UpdateInvoiceRequest) returns (UpdateInvoiceResponse);
+  // UpdateInvoiceStatus transitioning to CANCELLED reverses the invoice's
+  // ledger entries (a new transaction, debits/credits swapped - the
+  // original posting is untouched) and zeroes balance_due. Rejected with
+  // FAILED_PRECONDITION if any payment is still applied - void those first.
   rpc UpdateInvoiceStatus(UpdateInvoiceStatusRequest) returns (UpdateInvoiceStatusResponse);
+  // UpdateInvoiceLineItems is rejected with FAILED_PRECONDITION on a
+  // CANCELLED invoice (its posting has already been reversed; re-posting
+  // would leave the reversal mismatched) and on a PAID one (void the payment
+  // first).
   rpc UpdateInvoiceLineItems(UpdateInvoiceLineItemsRequest) returns (UpdateInvoiceLineItemsResponse);
   rpc GetInvoicePdf(GetInvoicePdfRequest) returns (GetInvoicePdfResponse);
 }
@@ -46,11 +63,19 @@ service InvoiceService {
 // invoice, since a real deposit often covers several at once. Applying is
 // independent of posting; CreatePayment additionally posts to the ledger
 // under the same condition as invoices — ledger_account_id (the cash/bank
-// account) set, and the contact has its own ledger_account_id.
+// account) set, and the contact has its own ledger_account_id. An
+// application is rejected if it would exceed the invoice's own remaining
+// balance_due, not just the payment's own amount, and only a SENT, OVERDUE
+// or PAID invoice accepts one - send a DRAFT first.
 service PaymentService {
   rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
   rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
   rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+  // VoidPayment reverses a payment: every payment_application is removed
+  // and its invoice's paid_amount/balance_due/status restored, then (if the
+  // payment was posted) a reversing ledger transaction is posted and the
+  // payment itself soft-deleted. Rejected if already void.
+  rpc VoidPayment(VoidPaymentRequest) returns (VoidPaymentResponse);
 }
 
 message EstimateLineItem {
@@ -280,9 +305,31 @@ message CreateInvoiceResponse {
   Invoice invoice = 1;
 }
 
+// UpdateInvoiceRequest edits only fields with no ledger impact - see
+// InvoiceService.UpdateInvoice for what's deliberately excluded and why.
+message UpdateInvoiceRequest {
+  int64 id = 1;
+  optional string notes = 2;
+  optional string terms = 3;
+  optional google.type.Date due_date = 4;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 5;
+}
+
+message UpdateInvoiceResponse {
+  Invoice invoice = 1;
+}
+
 message UpdateInvoiceStatusRequest {
   int64 id = 1;
   string status = 2;
+  // Only used when status is CANCELLED: the date to post the cancellation's
+  // reversing ledger transaction on. Defaults to invoice_date; set it to a
+  // date in the open period when the invoice falls in a closed one. Must not
+  // be earlier than invoice_date.
+  optional google.type.Date reversal_date = 4;
   // Optimistic-concurrency precondition - see Business.resource_version. Pass the
   // resource_version from the copy you read to fail with ABORTED if it's since changed;
   // leave unset (0) to write unconditionally.
@@ -366,6 +413,24 @@ message ListPaymentsRequest {
 
 message ListPaymentsResponse {
   repeated Payment payments = 1;
+}
+
+// VoidPaymentRequest carries no resource_version precondition - payment has
+// no resource_version column (unlike bank_statement/invoice/tax_rate).
+message VoidPaymentRequest {
+  int64 id = 1;
+  // Date to post the void's reversing ledger transaction on (only matters for
+  // a posted payment). Defaults to payment_date; set it to a date in the open
+  // period when the payment falls in a closed one. Must not be earlier than
+  // payment_date.
+  optional google.type.Date reversal_date = 2;
+}
+
+message VoidPaymentResponse {
+  // The payment as it stood immediately before voiding - it no longer
+  // exists as a live row afterward (see VoidPayment), so there is nothing
+  // later to GetPayment.
+  Payment payment = 1;
 }
 
 message CreatePaymentRequest {

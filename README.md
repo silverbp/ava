@@ -10,6 +10,7 @@ banking/reconciliation, period close, tax, and reporting, with passkey (WebAuthn
 - `proto/ava/v1/` — gRPC service and message definitions (`buf generate` → `gen/ava/v1/`)
 - `sql/queries/` — sqlc query definitions (`sqlc generate` → `internal/db/sqlcgen/`)
 - `internal/server/` — gRPC service implementations
+- `internal/ledgerpost/` — shared ledger-posting primitives (e.g. reversing transactions)
 - `internal/avactl/`, `cmd/avactl/` — CLI client
 - `cmd/ava/` — API server entrypoint
 - `docs/` — architecture notes and schema reference

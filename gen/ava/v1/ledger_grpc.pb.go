@@ -284,9 +284,10 @@ var LedgerAccountService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	LedgerTransactionService_GetLedgerTransaction_FullMethodName    = "/ava.v1.LedgerTransactionService/GetLedgerTransaction"
-	LedgerTransactionService_ListLedgerTransactions_FullMethodName  = "/ava.v1.LedgerTransactionService/ListLedgerTransactions"
-	LedgerTransactionService_CreateLedgerTransaction_FullMethodName = "/ava.v1.LedgerTransactionService/CreateLedgerTransaction"
+	LedgerTransactionService_GetLedgerTransaction_FullMethodName     = "/ava.v1.LedgerTransactionService/GetLedgerTransaction"
+	LedgerTransactionService_ListLedgerTransactions_FullMethodName   = "/ava.v1.LedgerTransactionService/ListLedgerTransactions"
+	LedgerTransactionService_CreateLedgerTransaction_FullMethodName  = "/ava.v1.LedgerTransactionService/CreateLedgerTransaction"
+	LedgerTransactionService_ReverseLedgerTransaction_FullMethodName = "/ava.v1.LedgerTransactionService/ReverseLedgerTransaction"
 )
 
 // LedgerTransactionServiceClient is the client API for LedgerTransactionService service.
@@ -301,6 +302,16 @@ type LedgerTransactionServiceClient interface {
 	GetLedgerTransaction(ctx context.Context, in *GetLedgerTransactionRequest, opts ...grpc.CallOption) (*GetLedgerTransactionResponse, error)
 	ListLedgerTransactions(ctx context.Context, in *ListLedgerTransactionsRequest, opts ...grpc.CallOption) (*ListLedgerTransactionsResponse, error)
 	CreateLedgerTransaction(ctx context.Context, in *CreateLedgerTransactionRequest, opts ...grpc.CallOption) (*CreateLedgerTransactionResponse, error)
+	// ReverseLedgerTransaction posts a new transaction mirroring an existing
+	// one with every entry's debit/credit swapped - the guided correction for
+	// a transaction posted in error, since there is no void/edit. The
+	// original transaction and its entries are never touched. Rejected with
+	// FAILED_PRECONDITION when the transaction is linked from an invoice or
+	// payment (correct those through `invoice cancel` / `payment void`
+	// instead, which keep paid_amount/balance_due/payment_application in
+	// sync), when it has already been reversed, when it is itself a reversal,
+	// or when the reversal's date falls in a closed period.
+	ReverseLedgerTransaction(ctx context.Context, in *ReverseLedgerTransactionRequest, opts ...grpc.CallOption) (*ReverseLedgerTransactionResponse, error)
 }
 
 type ledgerTransactionServiceClient struct {
@@ -341,6 +352,16 @@ func (c *ledgerTransactionServiceClient) CreateLedgerTransaction(ctx context.Con
 	return out, nil
 }
 
+func (c *ledgerTransactionServiceClient) ReverseLedgerTransaction(ctx context.Context, in *ReverseLedgerTransactionRequest, opts ...grpc.CallOption) (*ReverseLedgerTransactionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReverseLedgerTransactionResponse)
+	err := c.cc.Invoke(ctx, LedgerTransactionService_ReverseLedgerTransaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LedgerTransactionServiceServer is the server API for LedgerTransactionService service.
 // All implementations must embed UnimplementedLedgerTransactionServiceServer
 // for forward compatibility.
@@ -353,6 +374,16 @@ type LedgerTransactionServiceServer interface {
 	GetLedgerTransaction(context.Context, *GetLedgerTransactionRequest) (*GetLedgerTransactionResponse, error)
 	ListLedgerTransactions(context.Context, *ListLedgerTransactionsRequest) (*ListLedgerTransactionsResponse, error)
 	CreateLedgerTransaction(context.Context, *CreateLedgerTransactionRequest) (*CreateLedgerTransactionResponse, error)
+	// ReverseLedgerTransaction posts a new transaction mirroring an existing
+	// one with every entry's debit/credit swapped - the guided correction for
+	// a transaction posted in error, since there is no void/edit. The
+	// original transaction and its entries are never touched. Rejected with
+	// FAILED_PRECONDITION when the transaction is linked from an invoice or
+	// payment (correct those through `invoice cancel` / `payment void`
+	// instead, which keep paid_amount/balance_due/payment_application in
+	// sync), when it has already been reversed, when it is itself a reversal,
+	// or when the reversal's date falls in a closed period.
+	ReverseLedgerTransaction(context.Context, *ReverseLedgerTransactionRequest) (*ReverseLedgerTransactionResponse, error)
 	mustEmbedUnimplementedLedgerTransactionServiceServer()
 }
 
@@ -371,6 +402,9 @@ func (UnimplementedLedgerTransactionServiceServer) ListLedgerTransactions(contex
 }
 func (UnimplementedLedgerTransactionServiceServer) CreateLedgerTransaction(context.Context, *CreateLedgerTransactionRequest) (*CreateLedgerTransactionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateLedgerTransaction not implemented")
+}
+func (UnimplementedLedgerTransactionServiceServer) ReverseLedgerTransaction(context.Context, *ReverseLedgerTransactionRequest) (*ReverseLedgerTransactionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReverseLedgerTransaction not implemented")
 }
 func (UnimplementedLedgerTransactionServiceServer) mustEmbedUnimplementedLedgerTransactionServiceServer() {
 }
@@ -448,6 +482,24 @@ func _LedgerTransactionService_CreateLedgerTransaction_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LedgerTransactionService_ReverseLedgerTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReverseLedgerTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LedgerTransactionServiceServer).ReverseLedgerTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LedgerTransactionService_ReverseLedgerTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LedgerTransactionServiceServer).ReverseLedgerTransaction(ctx, req.(*ReverseLedgerTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LedgerTransactionService_ServiceDesc is the grpc.ServiceDesc for LedgerTransactionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -466,6 +518,10 @@ var LedgerTransactionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateLedgerTransaction",
 			Handler:    _LedgerTransactionService_CreateLedgerTransaction_Handler,
+		},
+		{
+			MethodName: "ReverseLedgerTransaction",
+			Handler:    _LedgerTransactionService_ReverseLedgerTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

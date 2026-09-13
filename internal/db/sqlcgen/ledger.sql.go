@@ -127,19 +127,21 @@ func (q *Queries) CreateLedgerEntry(ctx context.Context, arg CreateLedgerEntryPa
 
 const createLedgerTransaction = `-- name: CreateLedgerTransaction :one
 INSERT INTO ledger_transaction (
-    business_id, transaction_date, description, reference_number, created_by_user_id
+    business_id, transaction_date, description, reference_number, created_by_user_id,
+    reverses_ledger_transaction_id
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
-RETURNING id, business_id, transaction_date, description, reference_number, created_by_user_id, created_at, updated_at, deleted_at
+RETURNING id, business_id, transaction_date, description, reference_number, reverses_ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at
 `
 
 type CreateLedgerTransactionParams struct {
-	BusinessID      int64       `json:"business_id"`
-	TransactionDate pgtype.Date `json:"transaction_date"`
-	Description     *string     `json:"description"`
-	ReferenceNumber *string     `json:"reference_number"`
-	CreatedByUserID *int64      `json:"created_by_user_id"`
+	BusinessID                  int64       `json:"business_id"`
+	TransactionDate             pgtype.Date `json:"transaction_date"`
+	Description                 *string     `json:"description"`
+	ReferenceNumber             *string     `json:"reference_number"`
+	CreatedByUserID             *int64      `json:"created_by_user_id"`
+	ReversesLedgerTransactionID *int64      `json:"reverses_ledger_transaction_id"`
 }
 
 func (q *Queries) CreateLedgerTransaction(ctx context.Context, arg CreateLedgerTransactionParams) (LedgerTransaction, error) {
@@ -149,6 +151,7 @@ func (q *Queries) CreateLedgerTransaction(ctx context.Context, arg CreateLedgerT
 		arg.Description,
 		arg.ReferenceNumber,
 		arg.CreatedByUserID,
+		arg.ReversesLedgerTransactionID,
 	)
 	var i LedgerTransaction
 	err := row.Scan(
@@ -157,6 +160,7 @@ func (q *Queries) CreateLedgerTransaction(ctx context.Context, arg CreateLedgerT
 		&i.TransactionDate,
 		&i.Description,
 		&i.ReferenceNumber,
+		&i.ReversesLedgerTransactionID,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -290,7 +294,7 @@ func (q *Queries) GetLedgerAccountType(ctx context.Context, id int32) (LedgerAcc
 }
 
 const getLedgerTransaction = `-- name: GetLedgerTransaction :one
-SELECT id, business_id, transaction_date, description, reference_number, created_by_user_id, created_at, updated_at, deleted_at FROM ledger_transaction WHERE id = $1 AND deleted_at IS NULL
+SELECT id, business_id, transaction_date, description, reference_number, reverses_ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM ledger_transaction WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetLedgerTransaction(ctx context.Context, id int64) (LedgerTransaction, error) {
@@ -302,6 +306,32 @@ func (q *Queries) GetLedgerTransaction(ctx context.Context, id int64) (LedgerTra
 		&i.TransactionDate,
 		&i.Description,
 		&i.ReferenceNumber,
+		&i.ReversesLedgerTransactionID,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getReversalOfLedgerTransaction = `-- name: GetReversalOfLedgerTransaction :one
+SELECT id, business_id, transaction_date, description, reference_number, reverses_ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM ledger_transaction
+WHERE reverses_ledger_transaction_id = $1::bigint AND deleted_at IS NULL
+`
+
+// The transaction that reverses $1, if one has been posted. The partial
+// unique index on reverses_ledger_transaction_id guarantees at most one.
+func (q *Queries) GetReversalOfLedgerTransaction(ctx context.Context, originalID int64) (LedgerTransaction, error) {
+	row := q.db.QueryRow(ctx, getReversalOfLedgerTransaction, originalID)
+	var i LedgerTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.TransactionDate,
+		&i.Description,
+		&i.ReferenceNumber,
+		&i.ReversesLedgerTransactionID,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -425,7 +455,7 @@ func (q *Queries) ListLedgerEntriesByTransactionIDs(ctx context.Context, transac
 }
 
 const listLedgerTransactions = `-- name: ListLedgerTransactions :many
-SELECT id, business_id, transaction_date, description, reference_number, created_by_user_id, created_at, updated_at, deleted_at FROM ledger_transaction
+SELECT id, business_id, transaction_date, description, reference_number, reverses_ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM ledger_transaction
 WHERE business_id = $1 AND deleted_at IS NULL AND id < $2
 ORDER BY id DESC
 LIMIT $3
@@ -452,6 +482,7 @@ func (q *Queries) ListLedgerTransactions(ctx context.Context, arg ListLedgerTran
 			&i.TransactionDate,
 			&i.Description,
 			&i.ReferenceNumber,
+			&i.ReversesLedgerTransactionID,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
