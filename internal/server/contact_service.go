@@ -5,7 +5,10 @@ package server
 
 import (
 	"context"
+	"errors"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -13,7 +16,9 @@ import (
 	"github.com/silverbp/ava/internal/auth"
 	"github.com/silverbp/ava/internal/db"
 	"github.com/silverbp/ava/internal/db/sqlcgen"
+	"github.com/silverbp/ava/internal/ledgermath"
 	"github.com/silverbp/ava/internal/moneypb"
+	"github.com/silverbp/ava/internal/reporting"
 )
 
 type contactService struct {
@@ -156,9 +161,17 @@ func (s *contactService) DeactivateContact(ctx context.Context, req *avav1.Deact
 	if _, err := contactRes.load(ctx, s.store.Queries, req.GetId(), "MEMBER"); err != nil {
 		return nil, err
 	}
-	deactivated, err := s.store.Queries.DeactivateContact(ctx, sqlcgen.DeactivateContactParams{
-		ID:              req.GetId(),
-		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	var deactivated sqlcgen.Contact
+	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+		var err error
+		deactivated, err = q.DeactivateContact(ctx, sqlcgen.DeactivateContactParams{
+			ID:              req.GetId(),
+			ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+		})
+		if err != nil {
+			return err
+		}
+		return deactivateZeroBalanceCustomerAccount(ctx, q, req.GetId())
 	})
 	if err != nil {
 		return nil, translateUpdateError(err, contactRes.kind, req.GetId(), req.GetResourceVersion())
@@ -168,6 +181,40 @@ func (s *contactService) DeactivateContact(ctx context.Context, req *avav1.Deact
 		return nil, err
 	}
 	return &avav1.DeactivateContactResponse{Contact: pb}, nil
+}
+
+// deactivateZeroBalanceCustomerAccount deactivates a just-deactivated
+// contact's customer ledger account too, but only when that account carries
+// no balance - a customer with open invoices/payments keeps its account
+// active so it stays visible in reporting and reconciliation until the
+// balance clears.
+func deactivateZeroBalanceCustomerAccount(ctx context.Context, q *sqlcgen.Queries, contactID int64) error {
+	customer, err := q.GetCustomerByContactID(ctx, contactID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if customer.LedgerAccountID == nil {
+		return nil
+	}
+	account, err := q.GetLedgerAccount(ctx, *customer.LedgerAccountID)
+	if err != nil {
+		return err
+	}
+	if !account.IsActive {
+		return nil
+	}
+	gl, err := reporting.GeneralLedger(ctx, q, account.ID, ledgermath.InceptionDate, time.Now())
+	if err != nil {
+		return err
+	}
+	if !gl.EndingBalance.IsZero() {
+		return nil
+	}
+	_, err = q.DeactivateLedgerAccount(ctx, sqlcgen.DeactivateLedgerAccountParams{ID: account.ID})
+	return err
 }
 
 func contactToProto(ctx context.Context, q *sqlcgen.Queries, c sqlcgen.Contact) (*avav1.Contact, error) {
