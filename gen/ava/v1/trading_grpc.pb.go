@@ -25,6 +25,7 @@ const (
 	EstimateService_GetEstimate_FullMethodName             = "/ava.v1.EstimateService/GetEstimate"
 	EstimateService_ListEstimates_FullMethodName           = "/ava.v1.EstimateService/ListEstimates"
 	EstimateService_CreateEstimate_FullMethodName          = "/ava.v1.EstimateService/CreateEstimate"
+	EstimateService_UpdateEstimate_FullMethodName          = "/ava.v1.EstimateService/UpdateEstimate"
 	EstimateService_UpdateEstimateStatus_FullMethodName    = "/ava.v1.EstimateService/UpdateEstimateStatus"
 	EstimateService_UpdateEstimateLineItems_FullMethodName = "/ava.v1.EstimateService/UpdateEstimateLineItems"
 	EstimateService_GetEstimatePdf_FullMethodName          = "/ava.v1.EstimateService/GetEstimatePdf"
@@ -41,6 +42,11 @@ type EstimateServiceClient interface {
 	GetEstimate(ctx context.Context, in *GetEstimateRequest, opts ...grpc.CallOption) (*GetEstimateResponse, error)
 	ListEstimates(ctx context.Context, in *ListEstimatesRequest, opts ...grpc.CallOption) (*ListEstimatesResponse, error)
 	CreateEstimate(ctx context.Context, in *CreateEstimateRequest, opts ...grpc.CallOption) (*CreateEstimateResponse, error)
+	// UpdateEstimate edits header fields: notes, terms, expiration_date. Like
+	// UpdateInvoice, the identifying fields stay put: estimate_date, customer_id
+	// (the estimate converts into an invoice against that customer), and
+	// estimate_number (next_estimate_number continuity). Recreate for those.
+	UpdateEstimate(ctx context.Context, in *UpdateEstimateRequest, opts ...grpc.CallOption) (*UpdateEstimateResponse, error)
 	UpdateEstimateStatus(ctx context.Context, in *UpdateEstimateStatusRequest, opts ...grpc.CallOption) (*UpdateEstimateStatusResponse, error)
 	UpdateEstimateLineItems(ctx context.Context, in *UpdateEstimateLineItemsRequest, opts ...grpc.CallOption) (*UpdateEstimateLineItemsResponse, error)
 	GetEstimatePdf(ctx context.Context, in *GetEstimatePdfRequest, opts ...grpc.CallOption) (*GetEstimatePdfResponse, error)
@@ -78,6 +84,16 @@ func (c *estimateServiceClient) CreateEstimate(ctx context.Context, in *CreateEs
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateEstimateResponse)
 	err := c.cc.Invoke(ctx, EstimateService_CreateEstimate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *estimateServiceClient) UpdateEstimate(ctx context.Context, in *UpdateEstimateRequest, opts ...grpc.CallOption) (*UpdateEstimateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateEstimateResponse)
+	err := c.cc.Invoke(ctx, EstimateService_UpdateEstimate_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +141,11 @@ type EstimateServiceServer interface {
 	GetEstimate(context.Context, *GetEstimateRequest) (*GetEstimateResponse, error)
 	ListEstimates(context.Context, *ListEstimatesRequest) (*ListEstimatesResponse, error)
 	CreateEstimate(context.Context, *CreateEstimateRequest) (*CreateEstimateResponse, error)
+	// UpdateEstimate edits header fields: notes, terms, expiration_date. Like
+	// UpdateInvoice, the identifying fields stay put: estimate_date, customer_id
+	// (the estimate converts into an invoice against that customer), and
+	// estimate_number (next_estimate_number continuity). Recreate for those.
+	UpdateEstimate(context.Context, *UpdateEstimateRequest) (*UpdateEstimateResponse, error)
 	UpdateEstimateStatus(context.Context, *UpdateEstimateStatusRequest) (*UpdateEstimateStatusResponse, error)
 	UpdateEstimateLineItems(context.Context, *UpdateEstimateLineItemsRequest) (*UpdateEstimateLineItemsResponse, error)
 	GetEstimatePdf(context.Context, *GetEstimatePdfRequest) (*GetEstimatePdfResponse, error)
@@ -146,6 +167,9 @@ func (UnimplementedEstimateServiceServer) ListEstimates(context.Context, *ListEs
 }
 func (UnimplementedEstimateServiceServer) CreateEstimate(context.Context, *CreateEstimateRequest) (*CreateEstimateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateEstimate not implemented")
+}
+func (UnimplementedEstimateServiceServer) UpdateEstimate(context.Context, *UpdateEstimateRequest) (*UpdateEstimateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateEstimate not implemented")
 }
 func (UnimplementedEstimateServiceServer) UpdateEstimateStatus(context.Context, *UpdateEstimateStatusRequest) (*UpdateEstimateStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateEstimateStatus not implemented")
@@ -231,6 +255,24 @@ func _EstimateService_CreateEstimate_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EstimateService_UpdateEstimate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateEstimateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EstimateServiceServer).UpdateEstimate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EstimateService_UpdateEstimate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EstimateServiceServer).UpdateEstimate(ctx, req.(*UpdateEstimateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _EstimateService_UpdateEstimateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateEstimateStatusRequest)
 	if err := dec(in); err != nil {
@@ -303,6 +345,10 @@ var EstimateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateEstimate",
 			Handler:    _EstimateService_CreateEstimate_Handler,
+		},
+		{
+			MethodName: "UpdateEstimate",
+			Handler:    _EstimateService_UpdateEstimate_Handler,
 		},
 		{
 			MethodName: "UpdateEstimateStatus",

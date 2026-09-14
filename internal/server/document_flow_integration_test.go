@@ -105,6 +105,12 @@ func TestDocumentFlow(t *testing.T) {
 	if got := est.GetLineItems()[0].GetDescription(); got != "Consulting" {
 		t.Fatalf("line description should default from the item, got %q", got)
 	}
+	est = must(estimates.UpdateEstimate(ctx, &avav1.UpdateEstimateRequest{Id: est.GetId(), ResourceVersion: est.GetResourceVersion(), Notes: ptr("net 30"), ExpirationDate: dateOf(2026, 3, 1)})).GetEstimate()
+	if est.GetNotes() != "net 30" || est.GetExpirationDate().GetMonth() != 3 || est.GetTerms() != "" {
+		t.Fatalf("estimate header update should change only the passed fields: %+v", est)
+	}
+	_, err = estimates.UpdateEstimate(ctx, &avav1.UpdateEstimateRequest{Id: est.GetId(), ResourceVersion: est.GetResourceVersion() - 1, Terms: ptr("stale")})
+	wantCode(t, err, codes.Aborted) // stale resource_version
 	est = must(estimates.UpdateEstimateStatus(ctx, &avav1.UpdateEstimateStatusRequest{Id: est.GetId(), Status: "SENT"})).GetEstimate()
 	est = must(estimates.UpdateEstimateStatus(ctx, &avav1.UpdateEstimateStatusRequest{Id: est.GetId(), Status: "ACCEPTED"})).GetEstimate()
 	if pdfBytes := must(estimates.GetEstimatePdf(ctx, &avav1.GetEstimatePdfRequest{Id: est.GetId()})).GetContent(); !bytes.HasPrefix(pdfBytes, []byte("%PDF")) {

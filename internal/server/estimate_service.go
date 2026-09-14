@@ -216,6 +216,27 @@ func (s *estimateService) GetEstimatePdf(ctx context.Context, req *avav1.GetEsti
 }
 
 // estimateToProto converts one estimate, loading its lines.
+func (s *estimateService) UpdateEstimate(ctx context.Context, req *avav1.UpdateEstimateRequest) (*avav1.UpdateEstimateResponse, error) {
+	if _, err := estimateRes.load(ctx, s.store.Queries, req.GetId(), "MEMBER"); err != nil {
+		return nil, err
+	}
+	updated, err := s.store.Queries.UpdateEstimateHeader(ctx, sqlcgen.UpdateEstimateHeaderParams{
+		ID:              req.GetId(),
+		Notes:           req.Notes,
+		Terms:           req.Terms,
+		ExpirationDate:  datepb.ToPgDate(req.GetExpirationDate()),
+		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
+	})
+	if err != nil {
+		return nil, translateUpdateError(err, estimateRes.kind, req.GetId(), req.GetResourceVersion())
+	}
+	pb, err := estimateToProto(ctx, s.store.Queries, updated)
+	if err != nil {
+		return nil, err
+	}
+	return &avav1.UpdateEstimateResponse{Estimate: pb}, nil
+}
+
 func estimateToProto(ctx context.Context, q *sqlcgen.Queries, e sqlcgen.Estimate) (*avav1.Estimate, error) {
 	return one(estimatesToProto(ctx, q, []sqlcgen.Estimate{e}))
 }

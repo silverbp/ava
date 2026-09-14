@@ -1217,6 +1217,58 @@ func (q *Queries) UnapplyPaymentFromInvoice(ctx context.Context, arg UnapplyPaym
 	return i, err
 }
 
+const updateEstimateHeader = `-- name: UpdateEstimateHeader :one
+UPDATE estimate SET
+    notes = COALESCE($1, notes),
+    terms = COALESCE($2, terms),
+    expiration_date = COALESCE($3, expiration_date),
+    updated_at = NOW()
+WHERE id = $4 AND deleted_at IS NULL
+    AND ($5::bigint IS NULL OR resource_version = $5)
+RETURNING id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+`
+
+type UpdateEstimateHeaderParams struct {
+	Notes           *string     `json:"notes"`
+	Terms           *string     `json:"terms"`
+	ExpirationDate  pgtype.Date `json:"expiration_date"`
+	ID              int64       `json:"id"`
+	ResourceVersion *int64      `json:"resource_version"`
+}
+
+// Header fields only - see EstimateService.UpdateEstimate for what's
+// deliberately excluded (estimate_date, customer_id, estimate_number).
+func (q *Queries) UpdateEstimateHeader(ctx context.Context, arg UpdateEstimateHeaderParams) (Estimate, error) {
+	row := q.db.QueryRow(ctx, updateEstimateHeader,
+		arg.Notes,
+		arg.Terms,
+		arg.ExpirationDate,
+		arg.ID,
+		arg.ResourceVersion,
+	)
+	var i Estimate
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.CustomerID,
+		&i.EstimateNumber,
+		&i.EstimateDate,
+		&i.ExpirationDate,
+		&i.Subtotal,
+		&i.TotalTaxAmount,
+		&i.TotalAmount,
+		&i.Status,
+		&i.Notes,
+		&i.Terms,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResourceVersion,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const updateEstimateStatus = `-- name: UpdateEstimateStatus :one
 UPDATE estimate SET status = $1, updated_at = NOW()
 WHERE id = $2 AND deleted_at IS NULL

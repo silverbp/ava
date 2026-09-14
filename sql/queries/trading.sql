@@ -43,6 +43,18 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL
     AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
 RETURNING *;
 
+-- name: UpdateEstimateHeader :one
+-- Header fields only - see EstimateService.UpdateEstimate for what's
+-- deliberately excluded (estimate_date, customer_id, estimate_number).
+UPDATE estimate SET
+    notes = COALESCE(sqlc.narg('notes'), notes),
+    terms = COALESCE(sqlc.narg('terms'), terms),
+    expiration_date = COALESCE(sqlc.narg('expiration_date'), expiration_date),
+    updated_at = NOW()
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+    AND (sqlc.narg('resource_version')::bigint IS NULL OR resource_version = sqlc.narg('resource_version'))
+RETURNING *;
+
 -- name: DeleteEstimateLineItems :exec
 UPDATE estimate_line_item SET deleted_at = NOW()
 WHERE estimate_id = $1 AND deleted_at IS NULL;

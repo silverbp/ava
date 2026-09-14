@@ -44,6 +44,7 @@ func newEstimateCmd() *cobra.Command {
 			return resp.GetContent(), err
 		}),
 		newEstimateCreateCmd(),
+		newEstimateUpdateCmd(),
 		newEstimateUpdateLinesCmd(),
 		newEstimateStatusCmd("send", "Mark an estimate SENT", "SENT"),
 		newEstimateStatusCmd("accept", "Mark an estimate ACCEPTED", "ACCEPTED"),
@@ -109,6 +110,35 @@ func newEstimateCreateCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("date")
 	_ = cmd.MarkFlagRequired("expires")
 	_ = cmd.MarkFlagRequired("line")
+	return cmd
+}
+
+func newEstimateUpdateCmd() *cobra.Command {
+	var notes, terms, expires string
+
+	cmd := newVersionedMutateCmd(estimateNoun, "update", resource.Doc{
+		Summary: "Edit an estimate's notes, terms, or expiration date",
+		Detail: "Only flags you pass are sent - omit a flag to leave that field unchanged. " +
+			"Identifying fields (customer, estimate date, estimate number) aren't editable - " +
+			"recreate the estimate for those; lines are replaced with `estimate update-lines`.",
+		Examples: []resource.Example{{Cmd: "avactl estimate update 42 --expires 2026-03-01"}},
+	}, func(r run, id, resourceVersion int64) (proto.Message, error) {
+		expiresArg, err := r.optDate("expires", &expires)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := avav1.NewEstimateServiceClient(r.conn).UpdateEstimate(r.ctx, &avav1.UpdateEstimateRequest{
+			Id:              id,
+			ResourceVersion: resourceVersion,
+			Notes:           r.optString("notes", &notes),
+			Terms:           r.optString("terms", &terms),
+			ExpirationDate:  expiresArg,
+		})
+		return resp.GetEstimate(), err
+	})
+	cmd.Flags().StringVar(&notes, "notes", "", "new notes")
+	cmd.Flags().StringVar(&terms, "terms", "", "new terms")
+	cmd.Flags().StringVar(&expires, "expires", "", "new expiration date, YYYY-MM-DD")
 	return cmd
 }
 

@@ -18,6 +18,11 @@ service EstimateService {
   rpc GetEstimate(GetEstimateRequest) returns (GetEstimateResponse);
   rpc ListEstimates(ListEstimatesRequest) returns (ListEstimatesResponse);
   rpc CreateEstimate(CreateEstimateRequest) returns (CreateEstimateResponse);
+  // UpdateEstimate edits header fields: notes, terms, expiration_date. Like
+  // UpdateInvoice, the identifying fields stay put: estimate_date, customer_id
+  // (the estimate converts into an invoice against that customer), and
+  // estimate_number (next_estimate_number continuity). Recreate for those.
+  rpc UpdateEstimate(UpdateEstimateRequest) returns (UpdateEstimateResponse);
   rpc UpdateEstimateStatus(UpdateEstimateStatusRequest) returns (UpdateEstimateStatusResponse);
   rpc UpdateEstimateLineItems(UpdateEstimateLineItemsRequest) returns (UpdateEstimateLineItemsResponse);
   rpc GetEstimatePdf(GetEstimatePdfRequest) returns (GetEstimatePdfResponse);
@@ -166,6 +171,23 @@ message CreateEstimateRequest {
 }
 
 message CreateEstimateResponse {
+  Estimate estimate = 1;
+}
+
+// UpdateEstimateRequest edits only header fields - see
+// EstimateService.UpdateEstimate for what's deliberately excluded and why.
+message UpdateEstimateRequest {
+  int64 id = 1;
+  optional string notes = 2;
+  optional string terms = 3;
+  optional google.type.Date expiration_date = 4;
+  // Optimistic-concurrency precondition - see Business.resource_version. Pass the
+  // resource_version from the copy you read to fail with ABORTED if it's since changed;
+  // leave unset (0) to write unconditionally.
+  int64 resource_version = 5;
+}
+
+message UpdateEstimateResponse {
   Estimate estimate = 1;
 }
 
