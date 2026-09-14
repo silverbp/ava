@@ -82,6 +82,7 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 	avav1.RegisterAttachmentServiceServer(grpcServer, newAttachmentService(store, blobs))
 	avav1.RegisterAuthServiceServer(grpcServer, newAuthService(store, cfg))
 	avav1.RegisterUserServiceServer(grpcServer, newUserService(store))
+	avav1.RegisterReferenceDataServiceServer(grpcServer, newReferenceDataService(store))
 
 	// Reflection lets grpcurl/grpcui introspect the API without shipping
 	// .proto files alongside every deploy. Revisit gating this before a
