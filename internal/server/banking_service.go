@@ -1,14 +1,12 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,20 +30,13 @@ func newBankStatementService(store *db.Store) *bankStatementService {
 }
 
 func (s *bankStatementService) GetBankStatement(ctx context.Context, req *avav1.GetBankStatementRequest) (*avav1.GetBankStatementResponse, error) {
-	bs, err := s.store.Queries.GetBankStatement(ctx, req.GetId())
+	bs, err := bankStatementRes.load(ctx, s.store.Queries, req.GetId(), "VIEWER")
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, bs.BusinessID, "VIEWER"); err != nil {
 		return nil, err
 	}
-
-	pb, err := s.bankStatementToProto(ctx, bs)
+	pb, err := bankStatementToProto(ctx, s.store.Queries, bs)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+		return nil, err
 	}
 	return &avav1.GetBankStatementResponse{BankStatement: pb}, nil
 }
@@ -58,15 +49,11 @@ func (s *bankStatementService) ListBankStatements(ctx context.Context, req *avav
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-	resp := &avav1.ListBankStatementsResponse{}
-	for _, bs := range rows {
-		pb, err := s.bankStatementToProto(ctx, bs)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
-		}
-		resp.BankStatements = append(resp.BankStatements, pb)
+	pbs, err := bankStatementsToProto(ctx, s.store.Queries, rows)
+	if err != nil {
+		return nil, err
 	}
-	return resp, nil
+	return &avav1.ListBankStatementsResponse{BankStatements: pbs}, nil
 }
 
 func (s *bankStatementService) CreateBankStatement(ctx context.Context, req *avav1.CreateBankStatementRequest) (*avav1.CreateBankStatementResponse, error) {
@@ -81,12 +68,9 @@ func (s *bankStatementService) CreateBankStatement(ctx context.Context, req *ava
 		return nil, status.Error(codes.InvalidArgument, "statement_name and statement_date are required")
 	}
 
-	account, err := s.store.Queries.GetLedgerAccount(ctx, req.GetLedgerAccountId())
+	account, err := ledgerAccountRes.requireInBusiness(ctx, s.store.Queries, req.GetBusinessId(), int64(req.GetLedgerAccountId()))
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "ledger account %d not found", req.GetLedgerAccountId())
-		}
-		return nil, translatePgError(err)
+		return nil, err
 	}
 	if !account.IsReconcilable {
 		return nil, status.Errorf(codes.InvalidArgument, "ledger account %d is not marked is_reconcilable", account.ID)
@@ -118,9 +102,9 @@ func (s *bankStatementService) CreateBankStatement(ctx context.Context, req *ava
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-	pb, err := s.bankStatementToProto(ctx, created)
+	pb, err := bankStatementToProto(ctx, s.store.Queries, created)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+		return nil, err
 	}
 	return &avav1.CreateBankStatementResponse{BankStatement: pb}, nil
 }
@@ -142,7 +126,7 @@ func (s *bankStatementService) checkOpeningBalanceChaining(ctx context.Context, 
 		ExcludeID:       excludeID,
 	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil
 		}
 		return translatePgError(err)
@@ -167,14 +151,8 @@ func (s *bankStatementService) checkOpeningBalanceChaining(ctx context.Context, 
 }
 
 func (s *bankStatementService) UpdateBankStatement(ctx context.Context, req *avav1.UpdateBankStatementRequest) (*avav1.UpdateBankStatementResponse, error) {
-	existing, err := s.store.Queries.GetBankStatement(ctx, req.GetId())
+	existing, err := bankStatementRes.load(ctx, s.store.Queries, req.GetId(), "MEMBER")
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
 		return nil, err
 	}
 
@@ -214,24 +192,18 @@ func (s *bankStatementService) UpdateBankStatement(ctx context.Context, req *ava
 		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translateUpdateError(err, "bank statement", req.GetId(), req.GetResourceVersion())
+		return nil, translateUpdateError(err, bankStatementRes.kind, req.GetId(), req.GetResourceVersion())
 	}
-	pb, err := s.bankStatementToProto(ctx, updated)
+	pb, err := bankStatementToProto(ctx, s.store.Queries, updated)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+		return nil, err
 	}
 	return &avav1.UpdateBankStatementResponse{BankStatement: pb}, nil
 }
 
 func (s *bankStatementService) DeactivateBankStatement(ctx context.Context, req *avav1.DeactivateBankStatementRequest) (*avav1.DeactivateBankStatementResponse, error) {
-	existing, err := s.store.Queries.GetBankStatement(ctx, req.GetId())
+	existing, err := bankStatementRes.load(ctx, s.store.Queries, req.GetId(), "MEMBER")
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "MEMBER"); err != nil {
 		return nil, err
 	}
 
@@ -249,24 +221,18 @@ func (s *bankStatementService) DeactivateBankStatement(ctx context.Context, req 
 		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translateUpdateError(err, "bank statement", req.GetId(), req.GetResourceVersion())
+		return nil, translateUpdateError(err, bankStatementRes.kind, req.GetId(), req.GetResourceVersion())
 	}
-	pb, err := s.bankStatementToProto(ctx, deactivated)
+	pb, err := bankStatementToProto(ctx, s.store.Queries, deactivated)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+		return nil, err
 	}
 	return &avav1.DeactivateBankStatementResponse{BankStatement: pb}, nil
 }
 
 func (s *bankStatementService) ReconcileLedgerTransactions(ctx context.Context, req *avav1.ReconcileLedgerTransactionsRequest) (*avav1.ReconcileLedgerTransactionsResponse, error) {
-	bs, err := s.store.Queries.GetBankStatement(ctx, req.GetBankStatementId())
+	bs, err := bankStatementRes.load(ctx, s.store.Queries, req.GetBankStatementId(), "MEMBER")
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetBankStatementId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, bs.BusinessID, "MEMBER"); err != nil {
 		return nil, err
 	}
 	if len(req.GetLedgerTransactionIds()) == 0 {
@@ -281,6 +247,9 @@ func (s *bankStatementService) ReconcileLedgerTransactions(ctx context.Context, 
 		nextSeq := int32(len(existing)) + 1
 
 		for _, txnID := range req.GetLedgerTransactionIds() {
+			if _, err := ledgerTransactionRes.requireInBusiness(ctx, q, bs.BusinessID, txnID); err != nil {
+				return err
+			}
 			exists, err := q.LedgerEntryExistsForAccount(ctx, sqlcgen.LedgerEntryExistsForAccountParams{
 				LedgerTransactionID: txnID,
 				AccountID:           bs.LedgerAccountID,
@@ -304,25 +273,19 @@ func (s *bankStatementService) ReconcileLedgerTransactions(ctx context.Context, 
 		return nil
 	})
 	if err != nil {
-		return nil, closeErrorStatus(err)
+		return nil, txErrorStatus(err)
 	}
 
-	pb, err := s.bankStatementToProto(ctx, bs)
+	pb, err := bankStatementToProto(ctx, s.store.Queries, bs)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+		return nil, err
 	}
 	return &avav1.ReconcileLedgerTransactionsResponse{BankStatement: pb}, nil
 }
 
 func (s *bankStatementService) UnreconcileLedgerTransactions(ctx context.Context, req *avav1.UnreconcileLedgerTransactionsRequest) (*avav1.UnreconcileLedgerTransactionsResponse, error) {
-	bs, err := s.store.Queries.GetBankStatement(ctx, req.GetBankStatementId())
+	bs, err := bankStatementRes.load(ctx, s.store.Queries, req.GetBankStatementId(), "MEMBER")
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "bank statement %d not found", req.GetBankStatementId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, bs.BusinessID, "MEMBER"); err != nil {
 		return nil, err
 	}
 	if len(req.GetLedgerTransactionIds()) == 0 {
@@ -341,25 +304,18 @@ func (s *bankStatementService) UnreconcileLedgerTransactions(ctx context.Context
 		return nil
 	})
 	if err != nil {
-		return nil, closeErrorStatus(err)
+		return nil, txErrorStatus(err)
 	}
 
-	pb, err := s.bankStatementToProto(ctx, bs)
+	pb, err := bankStatementToProto(ctx, s.store.Queries, bs)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting bank statement: %v", err)
+		return nil, err
 	}
 	return &avav1.UnreconcileLedgerTransactionsResponse{BankStatement: pb}, nil
 }
 
 func (s *bankStatementService) ListUnreconciledLedgerTransactions(ctx context.Context, req *avav1.ListUnreconciledLedgerTransactionsRequest) (*avav1.ListUnreconciledLedgerTransactionsResponse, error) {
-	account, err := s.store.Queries.GetLedgerAccount(ctx, req.GetLedgerAccountId())
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "ledger account %d not found", req.GetLedgerAccountId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, account.BusinessID, "VIEWER"); err != nil {
+	if _, err := ledgerAccountRes.load(ctx, s.store.Queries, int64(req.GetLedgerAccountId()), "VIEWER"); err != nil {
 		return nil, err
 	}
 	throughDate, err := requireDate(req.GetThroughDate(), "through_date")
@@ -374,94 +330,85 @@ func (s *bankStatementService) ListUnreconciledLedgerTransactions(ctx context.Co
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-
-	resp := &avav1.ListUnreconciledLedgerTransactionsResponse{}
-	for _, t := range rows {
-		entries, err := s.store.Queries.ListLedgerEntriesByTransaction(ctx, t.ID)
-		if err != nil {
-			return nil, translatePgError(err)
-		}
-		pb, err := ledgerTransactionToProto(t, entries)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "converting ledger transaction: %v", err)
-		}
-		resp.Transactions = append(resp.Transactions, pb)
+	pbs, err := ledgerTransactionsToProto(ctx, s.store.Queries, rows)
+	if err != nil {
+		return nil, err
 	}
-	return resp, nil
+	return &avav1.ListUnreconciledLedgerTransactionsResponse{Transactions: pbs}, nil
 }
 
-func (s *bankStatementService) bankStatementToProto(ctx context.Context, bs sqlcgen.BankStatement) (*avav1.BankStatement, error) {
-	opening, err := moneypb.ToProto(bs.OpeningBalance)
-	if err != nil {
-		return nil, err
+func bankStatementToProto(ctx context.Context, q *sqlcgen.Queries, bs sqlcgen.BankStatement) (*avav1.BankStatement, error) {
+	return one(bankStatementsToProto(ctx, q, []sqlcgen.BankStatement{bs}))
+}
+
+// bankStatementsToProto converts a page of statements: their lines in one
+// query, and the reconciled activity (with the account's normal balance)
+// that reconciled_balance/difference derive from in another.
+func bankStatementsToProto(ctx context.Context, q *sqlcgen.Queries, rows []sqlcgen.BankStatement) ([]*avav1.BankStatement, error) {
+	out := make([]*avav1.BankStatement, len(rows))
+	if len(rows) == 0 {
+		return out, nil
 	}
-	closing, err := moneypb.ToProto(bs.ClosingBalance)
+	ids := idsOf(rows, func(b sqlcgen.BankStatement) int64 { return b.ID })
+	lines, err := q.ListBankStatementLinesByStatementIDs(ctx, ids)
 	if err != nil {
-		return nil, err
+		return nil, translatePgError(err)
+	}
+	activities, err := q.SumReconciledActivityByStatementIDs(ctx, ids)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	linesOf := groupBy(lines, func(l sqlcgen.BankStatementLine) int64 { return l.BankStatementID })
+	activityOf := make(map[int64]sqlcgen.SumReconciledActivityByStatementIDsRow, len(activities))
+	for _, a := range activities {
+		activityOf[a.BankStatementID] = a
 	}
 
-	lines, err := s.store.Queries.ListBankStatementLines(ctx, bs.ID)
-	if err != nil {
-		return nil, err
-	}
-	pb := &avav1.BankStatement{
-		Id:              bs.ID,
-		BusinessId:      bs.BusinessID,
-		LedgerAccountId: bs.LedgerAccountID,
-		StatementName:   bs.StatementName,
-		StatementDate:   datepb.ToProto(bs.StatementDate),
-		OpeningBalance:  opening,
-		ClosingBalance:  closing,
-		CreatedByUserId: bs.CreatedByUserID,
-		CreatedAt:       timestampProto(bs.CreatedAt),
-		ResourceVersion: bs.ResourceVersion,
-	}
-	for _, l := range lines {
-		pb.Lines = append(pb.Lines, &avav1.BankStatementLine{
-			Id:                  l.ID,
-			BankStatementId:     l.BankStatementID,
-			LedgerTransactionId: l.LedgerTransactionID,
-			DisplaySequence:     l.DisplaySequence,
-		})
-	}
-
-	activity, err := s.store.Queries.SumReconciledActivity(ctx, sqlcgen.SumReconciledActivityParams{
-		AccountID:       bs.LedgerAccountID,
-		BankStatementID: bs.ID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	account, err := s.store.Queries.GetLedgerAccount(ctx, bs.LedgerAccountID)
-	if err != nil {
-		return nil, err
-	}
-	accountType, err := s.store.Queries.GetLedgerAccountType(ctx, account.AccountTypeID)
-	if err != nil {
-		return nil, err
-	}
-	debit, err := ledgermath.NumericToDecimal(activity.TotalDebit)
-	if err != nil {
-		return nil, err
-	}
-	credit, err := ledgermath.NumericToDecimal(activity.TotalCredit)
-	if err != nil {
-		return nil, err
-	}
-	openingDec, err := ledgermath.NumericToDecimal(bs.OpeningBalance)
-	if err != nil {
-		return nil, err
-	}
-	reconciled := openingDec.Add(ledgermath.NetBalance(accountType.NormalBalance, debit, credit))
-	pb.ReconciledBalance = decimalToProto(reconciled)
-
-	if bs.ClosingBalance.Valid {
-		closingDec, err := ledgermath.NumericToDecimal(bs.ClosingBalance)
-		if err != nil {
-			return nil, err
+	for i, bs := range rows {
+		pb := &avav1.BankStatement{
+			Id:              bs.ID,
+			BusinessId:      bs.BusinessID,
+			LedgerAccountId: bs.LedgerAccountID,
+			StatementName:   bs.StatementName,
+			StatementDate:   datepb.ToProto(bs.StatementDate),
+			OpeningBalance:  moneypb.ToProto(bs.OpeningBalance),
+			ClosingBalance:  moneypb.ToProto(bs.ClosingBalance),
+			CreatedByUserId: bs.CreatedByUserID,
+			CreatedAt:       timestampProto(bs.CreatedAt),
+			ResourceVersion: bs.ResourceVersion,
 		}
-		pb.Difference = decimalToProto(closingDec.Sub(reconciled))
-	}
+		for _, l := range linesOf[bs.ID] {
+			pb.Lines = append(pb.Lines, &avav1.BankStatementLine{
+				Id:                  l.ID,
+				BankStatementId:     l.BankStatementID,
+				LedgerTransactionId: l.LedgerTransactionID,
+				DisplaySequence:     l.DisplaySequence,
+			})
+		}
 
-	return pb, nil
+		activity := activityOf[bs.ID]
+		debit, err := ledgermath.NumericToDecimal(activity.TotalDebit)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "bank statement %d: %v", bs.ID, err)
+		}
+		credit, err := ledgermath.NumericToDecimal(activity.TotalCredit)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "bank statement %d: %v", bs.ID, err)
+		}
+		openingDec, err := ledgermath.NumericToDecimal(bs.OpeningBalance)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "bank statement %d: %v", bs.ID, err)
+		}
+		reconciled := openingDec.Add(ledgermath.NetBalance(activity.NormalBalance, debit, credit))
+		pb.ReconciledBalance = moneypb.FromDecimal(reconciled)
+		if bs.ClosingBalance.Valid {
+			closingDec, err := ledgermath.NumericToDecimal(bs.ClosingBalance)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "bank statement %d: %v", bs.ID, err)
+			}
+			pb.Difference = moneypb.FromDecimal(closingDec.Sub(reconciled))
+		}
+		out[i] = pb
+	}
+	return out, nil
 }

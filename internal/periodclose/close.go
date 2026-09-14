@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package periodclose
@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 
 	"github.com/silverbp/ava/internal/db/sqlcgen"
 	"github.com/silverbp/ava/internal/ledgermath"
+	"github.com/silverbp/ava/internal/ledgerpost"
 )
 
 // account_type_id values seeded by migrations/00001_initial.up.sql.
@@ -101,7 +101,7 @@ func Close(ctx context.Context, q *sqlcgen.Queries, businessID int64, periodEnd 
 	// check that every posting this close made balances. Should be
 	// structurally guaranteed by the mirrored-entry construction below; a
 	// mismatch here means a bug in this function, not bad input data.
-	if err := verifyCloseBalances(ctx, q, transactionIDs); err != nil {
+	if err := ledgerpost.VerifyBalanced(ctx, q, transactionIDs...); err != nil {
 		return nil, err
 	}
 
@@ -174,10 +174,10 @@ func postZeroingTransaction(ctx context.Context, q *sqlcgen.Queries, businessID 
 	}
 
 	zeroDebit, zeroCredit := ledgermath.EntryForNormalDelta(normalBalance, net.Neg())
-	if err := createDecimalEntry(ctx, q, businessID, txn.ID, accountID, zeroDebit, zeroCredit); err != nil {
+	if err := ledgerpost.CreateDecimalEntry(ctx, q, businessID, txn.ID, accountID, zeroDebit, zeroCredit); err != nil {
 		return 0, decimal.Zero, err
 	}
-	if err := createDecimalEntry(ctx, q, businessID, txn.ID, incomeSummaryID, zeroCredit, zeroDebit); err != nil {
+	if err := ledgerpost.CreateDecimalEntry(ctx, q, businessID, txn.ID, incomeSummaryID, zeroCredit, zeroDebit); err != nil {
 		return 0, decimal.Zero, err
 	}
 
@@ -206,62 +206,11 @@ func postSweepTransaction(ctx context.Context, q *sqlcgen.Queries, businessID in
 	}
 
 	zeroDebit, zeroCredit := ledgermath.EntryForNormalDelta("CREDIT", incomeSummaryDelta.Neg())
-	if err := createDecimalEntry(ctx, q, businessID, txn.ID, incomeSummaryID, zeroDebit, zeroCredit); err != nil {
+	if err := ledgerpost.CreateDecimalEntry(ctx, q, businessID, txn.ID, incomeSummaryID, zeroDebit, zeroCredit); err != nil {
 		return 0, err
 	}
-	if err := createDecimalEntry(ctx, q, businessID, txn.ID, retainedEarningsID, zeroCredit, zeroDebit); err != nil {
+	if err := ledgerpost.CreateDecimalEntry(ctx, q, businessID, txn.ID, retainedEarningsID, zeroCredit, zeroDebit); err != nil {
 		return 0, err
 	}
 	return txn.ID, nil
-}
-
-func verifyCloseBalances(ctx context.Context, q *sqlcgen.Queries, transactionIDs []int64) error {
-	if len(transactionIDs) == 0 {
-		return nil
-	}
-	entries, err := q.ListLedgerEntriesByTransactionIDs(ctx, transactionIDs)
-	if err != nil {
-		return err
-	}
-
-	totalDebit, totalCredit := decimal.Zero, decimal.Zero
-	for _, e := range entries {
-		d, err := ledgermath.NumericToDecimal(e.DebitAmount)
-		if err != nil {
-			return err
-		}
-		c, err := ledgermath.NumericToDecimal(e.CreditAmount)
-		if err != nil {
-			return err
-		}
-		totalDebit = totalDebit.Add(d)
-		totalCredit = totalCredit.Add(c)
-	}
-	if !totalDebit.Equal(totalCredit) {
-		return fmt.Errorf("period close arithmetic produced unbalanced postings: total debit %s != total credit %s (this is a bug, not bad input)", totalDebit, totalCredit)
-	}
-	return nil
-}
-
-func createDecimalEntry(ctx context.Context, q *sqlcgen.Queries, businessID, txnID int64, accountID int32, debit, credit decimal.Decimal) error {
-	debitNum, err := ledgermath.DecimalToNumeric(debit)
-	if err != nil {
-		return err
-	}
-	creditNum, err := ledgermath.DecimalToNumeric(credit)
-	if err != nil {
-		return err
-	}
-	return createEntry(ctx, q, businessID, txnID, accountID, debitNum, creditNum)
-}
-
-func createEntry(ctx context.Context, q *sqlcgen.Queries, businessID, txnID int64, accountID int32, debit, credit pgtype.Numeric) error {
-	_, err := q.CreateLedgerEntry(ctx, sqlcgen.CreateLedgerEntryParams{
-		BusinessID:          businessID,
-		LedgerTransactionID: txnID,
-		AccountID:           accountID,
-		DebitAmount:         debit,
-		CreditAmount:        credit,
-	})
-	return err
 }

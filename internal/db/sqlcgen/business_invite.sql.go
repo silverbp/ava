@@ -57,7 +57,7 @@ type CreateBusinessInviteParams struct {
 	ExpiresAt       pgtype.Timestamp `json:"expires_at"`
 }
 
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 func (q *Queries) CreateBusinessInvite(ctx context.Context, arg CreateBusinessInviteParams) (BusinessInvite, error) {
 	row := q.db.QueryRow(ctx, createBusinessInvite,

@@ -1,142 +1,63 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
-	typepb "google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/protobuf/proto"
 
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
-	"github.com/silverbp/ava/internal/avactl/output"
+	"github.com/silverbp/ava/internal/avactl/resource"
 )
 
-func formatDateArg(d *typepb.Date) string {
-	if d == nil {
-		return ""
-	}
-	return fmt.Sprintf("%04d-%02d-%02d", d.GetYear(), d.GetMonth(), d.GetDay())
+var periodCloseNoun = resource.Noun{
+	Singular: "close",
+	Plural:   "period closes",
+	Columns: []resource.Column{
+		resource.Int("ID", (*avav1.PeriodClose).GetId),
+		resource.Date("PERIOD_START", (*avav1.PeriodClose).GetPeriodStart),
+		resource.Date("PERIOD_END", (*avav1.PeriodClose).GetPeriodEnd),
+		resource.Bool("REVERSED", func(pc *avav1.PeriodClose) bool { return pc.GetReversedAt() != nil }),
+		resource.Int("ENTRIES", func(pc *avav1.PeriodClose) int { return len(pc.GetGeneratedLedgerTransactionIds()) }),
+	},
 }
 
 // newCloseCmd is the `close` parent — trigger/reverse/list are period-close
-// verbs, not CRUD, so it's hand-written rather than built from the
-// generic get/list/mutate command builders in actions.go.
+// verbs rather than CRUD, but they still reduce to the generic verb shapes.
 func newCloseCmd() *cobra.Command {
-	root := &cobra.Command{
-		Use:   "close",
-		Short: "Trigger, reverse, or list period closes",
-	}
-	root.AddCommand(newCloseTriggerCmd())
-	root.AddCommand(newCloseReverseCmd())
-	root.AddCommand(newCloseListCmd())
+	root := newGroupCmd(periodCloseNoun, "Trigger, reverse, or list period closes")
+	root.AddCommand(
+		newCloseTriggerCmd(),
+		newMutateCmd(periodCloseNoun, "reverse", resource.Doc{
+			Summary:  "Reverse a period close",
+			Examples: []resource.Example{{Cmd: "avactl close reverse 5"}},
+		}, func(r run, id int64) (proto.Message, error) {
+			resp, err := avav1.NewPeriodCloseServiceClient(r.conn).ReverseClose(r.ctx, &avav1.ReverseCloseRequest{Id: id})
+			return resp.GetPeriodClose(), err
+		}),
+		newTableCmd(periodCloseNoun, "list", resource.Doc{Summary: "List a business's close history"}, periodCloseNoun.Columns, func(r run) ([]proto.Message, error) {
+			resp, err := avav1.NewPeriodCloseServiceClient(r.conn).ListPeriodCloses(r.ctx, &avav1.ListPeriodClosesRequest{BusinessId: r.businessID})
+			return toMessages(resp.GetPeriodCloses()), err
+		}),
+	)
 	return root
 }
 
 func newCloseTriggerCmd() *cobra.Command {
 	var periodEnd string
-	cmd := &cobra.Command{
-		Use:     "trigger",
-		Short:   "Close the books through a date",
-		Example: "  avactl close trigger --through 2026-01-31",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			d, err := parseDateFlag(periodEnd)
-			if err != nil {
-				return err
-			}
-			conn, _, businessID, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			resp, err := avav1.NewPeriodCloseServiceClient(conn).TriggerClose(cmd.Context(), &avav1.TriggerCloseRequest{
-				BusinessId: businessID,
-				PeriodEnd:  d,
-			})
-			if err != nil {
-				return err
-			}
-			return printPeriodClose(cmd, resp.GetPeriodClose())
-		},
-	}
+	cmd := newNoArgCmd(periodCloseNoun, "trigger", resource.Doc{
+		Summary:  "Close the books through a date",
+		Examples: []resource.Example{{Cmd: "avactl close trigger --through 2026-01-31"}},
+	}, func(r run) (proto.Message, error) {
+		d, err := parseDateFlag("through", periodEnd)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := avav1.NewPeriodCloseServiceClient(r.conn).TriggerClose(r.ctx, &avav1.TriggerCloseRequest{BusinessId: r.businessID, PeriodEnd: d})
+		return resp.GetPeriodClose(), err
+	})
 	cmd.Flags().StringVar(&periodEnd, "through", "", "close through this date, YYYY-MM-DD (required)")
 	_ = cmd.MarkFlagRequired("through")
 	return cmd
-}
-
-func newCloseReverseCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "reverse <period-close-id>",
-		Short:   "Reverse a period close",
-		Args:    cobra.ExactArgs(1),
-		Example: "  avactl close reverse 5",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var id int64
-			if _, err := fmt.Sscanf(args[0], "%d", &id); err != nil {
-				return fmt.Errorf("invalid period-close id %q", args[0])
-			}
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			resp, err := avav1.NewPeriodCloseServiceClient(conn).ReverseClose(cmd.Context(), &avav1.ReverseCloseRequest{Id: id})
-			if err != nil {
-				return err
-			}
-			return printPeriodClose(cmd, resp.GetPeriodClose())
-		},
-	}
-	return cmd
-}
-
-func newCloseListCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:     "list",
-		Short:   "List a business's close history",
-		Example: "  avactl close list",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, _, businessID, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			resp, err := avav1.NewPeriodCloseServiceClient(conn).ListPeriodCloses(cmd.Context(), &avav1.ListPeriodClosesRequest{BusinessId: businessID})
-			if err != nil {
-				return err
-			}
-			if flagOutput != output.FormatTable {
-				items := make([]proto.Message, len(resp.GetPeriodCloses()))
-				for i, pc := range resp.GetPeriodCloses() {
-					items[i] = pc
-				}
-				return output.PrintList(cmd.OutOrStdout(), flagOutput, items, nil)
-			}
-			w := cmd.OutOrStdout()
-			fmt.Fprintln(w, "ID\tPERIOD_START\tPERIOD_END\tREVERSED\tENTRIES")
-			for _, pc := range resp.GetPeriodCloses() {
-				fmt.Fprintf(w, "%d\t%s\t%s\t%v\t%d\n",
-					pc.GetId(), formatDateArg(pc.GetPeriodStart()), formatDateArg(pc.GetPeriodEnd()),
-					pc.GetReversedAt() != nil, len(pc.GetGeneratedLedgerTransactionIds()))
-			}
-			return nil
-		},
-	}
-}
-
-func printPeriodClose(cmd *cobra.Command, pc *avav1.PeriodClose) error {
-	if flagOutput != output.FormatTable {
-		return output.PrintOne(cmd.OutOrStdout(), flagOutput, pc, nil)
-	}
-	w := cmd.OutOrStdout()
-	fmt.Fprintln(w, "ID\tPERIOD_START\tPERIOD_END\tREVERSED\tENTRIES")
-	fmt.Fprintf(w, "%d\t%s\t%s\t%v\t%d\n",
-		pc.GetId(), formatDateArg(pc.GetPeriodStart()), formatDateArg(pc.GetPeriodEnd()),
-		pc.GetReversedAt() != nil, len(pc.GetGeneratedLedgerTransactionIds()))
-	return nil
 }

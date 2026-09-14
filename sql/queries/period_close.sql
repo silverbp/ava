@@ -1,4 +1,4 @@
--- Copyright (c) 2025 Casey Entzi
+-- Copyright (c) 2025 Silver Blueprints LLC
 -- SPDX-License-Identifier: MIT
 
 -- name: CreatePeriodClose :one
@@ -23,6 +23,12 @@ SELECT * FROM period_close WHERE business_id = $1 ORDER BY period_end DESC;
 
 -- name: ListPeriodCloseEntries :many
 SELECT * FROM period_close_entry WHERE period_close_id = $1 ORDER BY id;
+
+-- name: ListPeriodCloseEntriesByCloseIDs :many
+-- Batch form for list handlers.
+SELECT * FROM period_close_entry
+WHERE period_close_id = ANY(sqlc.arg('period_close_ids')::bigint[])
+ORDER BY period_close_id, id;
 
 -- name: ReversePeriodClose :one
 UPDATE period_close SET reversed_at = NOW()

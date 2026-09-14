@@ -31,7 +31,7 @@ type CreatePeriodCloseParams struct {
 	CreatedByUserID           *int64      `json:"created_by_user_id"`
 }
 
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 func (q *Queries) CreatePeriodClose(ctx context.Context, arg CreatePeriodCloseParams) (PeriodClose, error) {
 	row := q.db.QueryRow(ctx, createPeriodClose,
@@ -108,6 +108,38 @@ SELECT id, period_close_id, ledger_transaction_id, source_account_id FROM period
 
 func (q *Queries) ListPeriodCloseEntries(ctx context.Context, periodCloseID int64) ([]PeriodCloseEntry, error) {
 	rows, err := q.db.Query(ctx, listPeriodCloseEntries, periodCloseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PeriodCloseEntry
+	for rows.Next() {
+		var i PeriodCloseEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.PeriodCloseID,
+			&i.LedgerTransactionID,
+			&i.SourceAccountID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPeriodCloseEntriesByCloseIDs = `-- name: ListPeriodCloseEntriesByCloseIDs :many
+SELECT id, period_close_id, ledger_transaction_id, source_account_id FROM period_close_entry
+WHERE period_close_id = ANY($1::bigint[])
+ORDER BY period_close_id, id
+`
+
+// Batch form for list handlers.
+func (q *Queries) ListPeriodCloseEntriesByCloseIDs(ctx context.Context, periodCloseIds []int64) ([]PeriodCloseEntry, error) {
+	rows, err := q.db.Query(ctx, listPeriodCloseEntriesByCloseIDs, periodCloseIds)
 	if err != nil {
 		return nil, err
 	}

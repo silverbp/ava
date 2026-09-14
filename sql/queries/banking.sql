@@ -1,4 +1,4 @@
--- Copyright (c) 2025 Casey Entzi
+-- Copyright (c) 2025 Silver Blueprints LLC
 -- SPDX-License-Identifier: MIT
 
 -- name: CreateBankStatement :one
@@ -55,6 +55,12 @@ RETURNING *;
 -- name: ListBankStatementLines :many
 SELECT * FROM bank_statement_line WHERE bank_statement_id = $1 ORDER BY display_sequence, id;
 
+-- name: ListBankStatementLinesByStatementIDs :many
+-- Batch form for list handlers.
+SELECT * FROM bank_statement_line
+WHERE bank_statement_id = ANY(sqlc.arg('bank_statement_ids')::bigint[])
+ORDER BY bank_statement_id, display_sequence, id;
+
 -- name: CountBankStatementLines :one
 SELECT COUNT(*) FROM bank_statement_line WHERE bank_statement_id = $1;
 
@@ -74,17 +80,25 @@ SELECT EXISTS(
         AND deleted_at IS NULL
 ) AS entry_exists;
 
--- name: SumReconciledActivity :one
--- Total debit/credit, for one account, across every ledger_transaction
--- already reconciled (linked via bank_statement_line) to one bank_statement.
-SELECT
+-- name: SumReconciledActivityByStatementIDs :many
+-- One row per statement: total debit/credit on the statement's own account
+-- across every ledger_transaction already reconciled to it (linked via
+-- bank_statement_line), plus that account's normal balance - everything
+-- reconciled_balance needs, for a whole list of statements in one round trip.
+-- LEFT JOINs so a statement with no lines yet still gets a zero row.
+SELECT bs.id AS bank_statement_id,
+    lat.normal_balance,
     COALESCE(SUM(le.debit_amount), 0)::numeric AS total_debit,
     COALESCE(SUM(le.credit_amount), 0)::numeric AS total_credit
-FROM bank_statement_line bsl
-JOIN ledger_entry le ON le.ledger_transaction_id = bsl.ledger_transaction_id
-    AND le.account_id = sqlc.arg('account_id')
+FROM bank_statement bs
+JOIN ledger_account la ON la.id = bs.ledger_account_id
+JOIN ledger_account_type lat ON lat.id = la.account_type_id
+LEFT JOIN bank_statement_line bsl ON bsl.bank_statement_id = bs.id
+LEFT JOIN ledger_entry le ON le.ledger_transaction_id = bsl.ledger_transaction_id
+    AND le.account_id = bs.ledger_account_id
     AND le.deleted_at IS NULL
-WHERE bsl.bank_statement_id = sqlc.arg('bank_statement_id');
+WHERE bs.id = ANY(sqlc.arg('bank_statement_ids')::bigint[])
+GROUP BY bs.id, lat.normal_balance;
 
 -- name: ListUnreconciledLedgerTransactions :many
 -- ledger_transaction rows touching account_id, through_date, that have no

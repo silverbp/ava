@@ -30,6 +30,47 @@ make install       # go install avactl (with version stamped) to $GOBIN — pref
 `VERSION` = `<VERSION file>.<total commit count>` — advances automatically as commits land, never
 hand-bump the patch number.
 
+## Adding a resource
+
+Every resource is the same five pieces; each one is a table entry or a one-line builder call, so
+copy the closest existing resource (contact for a plain CRUD noun, invoice for a document) and
+follow this list rather than reverse-engineering a sibling file.
+
+1. **Schema + queries.** Table in `migrations/00001_initial.up.sql` (edited in place, see
+   docs/schema.md); `Create/Get/List/Update/Deactivate` queries in `sql/queries/<area>.sql`, with
+   `resource_version` preconditions on the writes (copy `UpdateContact`). Children (line items,
+   applications) also get a `List<Child>By<Parent>IDs` batch query. `make sqlc`.
+2. **Proto.** One `message X` plus `Get/List/Create/Update/Deactivate` request/response pairs in
+   `proto/ava/v1/<area>.proto`, `resource_version` on every mutating request. `make proto`.
+3. **Server** — one file, `internal/server/<x>_service.go`, registered in `server.go`:
+   - Add `xRes = resourceDef[sqlcgen.X]{"x", (*sqlcgen.Queries).GetX, businessOf}` to
+     `resources.go`. Every handler that takes an id then opens with
+     `row, err := xRes.load(ctx, q, id, "MEMBER")` (404 + role check in one call); an id that
+     arrives inside a request body is vetted with `xRes.requireInBusiness(ctx, q, businessID, id)`.
+     If the resource can carry notes/attachments, add it to `entityRefChecks` in `entity_ref.go`.
+   - `xToProto(row) *avav1.X` is a plain conversion (`moneypb.ToProto`, `datepb.ToProto`,
+     `timestampProto` never fail). A resource with children gets `xsToProto(ctx, q, rows)` built on
+     `withChildren` (children.go) so list handlers never query per row, and `xToProto` becomes
+     `one(xsToProto(ctx, q, []sqlcgen.X{row}))`.
+   - Errors: `translatePgError` after a single query, `translateUpdateError(err, xRes.kind, id,
+     version)` after an optimistic-concurrency UPDATE, `txErrorStatus` after `store.ExecTx`. Never
+     build a status by hand for those three cases (`pgerror.go`).
+   - Document lines go through `buildDocumentLines` / `insertXLines` (`document_lines.go`); ledger
+     entries through `internal/ledgerpost`.
+4. **CLI** — one file, `internal/avactl/cmd/<x>.go`, added to `root.go`:
+   - `var xNoun = resource.Noun{...}` with columns as `resource.Int("ID", (*avav1.X).GetId)`,
+     `resource.Str`, `resource.Money`, `resource.Bool`, `resource.Date`, `resource.OptInt`.
+   - Verbs are builder calls: `newListCmd`, `newGetCmd` (+ optional pdf func), `newCreateCmd` /
+     `newNoArgCmd`, `newMutateCmd`, `newVersionedMutateCmd` (adds `--resource-version`). A closure
+     gets a `run` (`r.ctx`, `r.conn`, `r.businessID`, `r.cmd`) and returns `resp.GetX(), err`; lists
+     return `toMessages(resp.GetXs()), err`. Optional request fields are `r.optString("flag", &v)`
+     (and `optInt32/optInt64/optBool/optDecimal/optDate`) — nil unless the flag was passed.
+   - Never parse an id or dial in a noun file; the builders do both.
+   - Add the row to the resource reference table below.
+5. **Tests.** Add a `crudCase` to `internal/server/crud_integration_test.go` (create / get /
+   update / deactivate against the real handlers) and, for anything with ledger impact, extend
+   `TestDocumentFlow`.
+
 ---
 
 ## avactl

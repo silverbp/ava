@@ -1,4 +1,4 @@
--- Copyright (c) 2025 Casey Entzi
+-- Copyright (c) 2025 Silver Blueprints LLC
 -- SPDX-License-Identifier: MIT
 
 -- name: CreateEstimate :one
@@ -24,6 +24,12 @@ SELECT * FROM estimate WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListEstimateLineItems :many
 SELECT * FROM estimate_line_item WHERE estimate_id = $1 AND deleted_at IS NULL ORDER BY line_number;
+
+-- name: ListEstimateLineItemsByEstimateIDs :many
+-- Batch form for list handlers: every line of every estimate in one round trip.
+SELECT * FROM estimate_line_item
+WHERE estimate_id = ANY(sqlc.arg('estimate_ids')::bigint[]) AND deleted_at IS NULL
+ORDER BY estimate_id, line_number;
 
 -- name: ListEstimates :many
 SELECT * FROM estimate
@@ -76,6 +82,12 @@ SELECT * FROM invoice WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListInvoiceLineItems :many
 SELECT * FROM invoice_line_item WHERE invoice_id = $1 AND deleted_at IS NULL ORDER BY line_number;
+
+-- name: ListInvoiceLineItemsByInvoiceIDs :many
+-- Batch form for list handlers: every line of every invoice in one round trip.
+SELECT * FROM invoice_line_item
+WHERE invoice_id = ANY(sqlc.arg('invoice_ids')::bigint[]) AND deleted_at IS NULL
+ORDER BY invoice_id, line_number;
 
 -- name: ListInvoices :many
 SELECT * FROM invoice
@@ -175,6 +187,12 @@ RETURNING *;
 
 -- name: ListPaymentApplicationsForPayment :many
 SELECT * FROM payment_application WHERE payment_id = $1 ORDER BY id;
+
+-- name: ListPaymentApplicationsByPaymentIDs :many
+-- Batch form for list handlers.
+SELECT * FROM payment_application
+WHERE payment_id = ANY(sqlc.arg('payment_ids')::bigint[])
+ORDER BY payment_id, id;
 
 -- name: CountPaymentApplicationsForInvoice :one
 -- Used by InvoiceService.UpdateInvoiceStatus to refuse cancelling an

@@ -54,7 +54,7 @@ type AccountBalancesAsOfRow struct {
 	TotalCredit               pgtype.Numeric `json:"total_credit"`
 }
 
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 // One row per ledger_account, with total debit/credit activity from
 // ledger_entry within [period_start, period_end]. Used, with different

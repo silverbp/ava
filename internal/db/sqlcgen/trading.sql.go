@@ -128,7 +128,7 @@ type CreateEstimateParams struct {
 	CreatedByUserID *int64         `json:"created_by_user_id"`
 }
 
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 func (q *Queries) CreateEstimate(ctx context.Context, arg CreateEstimateParams) (Estimate, error) {
 	row := q.db.QueryRow(ctx, createEstimate,
@@ -613,6 +613,50 @@ func (q *Queries) ListEstimateLineItems(ctx context.Context, estimateID int64) (
 	return items, nil
 }
 
+const listEstimateLineItemsByEstimateIDs = `-- name: ListEstimateLineItemsByEstimateIDs :many
+SELECT id, estimate_id, item_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at FROM estimate_line_item
+WHERE estimate_id = ANY($1::bigint[]) AND deleted_at IS NULL
+ORDER BY estimate_id, line_number
+`
+
+// Batch form for list handlers: every line of every estimate in one round trip.
+func (q *Queries) ListEstimateLineItemsByEstimateIDs(ctx context.Context, estimateIds []int64) ([]EstimateLineItem, error) {
+	rows, err := q.db.Query(ctx, listEstimateLineItemsByEstimateIDs, estimateIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EstimateLineItem
+	for rows.Next() {
+		var i EstimateLineItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.EstimateID,
+			&i.ItemID,
+			&i.LineNumber,
+			&i.Description,
+			&i.Quantity,
+			&i.UnitPrice,
+			&i.LineSubtotal,
+			&i.IsTaxable,
+			&i.TaxRateID,
+			&i.TaxRate,
+			&i.TaxAmount,
+			&i.LineTotal,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEstimates = `-- name: ListEstimates :many
 SELECT id, business_id, customer_id, estimate_number, estimate_date, expiration_date, subtotal, total_tax_amount, total_amount, status, notes, terms, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM estimate
 WHERE business_id = $1 AND deleted_at IS NULL
@@ -669,6 +713,51 @@ SELECT id, invoice_id, item_id, ledger_account_id, line_number, description, qua
 
 func (q *Queries) ListInvoiceLineItems(ctx context.Context, invoiceID int64) ([]InvoiceLineItem, error) {
 	rows, err := q.db.Query(ctx, listInvoiceLineItems, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InvoiceLineItem
+	for rows.Next() {
+		var i InvoiceLineItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.InvoiceID,
+			&i.ItemID,
+			&i.LedgerAccountID,
+			&i.LineNumber,
+			&i.Description,
+			&i.Quantity,
+			&i.UnitPrice,
+			&i.LineSubtotal,
+			&i.IsTaxable,
+			&i.TaxRateID,
+			&i.TaxRate,
+			&i.TaxAmount,
+			&i.LineTotal,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoiceLineItemsByInvoiceIDs = `-- name: ListInvoiceLineItemsByInvoiceIDs :many
+SELECT id, invoice_id, item_id, ledger_account_id, line_number, description, quantity, unit_price, line_subtotal, is_taxable, tax_rate_id, tax_rate, tax_amount, line_total, created_at, updated_at, deleted_at FROM invoice_line_item
+WHERE invoice_id = ANY($1::bigint[]) AND deleted_at IS NULL
+ORDER BY invoice_id, line_number
+`
+
+// Batch form for list handlers: every line of every invoice in one round trip.
+func (q *Queries) ListInvoiceLineItemsByInvoiceIDs(ctx context.Context, invoiceIds []int64) ([]InvoiceLineItem, error) {
+	rows, err := q.db.Query(ctx, listInvoiceLineItemsByInvoiceIDs, invoiceIds)
 	if err != nil {
 		return nil, err
 	}
@@ -805,6 +894,39 @@ func (q *Queries) ListInvoicesForContact(ctx context.Context, arg ListInvoicesFo
 			&i.UpdatedAt,
 			&i.ResourceVersion,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPaymentApplicationsByPaymentIDs = `-- name: ListPaymentApplicationsByPaymentIDs :many
+SELECT id, payment_id, invoice_id, applied_amount, created_at FROM payment_application
+WHERE payment_id = ANY($1::bigint[])
+ORDER BY payment_id, id
+`
+
+// Batch form for list handlers.
+func (q *Queries) ListPaymentApplicationsByPaymentIDs(ctx context.Context, paymentIds []int64) ([]PaymentApplication, error) {
+	rows, err := q.db.Query(ctx, listPaymentApplicationsByPaymentIDs, paymentIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PaymentApplication
+	for rows.Next() {
+		var i PaymentApplication
+		if err := rows.Scan(
+			&i.ID,
+			&i.PaymentID,
+			&i.InvoiceID,
+			&i.AppliedAmount,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

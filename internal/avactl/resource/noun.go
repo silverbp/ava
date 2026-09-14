@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 // Package resource holds the shared metadata every avactl noun command

@@ -43,7 +43,7 @@ type CreateBankStatementParams struct {
 	CreatedByUserID *int64         `json:"created_by_user_id"`
 }
 
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 func (q *Queries) CreateBankStatement(ctx context.Context, arg CreateBankStatementParams) (BankStatement, error) {
 	row := q.db.QueryRow(ctx, createBankStatement,
@@ -265,6 +265,39 @@ func (q *Queries) ListBankStatementLines(ctx context.Context, bankStatementID in
 	return items, nil
 }
 
+const listBankStatementLinesByStatementIDs = `-- name: ListBankStatementLinesByStatementIDs :many
+SELECT id, bank_statement_id, ledger_transaction_id, display_sequence, created_at FROM bank_statement_line
+WHERE bank_statement_id = ANY($1::bigint[])
+ORDER BY bank_statement_id, display_sequence, id
+`
+
+// Batch form for list handlers.
+func (q *Queries) ListBankStatementLinesByStatementIDs(ctx context.Context, bankStatementIds []int64) ([]BankStatementLine, error) {
+	rows, err := q.db.Query(ctx, listBankStatementLinesByStatementIDs, bankStatementIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BankStatementLine
+	for rows.Next() {
+		var i BankStatementLine
+		if err := rows.Scan(
+			&i.ID,
+			&i.BankStatementID,
+			&i.LedgerTransactionID,
+			&i.DisplaySequence,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBankStatements = `-- name: ListBankStatements :many
 SELECT id, business_id, ledger_account_id, statement_name, statement_date, opening_balance, closing_balance, created_by_user_id, created_at, updated_at, deleted_at, resource_version FROM bank_statement WHERE business_id = $1 AND deleted_at IS NULL ORDER BY statement_date DESC
 `
@@ -358,34 +391,57 @@ func (q *Queries) ListUnreconciledLedgerTransactions(ctx context.Context, arg Li
 	return items, nil
 }
 
-const sumReconciledActivity = `-- name: SumReconciledActivity :one
-SELECT
+const sumReconciledActivityByStatementIDs = `-- name: SumReconciledActivityByStatementIDs :many
+SELECT bs.id AS bank_statement_id,
+    lat.normal_balance,
     COALESCE(SUM(le.debit_amount), 0)::numeric AS total_debit,
     COALESCE(SUM(le.credit_amount), 0)::numeric AS total_credit
-FROM bank_statement_line bsl
-JOIN ledger_entry le ON le.ledger_transaction_id = bsl.ledger_transaction_id
-    AND le.account_id = $1
+FROM bank_statement bs
+JOIN ledger_account la ON la.id = bs.ledger_account_id
+JOIN ledger_account_type lat ON lat.id = la.account_type_id
+LEFT JOIN bank_statement_line bsl ON bsl.bank_statement_id = bs.id
+LEFT JOIN ledger_entry le ON le.ledger_transaction_id = bsl.ledger_transaction_id
+    AND le.account_id = bs.ledger_account_id
     AND le.deleted_at IS NULL
-WHERE bsl.bank_statement_id = $2
+WHERE bs.id = ANY($1::bigint[])
+GROUP BY bs.id, lat.normal_balance
 `
 
-type SumReconciledActivityParams struct {
-	AccountID       int32 `json:"account_id"`
-	BankStatementID int64 `json:"bank_statement_id"`
+type SumReconciledActivityByStatementIDsRow struct {
+	BankStatementID int64          `json:"bank_statement_id"`
+	NormalBalance   string         `json:"normal_balance"`
+	TotalDebit      pgtype.Numeric `json:"total_debit"`
+	TotalCredit     pgtype.Numeric `json:"total_credit"`
 }
 
-type SumReconciledActivityRow struct {
-	TotalDebit  pgtype.Numeric `json:"total_debit"`
-	TotalCredit pgtype.Numeric `json:"total_credit"`
-}
-
-// Total debit/credit, for one account, across every ledger_transaction
-// already reconciled (linked via bank_statement_line) to one bank_statement.
-func (q *Queries) SumReconciledActivity(ctx context.Context, arg SumReconciledActivityParams) (SumReconciledActivityRow, error) {
-	row := q.db.QueryRow(ctx, sumReconciledActivity, arg.AccountID, arg.BankStatementID)
-	var i SumReconciledActivityRow
-	err := row.Scan(&i.TotalDebit, &i.TotalCredit)
-	return i, err
+// One row per statement: total debit/credit on the statement's own account
+// across every ledger_transaction already reconciled to it (linked via
+// bank_statement_line), plus that account's normal balance - everything
+// reconciled_balance needs, for a whole list of statements in one round trip.
+// LEFT JOINs so a statement with no lines yet still gets a zero row.
+func (q *Queries) SumReconciledActivityByStatementIDs(ctx context.Context, bankStatementIds []int64) ([]SumReconciledActivityByStatementIDsRow, error) {
+	rows, err := q.db.Query(ctx, sumReconciledActivityByStatementIDs, bankStatementIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SumReconciledActivityByStatementIDsRow
+	for rows.Next() {
+		var i SumReconciledActivityByStatementIDsRow
+		if err := rows.Scan(
+			&i.BankStatementID,
+			&i.NormalBalance,
+			&i.TotalDebit,
+			&i.TotalCredit,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateBankStatement = `-- name: UpdateBankStatement :one

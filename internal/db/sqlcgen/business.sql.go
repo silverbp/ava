@@ -74,7 +74,7 @@ type CreateBusinessParams struct {
 	CreatedByUserID *int64  `json:"created_by_user_id"`
 }
 
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) (Business, error) {
 	row := q.db.QueryRow(ctx, createBusiness,

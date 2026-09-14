@@ -1,4 +1,4 @@
--- Copyright (c) 2025 Casey Entzi
+-- Copyright (c) 2025 Silver Blueprints LLC
 -- SPDX-License-Identifier: MIT
 
 -- name: CreateContact :one
@@ -59,6 +59,13 @@ RETURNING *;
 -- name: GetVendorByContactID :one
 SELECT * FROM vendor WHERE contact_id = $1;
 
+-- name: ListCustomersByContactIDs :many
+-- Batch form for contact list handlers.
+SELECT * FROM customer WHERE contact_id = ANY(sqlc.arg('contact_ids')::bigint[]);
+
+-- name: ListVendorsByContactIDs :many
+SELECT * FROM vendor WHERE contact_id = ANY(sqlc.arg('contact_ids')::bigint[]);
+
 -- name: CreateItem :one
 INSERT INTO item (
     business_id, item_code, item_type, name, description, unit_of_measure, cost_price,
@@ -70,12 +77,6 @@ RETURNING *;
 
 -- name: GetItem :one
 SELECT * FROM item WHERE id = $1 AND deleted_at IS NULL;
-
--- name: GetItemInBusiness :one
--- Business-scoped item lookup for estimate/invoice line resolution: a line may only
--- reference its own business's catalog. Deliberately no is_active filter so callers can
--- tell "not found" (InvalidArgument) from "inactive" (FailedPrecondition).
-SELECT * FROM item WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL;
 
 -- name: ListItems :many
 SELECT * FROM item
@@ -114,13 +115,6 @@ RETURNING *;
 
 -- name: GetTaxRate :one
 SELECT * FROM tax_rate WHERE id = $1;
-
--- name: GetTaxRateInBusiness :one
--- Business-scoped tax rate lookup for estimate/invoice line resolution: a line may only
--- reference its own business's tax rates, same reasoning as GetItemInBusiness. Deliberately
--- no is_active filter — an item's default_tax_rate_id may legitimately point at a rate that's
--- since been deactivated, and existing documents keep referencing it as history.
-SELECT * FROM tax_rate WHERE id = $1 AND business_id = $2;
 
 -- name: ListTaxRates :many
 SELECT * FROM tax_rate WHERE business_id = $1 ORDER BY name;

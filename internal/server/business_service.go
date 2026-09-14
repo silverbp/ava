@@ -1,19 +1,16 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package server
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
 	"github.com/silverbp/ava/internal/auth"
@@ -33,23 +30,11 @@ func newBusinessService(store *db.Store) *businessService {
 }
 
 func (s *businessService) GetBusiness(ctx context.Context, req *avav1.GetBusinessRequest) (*avav1.GetBusinessResponse, error) {
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetId(), "VIEWER"); err != nil {
+	b, err := businessRes.load(ctx, s.store.Queries, req.GetId(), "VIEWER")
+	if err != nil {
 		return nil, err
 	}
-
-	b, err := s.store.Queries.GetBusiness(ctx, req.GetId())
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "business %d not found", req.GetId())
-		}
-		return nil, status.Errorf(codes.Internal, "getting business: %v", err)
-	}
-
-	pb, err := businessToProto(b)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting business: %v", err)
-	}
-	return &avav1.GetBusinessResponse{Business: pb}, nil
+	return &avav1.GetBusinessResponse{Business: businessToProto(b)}, nil
 }
 
 func (s *businessService) ListMyBusinesses(ctx context.Context, _ *avav1.ListMyBusinessesRequest) (*avav1.ListMyBusinessesResponse, error) {
@@ -60,48 +45,44 @@ func (s *businessService) ListMyBusinesses(ctx context.Context, _ *avav1.ListMyB
 
 	rows, err := s.store.Queries.ListBusinessesForUser(ctx, u.ID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "listing businesses: %v", err)
+		return nil, translatePgError(err)
 	}
 
 	resp := &avav1.ListMyBusinessesResponse{}
 	for _, row := range rows {
-		pb, err := businessToProto(sqlcgen.Business{
-			ID:                      row.ID,
-			Name:                    row.Name,
-			TaxID:                   row.TaxID,
-			AddressLine1:            row.AddressLine1,
-			AddressLine2:            row.AddressLine2,
-			City:                    row.City,
-			State:                   row.State,
-			PostalCode:              row.PostalCode,
-			Country:                 row.Country,
-			Phone:                   row.Phone,
-			Email:                   row.Email,
-			WebsiteUrl:              row.WebsiteUrl,
-			LogoUrl:                 row.LogoUrl,
-			DefaultPaymentTermsDays: row.DefaultPaymentTermsDays,
-			DefaultTaxRate:          row.DefaultTaxRate,
-			DefaultInvoiceTerms:     row.DefaultInvoiceTerms,
-			DefaultEstimateTerms:    row.DefaultEstimateTerms,
-			InvoiceNumberPrefix:     row.InvoiceNumberPrefix,
-			EstimateNumberPrefix:    row.EstimateNumberPrefix,
-			NextInvoiceNumber:       row.NextInvoiceNumber,
-			NextEstimateNumber:      row.NextEstimateNumber,
-			Timezone:                row.Timezone,
-			CurrencyCode:            row.CurrencyCode,
-			IsActive:                row.IsActive,
-			CreatedByUserID:         row.CreatedByUserID,
-			CreatedAt:               row.CreatedAt,
-			UpdatedAt:               row.UpdatedAt,
-			ResourceVersion:         row.ResourceVersion,
-			DeletedAt:               row.DeletedAt,
-		})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "converting business: %v", err)
-		}
 		resp.Memberships = append(resp.Memberships, &avav1.BusinessMembership{
-			Business: pb,
-			Role:     row.MembershipRole,
+			Business: businessToProto(sqlcgen.Business{
+				ID:                      row.ID,
+				Name:                    row.Name,
+				TaxID:                   row.TaxID,
+				AddressLine1:            row.AddressLine1,
+				AddressLine2:            row.AddressLine2,
+				City:                    row.City,
+				State:                   row.State,
+				PostalCode:              row.PostalCode,
+				Country:                 row.Country,
+				Phone:                   row.Phone,
+				Email:                   row.Email,
+				WebsiteUrl:              row.WebsiteUrl,
+				LogoUrl:                 row.LogoUrl,
+				DefaultPaymentTermsDays: row.DefaultPaymentTermsDays,
+				DefaultTaxRate:          row.DefaultTaxRate,
+				DefaultInvoiceTerms:     row.DefaultInvoiceTerms,
+				DefaultEstimateTerms:    row.DefaultEstimateTerms,
+				InvoiceNumberPrefix:     row.InvoiceNumberPrefix,
+				EstimateNumberPrefix:    row.EstimateNumberPrefix,
+				NextInvoiceNumber:       row.NextInvoiceNumber,
+				NextEstimateNumber:      row.NextEstimateNumber,
+				Timezone:                row.Timezone,
+				CurrencyCode:            row.CurrencyCode,
+				IsActive:                row.IsActive,
+				CreatedByUserID:         row.CreatedByUserID,
+				CreatedAt:               row.CreatedAt,
+				UpdatedAt:               row.UpdatedAt,
+				ResourceVersion:         row.ResourceVersion,
+				DeletedAt:               row.DeletedAt,
+			}),
+			Role: row.MembershipRole,
 		})
 	}
 	return resp, nil
@@ -149,18 +130,13 @@ func (s *businessService) CreateBusiness(ctx context.Context, req *avav1.CreateB
 		return err
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "creating business: %v", err)
+		return nil, txErrorStatus(err)
 	}
-
-	pb, err := businessToProto(created)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting business: %v", err)
-	}
-	return &avav1.CreateBusinessResponse{Business: pb}, nil
+	return &avav1.CreateBusinessResponse{Business: businessToProto(created)}, nil
 }
 
 func (s *businessService) UpdateBusiness(ctx context.Context, req *avav1.UpdateBusinessRequest) (*avav1.UpdateBusinessResponse, error) {
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetId(), "ADMIN"); err != nil {
+	if _, err := businessRes.load(ctx, s.store.Queries, req.GetId(), "ADMIN"); err != nil {
 		return nil, err
 	}
 
@@ -179,18 +155,13 @@ func (s *businessService) UpdateBusiness(ctx context.Context, req *avav1.UpdateB
 		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translateUpdateError(err, "business", req.GetId(), req.GetResourceVersion())
+		return nil, translateUpdateError(err, businessRes.kind, req.GetId(), req.GetResourceVersion())
 	}
-
-	pb, err := businessToProto(updated)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting business: %v", err)
-	}
-	return &avav1.UpdateBusinessResponse{Business: pb}, nil
+	return &avav1.UpdateBusinessResponse{Business: businessToProto(updated)}, nil
 }
 
 func (s *businessService) DeactivateBusiness(ctx context.Context, req *avav1.DeactivateBusinessRequest) (*avav1.DeactivateBusinessResponse, error) {
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetId(), "ADMIN"); err != nil {
+	if _, err := businessRes.load(ctx, s.store.Queries, req.GetId(), "ADMIN"); err != nil {
 		return nil, err
 	}
 
@@ -199,14 +170,9 @@ func (s *businessService) DeactivateBusiness(ctx context.Context, req *avav1.Dea
 		ResourceVersion: expectedResourceVersion(req.GetResourceVersion()),
 	})
 	if err != nil {
-		return nil, translateUpdateError(err, "business", req.GetId(), req.GetResourceVersion())
+		return nil, translateUpdateError(err, businessRes.kind, req.GetId(), req.GetResourceVersion())
 	}
-
-	pb, err := businessToProto(deactivated)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting business: %v", err)
-	}
-	return &avav1.DeactivateBusinessResponse{Business: pb}, nil
+	return &avav1.DeactivateBusinessResponse{Business: businessToProto(deactivated)}, nil
 }
 
 // businessInviteTTL is deliberately short — a copy/pasted invite token
@@ -264,7 +230,7 @@ func (s *businessService) ListBusinessInvites(ctx context.Context, req *avav1.Li
 	}
 	rows, err := s.store.Queries.ListBusinessInvitesForBusiness(ctx, req.GetBusinessId())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "listing invites: %v", err)
+		return nil, translatePgError(err)
 	}
 	resp := &avav1.ListBusinessInvitesResponse{}
 	for _, r := range rows {
@@ -274,12 +240,14 @@ func (s *businessService) ListBusinessInvites(ctx context.Context, req *avav1.Li
 }
 
 func (s *businessService) RevokeBusinessInvite(ctx context.Context, req *avav1.RevokeBusinessInviteRequest) (*avav1.RevokeBusinessInviteResponse, error) {
+	// Not in the resource table: invites are gated by global-admin OR
+	// business role, which no other resource is.
 	invite, err := s.store.Queries.GetBusinessInvite(ctx, req.GetId())
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, status.Errorf(codes.NotFound, "invite %d not found", req.GetId())
 		}
-		return nil, status.Errorf(codes.Internal, "getting invite: %v", err)
+		return nil, translatePgError(err)
 	}
 	if err := auth.RequireGlobalAdminOrBusinessRole(ctx, s.store.Queries, invite.BusinessID, "ADMIN"); err != nil {
 		return nil, err
@@ -287,10 +255,10 @@ func (s *businessService) RevokeBusinessInvite(ctx context.Context, req *avav1.R
 
 	revoked, err := s.store.Queries.RevokeBusinessInvite(ctx, req.GetId())
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, status.Errorf(codes.FailedPrecondition, "invite %d was already accepted or revoked", req.GetId())
 		}
-		return nil, status.Errorf(codes.Internal, "revoking invite: %v", err)
+		return nil, translatePgError(err)
 	}
 	return &avav1.RevokeBusinessInviteResponse{Invite: businessInviteToProto(revoked)}, nil
 }
@@ -311,10 +279,10 @@ func (s *businessService) AcceptBusinessInvite(ctx context.Context, req *avav1.A
 
 	invite, err := s.store.Queries.GetPendingBusinessInviteByTokenHash(ctx, auth.HashInviteToken(req.GetToken()))
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if isNoRows(err) {
 			return nil, status.Error(codes.NotFound, "invite not found, expired, or already used")
 		}
-		return nil, status.Errorf(codes.Internal, "looking up invite: %v", err)
+		return nil, translatePgError(err)
 	}
 	if !strings.EqualFold(invite.Email, u.Email) {
 		return nil, status.Errorf(codes.PermissionDenied, "this invite was sent to a different email address")
@@ -337,18 +305,13 @@ func (s *businessService) AcceptBusinessInvite(ctx context.Context, req *avav1.A
 		return err
 	})
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, txErrorStatus(err)
 	}
-
-	pb, err := businessToProto(business)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting business: %v", err)
-	}
-	return &avav1.AcceptBusinessInviteResponse{Business: pb, Role: invite.Role}, nil
+	return &avav1.AcceptBusinessInviteResponse{Business: businessToProto(business), Role: invite.Role}, nil
 }
 
 func businessInviteToProto(i sqlcgen.BusinessInvite) *avav1.BusinessInvite {
-	pb := &avav1.BusinessInvite{
+	return &avav1.BusinessInvite{
 		Id:              i.ID,
 		BusinessId:      i.BusinessID,
 		Email:           i.Email,
@@ -356,21 +319,12 @@ func businessInviteToProto(i sqlcgen.BusinessInvite) *avav1.BusinessInvite {
 		InvitedByUserId: i.InvitedByUserID,
 		CreatedAt:       timestampProto(i.CreatedAt),
 		ExpiresAt:       timestampProto(i.ExpiresAt),
+		AcceptedAt:      timestampProto(i.AcceptedAt),
+		RevokedAt:       timestampProto(i.RevokedAt),
 	}
-	if i.AcceptedAt.Valid {
-		pb.AcceptedAt = timestampProto(i.AcceptedAt)
-	}
-	if i.RevokedAt.Valid {
-		pb.RevokedAt = timestampProto(i.RevokedAt)
-	}
-	return pb
 }
 
-func businessToProto(b sqlcgen.Business) (*avav1.Business, error) {
-	taxRate, err := moneypb.ToProto(b.DefaultTaxRate)
-	if err != nil {
-		return nil, err
-	}
+func businessToProto(b sqlcgen.Business) *avav1.Business {
 	return &avav1.Business{
 		Id:                      b.ID,
 		Name:                    b.Name,
@@ -384,7 +338,7 @@ func businessToProto(b sqlcgen.Business) (*avav1.Business, error) {
 		Phone:                   b.Phone,
 		Email:                   b.Email,
 		DefaultPaymentTermsDays: b.DefaultPaymentTermsDays,
-		DefaultTaxRate:          taxRate,
+		DefaultTaxRate:          moneypb.ToProto(b.DefaultTaxRate),
 		InvoiceNumberPrefix:     derefOr(b.InvoiceNumberPrefix, ""),
 		EstimateNumberPrefix:    derefOr(b.EstimateNumberPrefix, ""),
 		Timezone:                derefOr(b.Timezone, ""),
@@ -394,19 +348,5 @@ func businessToProto(b sqlcgen.Business) (*avav1.Business, error) {
 		CreatedAt:               timestampProto(b.CreatedAt),
 		UpdatedAt:               timestampProto(b.UpdatedAt),
 		ResourceVersion:         b.ResourceVersion,
-	}, nil
-}
-
-func timestampProto(t pgtype.Timestamp) *timestamppb.Timestamp {
-	if !t.Valid {
-		return nil
 	}
-	return timestamppb.New(t.Time)
-}
-
-func derefOr(s *string, fallback string) string {
-	if s == nil {
-		return fallback
-	}
-	return *s
 }

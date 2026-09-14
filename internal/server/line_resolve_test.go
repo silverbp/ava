@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package server
@@ -54,9 +54,9 @@ func sameDecimal(t *testing.T, field string, got *avav1.Decimal, want string) {
 	}
 }
 
-func TestResolveInvoiceLine_DefaultsFromItem(t *testing.T) {
+func TestResolveLine_InvoiceDefaultsFromItem(t *testing.T) {
 	item := testItem(t)
-	got, err := resolveInvoiceLine(0, &avav1.NewInvoiceLineItem{ItemId: 71, LineNumber: 1}, item)
+	got, err := resolveLine(0, &avav1.NewDocumentLineItem{ItemId: 71, LineNumber: 1}, item, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,15 +78,15 @@ func TestResolveInvoiceLine_DefaultsFromItem(t *testing.T) {
 	}
 }
 
-func TestResolveInvoiceLine_LineOverridesWin(t *testing.T) {
+func TestResolveLine_LineOverridesWin(t *testing.T) {
 	item := testItem(t)
-	got, err := resolveInvoiceLine(0, &avav1.NewInvoiceLineItem{
+	got, err := resolveLine(0, &avav1.NewDocumentLineItem{
 		ItemId:      71,
 		Description: "Consulting (March)",
 		UnitPrice:   &avav1.Decimal{Value: "99.00"},
 		IsTaxable:   ptr(true),
 		TaxRateId:   ptr(int64(9)),
-	}, item)
+	}, item, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,9 +103,9 @@ func TestResolveInvoiceLine_LineOverridesWin(t *testing.T) {
 	}
 }
 
-func TestResolveInvoiceLine_ExplicitNotTaxableSuppressesItemTaxRate(t *testing.T) {
+func TestResolveLine_ExplicitNotTaxableSuppressesItemTaxRate(t *testing.T) {
 	item := testItem(t)
-	got, err := resolveInvoiceLine(0, &avav1.NewInvoiceLineItem{ItemId: 71, IsTaxable: ptr(false)}, item)
+	got, err := resolveLine(0, &avav1.NewDocumentLineItem{ItemId: 71, IsTaxable: ptr(false)}, item, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,18 +117,26 @@ func TestResolveInvoiceLine_ExplicitNotTaxableSuppressesItemTaxRate(t *testing.T
 	}
 }
 
-func TestResolveInvoiceLine_ItemWithoutAccountIsRejected(t *testing.T) {
+func TestResolveLine_InvoiceItemWithoutAccountIsRejected(t *testing.T) {
 	item := testItem(t)
 	item.DefaultLedgerAccountID = nil
-	_, err := resolveInvoiceLine(3, &avav1.NewInvoiceLineItem{ItemId: 71}, item)
+	_, err := resolveLine(3, &avav1.NewDocumentLineItem{ItemId: 71}, item, true)
 	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("code = %v (%v), want FailedPrecondition", status.Code(err), err)
 	}
+	// An estimate line doesn't need one, and never carries an account.
+	got, err := resolveLine(3, &avav1.NewDocumentLineItem{ItemId: 71}, item, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.LedgerAccountID != nil {
+		t.Errorf("estimate line LedgerAccountID = %v, want nil", *got.LedgerAccountID)
+	}
 }
 
-func TestResolveEstimateLine_DefaultsAndOverrides(t *testing.T) {
+func TestResolveLine_EstimateDefaultsAndOverrides(t *testing.T) {
 	item := testItem(t)
-	got, err := resolveEstimateLine(0, &avav1.NewEstimateLineItem{ItemId: 71}, item)
+	got, err := resolveLine(0, &avav1.NewDocumentLineItem{ItemId: 71}, item, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +146,7 @@ func TestResolveEstimateLine_DefaultsAndOverrides(t *testing.T) {
 	}
 	sameDecimal(t, "UnitPrice", got.UnitPrice, "150.00")
 
-	got, err = resolveEstimateLine(0, &avav1.NewEstimateLineItem{ItemId: 71, Description: "Custom", UnitPrice: &avav1.Decimal{Value: "1.00"}}, item)
+	got, err = resolveLine(0, &avav1.NewDocumentLineItem{ItemId: 71, Description: "Custom", UnitPrice: &avav1.Decimal{Value: "1.00"}}, item, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,17 +175,14 @@ func TestLookupLineItem_ZeroItemIDIsInvalidArgument(t *testing.T) {
 	}
 }
 
-func TestNewInvoiceLineItemsFromEstimate_CarriesItemAndNeverAccount(t *testing.T) {
+func TestNewDocumentLineItemsFromEstimate_CarriesItemAndNeverAccount(t *testing.T) {
 	qty, _ := ledgermath.DecimalToNumeric(decimal.RequireFromString("2"))
 	price, _ := ledgermath.DecimalToNumeric(decimal.RequireFromString("10.00"))
 	lines := []sqlcgen.EstimateLineItem{
 		{ItemID: ptr(int64(71)), LineNumber: 1, Description: "A", Quantity: qty, UnitPrice: price, IsTaxable: true, TaxRateID: ptr(int64(7))},
 		{ItemID: nil, LineNumber: 2, Description: "legacy", Quantity: qty, UnitPrice: price},
 	}
-	got, err := newInvoiceLineItemsFromEstimate(lines)
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := newDocumentLineItemsFromEstimate(lines)
 	if got[0].GetItemId() != 71 || got[0].GetDescription() != "A" || !got[0].GetIsTaxable() || got[0].GetTaxRateId() != 7 {
 		t.Errorf("line 0 not carried over: %+v", got[0])
 	}
@@ -186,5 +191,12 @@ func TestNewInvoiceLineItemsFromEstimate_CarriesItemAndNeverAccount(t *testing.T
 	// A pre-catalog estimate line has no item; it becomes 0 so lookupLineItem rejects it.
 	if got[1].GetItemId() != 0 {
 		t.Errorf("legacy line ItemId = %d, want 0", got[1].GetItemId())
+	}
+}
+
+func TestPrefixStatus_KeepsCode(t *testing.T) {
+	err := prefixStatus(status.Error(codes.InvalidArgument, "item 71 not found in business 1"), "line %d", 2)
+	if status.Code(err) != codes.InvalidArgument || status.Convert(err).Message() != "line 2: item 71 not found in business 1" {
+		t.Fatalf("got %v", err)
 	}
 }

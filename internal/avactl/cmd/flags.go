@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package cmd
@@ -15,6 +15,15 @@ import (
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
 )
 
+// parseID parses a positional <id> argument, naming the noun in the error.
+func parseID(noun, s string) (int64, error) {
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s id %q: %w", noun, s, err)
+	}
+	return n, nil
+}
+
 // addResourceVersionFlag registers the optimistic-concurrency flag every
 // update/deactivate/status verb takes - the same wording everywhere, so
 // `--help` reads identically across nouns. 0 (the default) sends no
@@ -25,30 +34,64 @@ func addResourceVersionFlag(cmd *cobra.Command, dst *int64) {
 }
 
 // parseDateFlag parses a YYYY-MM-DD flag value into a google.type.Date.
-func parseDateFlag(s string) (*typepb.Date, error) {
+// flag names the flag in the error ("due", "as-of", ...).
+func parseDateFlag(flag, s string) (*typepb.Date, error) {
 	t, err := time.Parse("2006-01-02", s)
 	if err != nil {
-		return nil, fmt.Errorf("invalid --date %q: expected YYYY-MM-DD", s)
+		return nil, fmt.Errorf("invalid --%s %q: expected YYYY-MM-DD", flag, s)
 	}
 	return &typepb.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}, nil
 }
 
-// parseOptionalDateFlag is parseDateFlag for a flag that may be left unset:
-// "" yields nil (the RPC's "use the default" value) rather than an error.
-func parseOptionalDateFlag(s string) (*typepb.Date, error) {
-	if s == "" {
-		return nil, nil
+// Optional-field helpers for create/update requests. Each returns nil
+// unless the named flag was actually passed on the command line, which is
+// the "only flags you pass are sent - omit a flag to leave that field
+// unchanged" contract every update verb documents (and, on create, what
+// lets the server apply its own default). A request literal then reads one
+// field per line: Name: r.optString("name", &name).
+
+func (r run) changed(flag string) bool { return r.cmd.Flags().Changed(flag) }
+
+func (r run) optString(flag string, v *string) *string {
+	if !r.changed(flag) {
+		return nil
 	}
-	return parseDateFlag(s)
+	return v
 }
 
-// formatDate renders a google.type.Date back to YYYY-MM-DD for table
-// output.
-func formatDate(d *typepb.Date) string {
-	if d == nil {
-		return ""
+func (r run) optInt32(flag string, v *int32) *int32 {
+	if !r.changed(flag) {
+		return nil
 	}
-	return fmt.Sprintf("%04d-%02d-%02d", d.GetYear(), d.GetMonth(), d.GetDay())
+	return v
+}
+
+func (r run) optInt64(flag string, v *int64) *int64 {
+	if !r.changed(flag) {
+		return nil
+	}
+	return v
+}
+
+func (r run) optBool(flag string, v *bool) *bool {
+	if !r.changed(flag) {
+		return nil
+	}
+	return v
+}
+
+func (r run) optDecimal(flag string, v *string) *avav1.Decimal {
+	if !r.changed(flag) {
+		return nil
+	}
+	return &avav1.Decimal{Value: *v}
+}
+
+func (r run) optDate(flag string, v *string) (*typepb.Date, error) {
+	if !r.changed(flag) {
+		return nil, nil
+	}
+	return parseDateFlag(flag, *v)
 }
 
 // lineFlagKeys is every key a --line accepts, for estimate and invoice alike. item is
@@ -93,6 +136,37 @@ func parseLineFlags(raw []string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("at least one --line is required")
 	}
 	return lines, nil
+}
+
+// newDocumentLineItems maps --line flags (parseLineFlags) onto the request
+// shape shared by estimate and invoice. line_number is the 1-based position
+// in the flag list.
+func newDocumentLineItems(rawLines []string) ([]*avav1.NewDocumentLineItem, error) {
+	rawFields, err := parseLineFlags(rawLines)
+	if err != nil {
+		return nil, err
+	}
+	lineItems := make([]*avav1.NewDocumentLineItem, 0, len(rawFields))
+	for i, f := range rawFields {
+		itemID, err := parseRequiredInt64(f, "item")
+		if err != nil {
+			return nil, err
+		}
+		taxRateID, err := parseOptionalInt64(f, "tax-rate")
+		if err != nil {
+			return nil, err
+		}
+		lineItems = append(lineItems, &avav1.NewDocumentLineItem{
+			ItemId:      itemID,
+			LineNumber:  int32(i + 1),
+			Description: f["desc"],
+			Quantity:    parseDecimalField(f, "qty"),
+			UnitPrice:   parseDecimalField(f, "price"),
+			IsTaxable:   parseOptionalBool(f, "taxable"),
+			TaxRateId:   taxRateID,
+		})
+	}
+	return lineItems, nil
 }
 
 // parseRequiredInt64 is parseOptionalInt64 for a key parseLineFlags has

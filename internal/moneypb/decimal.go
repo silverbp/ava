@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 // Package moneypb converts between Postgres NUMERIC columns (as scanned by
@@ -8,22 +8,33 @@ package moneypb
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
 )
 
 // ToProto converts a pgtype.Numeric into an *avav1.Decimal, returning nil
-// for a SQL NULL.
-func ToProto(n pgtype.Numeric) (*avav1.Decimal, error) {
+// for a SQL NULL. Infallible: pgx's text encoder handles NaN/Infinity and
+// otherwise cannot fail for a Numeric pgx itself scanned, so there is no
+// error for a caller to wrap - which is what lets every *ToProto function
+// in internal/server be a plain conversion.
+func ToProto(n pgtype.Numeric) *avav1.Decimal {
 	if !n.Valid {
-		return nil, nil
+		return nil
 	}
 	v, err := n.Value()
 	if err != nil {
-		return nil, err
+		// Unreachable in practice (see above); surface rather than silently
+		// zero the amount if it ever does happen.
+		return &avav1.Decimal{Value: "NaN"}
 	}
 	s, _ := v.(string)
-	return &avav1.Decimal{Value: s}, nil
+	return &avav1.Decimal{Value: s}
+}
+
+// FromDecimal converts a decimal.Decimal into an *avav1.Decimal.
+func FromDecimal(d decimal.Decimal) *avav1.Decimal {
+	return &avav1.Decimal{Value: d.String()}
 }
 
 // ToNumeric converts an *avav1.Decimal into a pgtype.Numeric, returning a

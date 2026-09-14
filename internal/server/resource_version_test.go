@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package server
@@ -40,11 +40,11 @@ func TestTranslateUpdateError(t *testing.T) {
 			}
 		})
 	}
-	// A conflict must survive closeErrorStatus, which the transactional
+	// A conflict must survive txErrorStatus, which the transactional
 	// handlers (UpdateInvoiceLineItems / UpdateEstimateLineItems) route
 	// every in-transaction error through.
 	conflict := translateUpdateError(pgx.ErrNoRows, "invoice", 42, 3)
-	if got := closeErrorStatus(conflict); status.Code(got) != codes.Aborted {
-		t.Fatalf("closeErrorStatus rewrote Aborted to %v", status.Code(got))
+	if got := txErrorStatus(conflict); status.Code(got) != codes.Aborted {
+		t.Fatalf("txErrorStatus rewrote Aborted to %v", status.Code(got))
 	}
 }

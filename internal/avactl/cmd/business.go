@@ -1,15 +1,12 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
@@ -22,11 +19,11 @@ var businessNoun = resource.Noun{
 	Plural:   "businesses",
 	Aliases:  []string{"businesses", "biz"},
 	Columns: []resource.Column{
-		{Header: "ID", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Business).GetId()) }},
-		{Header: "NAME", Value: func(v proto.Message) string { return v.(*avav1.Business).GetName() }},
-		{Header: "CURRENCY", Value: func(v proto.Message) string { return v.(*avav1.Business).GetCurrencyCode() }},
-		{Header: "ACTIVE", Value: func(v proto.Message) string { return fmt.Sprintf("%v", v.(*avav1.Business).GetIsActive()) }},
-		{Header: "VERSION", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.Business).GetResourceVersion()) }},
+		resource.Int("ID", (*avav1.Business).GetId),
+		resource.Str("NAME", (*avav1.Business).GetName),
+		resource.Str("CURRENCY", (*avav1.Business).GetCurrencyCode),
+		resource.Bool("ACTIVE", (*avav1.Business).GetIsActive),
+		resource.Int("VERSION", (*avav1.Business).GetResourceVersion),
 	},
 }
 
@@ -34,117 +31,64 @@ var businessInviteNoun = resource.Noun{
 	Singular: "invite",
 	Plural:   "invites",
 	Columns: []resource.Column{
-		{Header: "ID", Value: func(v proto.Message) string { return fmt.Sprintf("%d", v.(*avav1.BusinessInvite).GetId()) }},
-		{Header: "EMAIL", Value: func(v proto.Message) string { return v.(*avav1.BusinessInvite).GetEmail() }},
-		{Header: "ROLE", Value: func(v proto.Message) string { return v.(*avav1.BusinessInvite).GetRole() }},
-		{Header: "ACCEPTED", Value: func(v proto.Message) string {
-			return fmt.Sprintf("%v", v.(*avav1.BusinessInvite).AcceptedAt != nil)
-		}},
-		{Header: "REVOKED", Value: func(v proto.Message) string {
-			return fmt.Sprintf("%v", v.(*avav1.BusinessInvite).RevokedAt != nil)
-		}},
+		resource.Int("ID", (*avav1.BusinessInvite).GetId),
+		resource.Str("EMAIL", (*avav1.BusinessInvite).GetEmail),
+		resource.Str("ROLE", (*avav1.BusinessInvite).GetRole),
+		resource.Bool("ACCEPTED", func(i *avav1.BusinessInvite) bool { return i.AcceptedAt != nil }),
+		resource.Bool("REVOKED", func(i *avav1.BusinessInvite) bool { return i.RevokedAt != nil }),
 	},
 }
 
 func newBusinessCmd() *cobra.Command {
 	root := newGroupCmd(businessNoun, "Manage businesses")
-	root.AddCommand(newListCmd(businessNoun, listMyBusinesses))
-	root.AddCommand(newGetCmd(businessNoun, getBusiness))
-	root.AddCommand(newBusinessCreateCmd())
-	root.AddCommand(newBusinessUpdateCmd())
-	root.AddCommand(newVersionedMutateCmd(businessNoun, "deactivate", "Deactivate a business", deactivateBusiness))
-	root.AddCommand(newBusinessInviteCmd())
+	root.AddCommand(
+		// "list businesses" naturally means "list businesses I belong to", not
+		// "list businesses scoped to a business", so the business id is ignored.
+		newListCmd(businessNoun, func(r run) ([]proto.Message, error) {
+			resp, err := avav1.NewBusinessServiceClient(r.conn).ListMyBusinesses(r.ctx, &avav1.ListMyBusinessesRequest{})
+			items := make([]proto.Message, 0, len(resp.GetMemberships()))
+			for _, m := range resp.GetMemberships() {
+				items = append(items, m.GetBusiness())
+			}
+			return items, err
+		}),
+		newGetCmd(businessNoun, func(r run, id int64) (proto.Message, error) {
+			resp, err := avav1.NewBusinessServiceClient(r.conn).GetBusiness(r.ctx, &avav1.GetBusinessRequest{Id: id})
+			return resp.GetBusiness(), err
+		}),
+		newBusinessCreateCmd(),
+		newBusinessUpdateCmd(),
+		newVersionedMutateCmd(businessNoun, "deactivate", resource.Doc{Summary: "Deactivate a business"}, func(r run, id, resourceVersion int64) (proto.Message, error) {
+			resp, err := avav1.NewBusinessServiceClient(r.conn).DeactivateBusiness(r.ctx, &avav1.DeactivateBusinessRequest{Id: id, ResourceVersion: resourceVersion})
+			return resp.GetBusiness(), err
+		}),
+		newBusinessInviteCmd(),
+	)
 	return root
-}
-
-func getBusiness(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	n, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid business id %q: %w", id, err)
-	}
-	resp, err := avav1.NewBusinessServiceClient(conn).GetBusiness(ctx, &avav1.GetBusinessRequest{Id: n})
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetBusiness(), nil
-}
-
-// listMyBusinesses ignores businessID: "list businesses" naturally means
-// "list businesses I belong to", not "list businesses scoped to a
-// business" (which wouldn't be meaningful for this noun).
-func listMyBusinesses(ctx context.Context, conn *grpc.ClientConn, _ int64) ([]proto.Message, error) {
-	resp, err := avav1.NewBusinessServiceClient(conn).ListMyBusinesses(ctx, &avav1.ListMyBusinessesRequest{})
-	if err != nil {
-		return nil, err
-	}
-	items := make([]proto.Message, len(resp.GetMemberships()))
-	for i, m := range resp.GetMemberships() {
-		items[i] = m.GetBusiness()
-	}
-	return items, nil
-}
-
-func deactivateBusiness(ctx context.Context, conn *grpc.ClientConn, id string, resourceVersion int64) (proto.Message, error) {
-	n, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid business id %q: %w", id, err)
-	}
-	resp, err := avav1.NewBusinessServiceClient(conn).DeactivateBusiness(ctx, &avav1.DeactivateBusinessRequest{Id: n, ResourceVersion: resourceVersion})
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetBusiness(), nil
 }
 
 func newBusinessCreateCmd() *cobra.Command {
 	var name, taxID, addr1, addr2, city, state, postal, country, phone, email string
 
-	cmd := &cobra.Command{
-		Use:  "create",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			req := &avav1.CreateBusinessRequest{Name: name}
-			if taxID != "" {
-				req.TaxId = &taxID
-			}
-			if addr1 != "" {
-				req.AddressLine1 = &addr1
-			}
-			if addr2 != "" {
-				req.AddressLine2 = &addr2
-			}
-			if city != "" {
-				req.City = &city
-			}
-			if state != "" {
-				req.State = &state
-			}
-			if postal != "" {
-				req.PostalCode = &postal
-			}
-			if country != "" {
-				req.Country = &country
-			}
-			if phone != "" {
-				req.Phone = &phone
-			}
-			if email != "" {
-				req.Email = &email
-			}
-
-			resp, err := avav1.NewBusinessServiceClient(conn).CreateBusiness(cmd.Context(), req)
-			if err != nil {
-				return err
-			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetBusiness(), businessNoun.Columns)
-		},
-	}
+	cmd := newCreateCmd(businessNoun, resource.Doc{
+		Summary:  "Create a business",
+		Detail:   "Requires global-admin.",
+		Examples: []resource.Example{{Cmd: `avactl business create --name "Acme Co"`}},
+	}, func(r run) (proto.Message, error) {
+		resp, err := avav1.NewBusinessServiceClient(r.conn).CreateBusiness(r.ctx, &avav1.CreateBusinessRequest{
+			Name:         name,
+			TaxId:        r.optString("tax-id", &taxID),
+			AddressLine1: r.optString("address1", &addr1),
+			AddressLine2: r.optString("address2", &addr2),
+			City:         r.optString("city", &city),
+			State:        r.optString("state", &state),
+			PostalCode:   r.optString("postal-code", &postal),
+			Country:      r.optString("country", &country),
+			Phone:        r.optString("phone", &phone),
+			Email:        r.optString("email", &email),
+		})
+		return resp.GetBusiness(), err
+	})
 	cmd.Flags().StringVar(&name, "name", "", "business name (required)")
 	cmd.Flags().StringVar(&taxID, "tax-id", "", "tax id")
 	cmd.Flags().StringVar(&addr1, "address1", "", "address line 1")
@@ -156,71 +100,33 @@ func newBusinessCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&phone, "phone", "", "phone number")
 	cmd.Flags().StringVar(&email, "email", "", "email address")
 	_ = cmd.MarkFlagRequired("name")
-	resource.Doc{
-		Summary:  "Create a business",
-		Detail:   "Requires global-admin.",
-		Examples: []resource.Example{{Cmd: `avactl business create --name "Acme Co"`}},
-	}.Apply(cmd)
 	return cmd
 }
 
 func newBusinessUpdateCmd() *cobra.Command {
-	var resourceVersion int64
 	var name, taxID, addr1, addr2, city, state, postal, country, phone, email string
 
-	cmd := &cobra.Command{
-		Use:  "update <id>",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid business id %q: %w", args[0], err)
-			}
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			req := &avav1.UpdateBusinessRequest{Id: id, ResourceVersion: resourceVersion}
-			if cmd.Flags().Changed("name") {
-				req.Name = &name
-			}
-			if cmd.Flags().Changed("tax-id") {
-				req.TaxId = &taxID
-			}
-			if cmd.Flags().Changed("address1") {
-				req.AddressLine1 = &addr1
-			}
-			if cmd.Flags().Changed("address2") {
-				req.AddressLine2 = &addr2
-			}
-			if cmd.Flags().Changed("city") {
-				req.City = &city
-			}
-			if cmd.Flags().Changed("state") {
-				req.State = &state
-			}
-			if cmd.Flags().Changed("postal-code") {
-				req.PostalCode = &postal
-			}
-			if cmd.Flags().Changed("country") {
-				req.Country = &country
-			}
-			if cmd.Flags().Changed("phone") {
-				req.Phone = &phone
-			}
-			if cmd.Flags().Changed("email") {
-				req.Email = &email
-			}
-
-			resp, err := avav1.NewBusinessServiceClient(conn).UpdateBusiness(cmd.Context(), req)
-			if err != nil {
-				return err
-			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetBusiness(), businessNoun.Columns)
-		},
-	}
+	cmd := newVersionedMutateCmd(businessNoun, "update", resource.Doc{
+		Summary:  "Update a business's profile",
+		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",
+		Examples: []resource.Example{{Cmd: "avactl business update 1 --phone 555-0100"}},
+	}, func(r run, id, resourceVersion int64) (proto.Message, error) {
+		resp, err := avav1.NewBusinessServiceClient(r.conn).UpdateBusiness(r.ctx, &avav1.UpdateBusinessRequest{
+			Id:              id,
+			ResourceVersion: resourceVersion,
+			Name:            r.optString("name", &name),
+			TaxId:           r.optString("tax-id", &taxID),
+			AddressLine1:    r.optString("address1", &addr1),
+			AddressLine2:    r.optString("address2", &addr2),
+			City:            r.optString("city", &city),
+			State:           r.optString("state", &state),
+			PostalCode:      r.optString("postal-code", &postal),
+			Country:         r.optString("country", &country),
+			Phone:           r.optString("phone", &phone),
+			Email:           r.optString("email", &email),
+		})
+		return resp.GetBusiness(), err
+	})
 	cmd.Flags().StringVar(&name, "name", "", "new business name")
 	cmd.Flags().StringVar(&taxID, "tax-id", "", "new tax id")
 	cmd.Flags().StringVar(&addr1, "address1", "", "new address line 1")
@@ -231,49 +137,30 @@ func newBusinessUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&country, "country", "", "new country")
 	cmd.Flags().StringVar(&phone, "phone", "", "new phone number")
 	cmd.Flags().StringVar(&email, "email", "", "new email address")
-	addResourceVersionFlag(cmd, &resourceVersion)
-	resource.Doc{
-		Summary:  "Update a business's profile",
-		Detail:   "Only flags you pass are sent - omit a flag to leave that field unchanged.",
-		Examples: []resource.Example{{Cmd: "avactl business update 1 --phone 555-0100"}},
-	}.Apply(cmd)
 	return cmd
 }
 
 func newBusinessInviteCmd() *cobra.Command {
 	root := newGroupCmd(businessInviteNoun, "Invite people into a business")
-	root.AddCommand(newListCmd(businessInviteNoun, listBusinessInvites))
-	root.AddCommand(newBusinessInviteCreateCmd())
-	root.AddCommand(newMutateCmd(businessInviteNoun, "revoke", "Revoke a business invite", revokeBusinessInvite))
+	root.AddCommand(
+		// "list invites" naturally means "outstanding invites on the business
+		// I'm working in".
+		newListCmd(businessInviteNoun, func(r run) ([]proto.Message, error) {
+			resp, err := avav1.NewBusinessServiceClient(r.conn).ListBusinessInvites(r.ctx, &avav1.ListBusinessInvitesRequest{BusinessId: r.businessID})
+			return toMessages(resp.GetInvites()), err
+		}),
+		newBusinessInviteCreateCmd(),
+		newMutateCmd(businessInviteNoun, "revoke", resource.Doc{Summary: "Revoke a business invite"}, func(r run, id int64) (proto.Message, error) {
+			resp, err := avav1.NewBusinessServiceClient(r.conn).RevokeBusinessInvite(r.ctx, &avav1.RevokeBusinessInviteRequest{Id: id})
+			return resp.GetInvite(), err
+		}),
+	)
 	return root
 }
 
-// listBusinessInvites is the current context's business - "list invites"
-// naturally means "outstanding invites on the business I'm working in".
-func listBusinessInvites(ctx context.Context, conn *grpc.ClientConn, businessID int64) ([]proto.Message, error) {
-	resp, err := avav1.NewBusinessServiceClient(conn).ListBusinessInvites(ctx, &avav1.ListBusinessInvitesRequest{BusinessId: businessID})
-	if err != nil {
-		return nil, err
-	}
-	items := make([]proto.Message, len(resp.GetInvites()))
-	for i, inv := range resp.GetInvites() {
-		items[i] = inv
-	}
-	return items, nil
-}
-
-func revokeBusinessInvite(ctx context.Context, conn *grpc.ClientConn, id string) (proto.Message, error) {
-	n, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid invite id %q: %w", id, err)
-	}
-	resp, err := avav1.NewBusinessServiceClient(conn).RevokeBusinessInvite(ctx, &avav1.RevokeBusinessInviteRequest{Id: n})
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetInvite(), nil
-}
-
+// newBusinessInviteCreateCmd is hand-written rather than a newCreateCmd: in
+// table mode it prints the one-time token alongside the invite, which the
+// generic single-object output can't carry.
 func newBusinessInviteCreateCmd() *cobra.Command {
 	var email, role string
 
@@ -281,14 +168,14 @@ func newBusinessInviteCreateCmd() *cobra.Command {
 		Use:  "create",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, _, businessID, err := dial()
+			r, err := dialRun(cmd)
 			if err != nil {
 				return err
 			}
-			defer conn.Close()
+			defer r.conn.Close()
 
-			resp, err := avav1.NewBusinessServiceClient(conn).CreateBusinessInvite(cmd.Context(), &avav1.CreateBusinessInviteRequest{
-				BusinessId: businessID,
+			resp, err := avav1.NewBusinessServiceClient(r.conn).CreateBusinessInvite(r.ctx, &avav1.CreateBusinessInviteRequest{
+				BusinessId: r.businessID,
 				Email:      email,
 				Role:       role,
 			})

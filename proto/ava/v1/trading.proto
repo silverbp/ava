@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 syntax = "proto3";
@@ -25,7 +25,7 @@ service EstimateService {
 
 // InvoiceService. Every line item references a catalog item and posts to
 // that item's default_ledger_account_id (the revenue/expense account it
-// hits - owned by the item, never chosen per line; see NewInvoiceLineItem),
+// hits - owned by the item, never chosen per line; see NewDocumentLineItem),
 // and the invoice's contact must have its own ledger_account_id (its AR/AP
 // account) — CreateInvoice posts the invoice to the ledger atomically
 // alongside creating it. UpdateInvoiceLineItems regenerates the linked
@@ -113,12 +113,20 @@ message Estimate {
   int64 resource_version = 16;
 }
 
-// item_id is required: every line references a catalog item (any item_type) belonging to the
-// estimate's business - there are no free-text lines. description defaults to the item's
-// name, and unit_price/is_taxable/tax_rate_id default from the item's own catalog entry
-// (retail_price/is_taxable/default_tax_rate_id) - each of those may still be overridden
-// per line. Inactive items are rejected on new lines. See docs/schema.md, "item".
-message NewEstimateLineItem {
+// NewDocumentLineItem is one line of an estimate or invoice as the caller
+// supplies it - the same shape for both documents, since an estimate line is
+// an invoice line minus the ledger account, and that never comes from the
+// request: an invoice line always posts to its item's
+// default_ledger_account_id (snapshotted onto invoice_line_item.ledger_account_id
+// at posting time), never a per-line choice. item_id is required: every line
+// references a catalog item (any item_type) belonging to the document's
+// business - there are no free-text lines, Xero/QuickBooks style. description
+// defaults to the item's name, and unit_price/is_taxable/tax_rate_id default
+// from the item's catalog entry (retail_price/is_taxable/default_tax_rate_id);
+// each of those may still be overridden per line. Inactive items are
+// rejected on new lines, and for an invoice so are items with no
+// default_ledger_account_id. See docs/schema.md, "item".
+message NewDocumentLineItem {
   int64 item_id = 1;
   int32 line_number = 2;
   string description = 3;
@@ -154,7 +162,7 @@ message CreateEstimateRequest {
   google.type.Date expiration_date = 4;
   optional string notes = 5;
   optional string terms = 6;
-  repeated NewEstimateLineItem line_items = 7;
+  repeated NewDocumentLineItem line_items = 7;
 }
 
 message CreateEstimateResponse {
@@ -179,7 +187,7 @@ message UpdateEstimateStatusResponse {
 // total_amount server-side, same as CreateEstimate.
 message UpdateEstimateLineItemsRequest {
   int64 id = 1;
-  repeated NewEstimateLineItem line_items = 2;
+  repeated NewDocumentLineItem line_items = 2;
   // Optimistic-concurrency precondition - see Business.resource_version. Pass the
   // resource_version from the copy you read to fail with ABORTED if it's since changed;
   // leave unset (0) to write unconditionally.
@@ -239,28 +247,6 @@ message Invoice {
   int64 resource_version = 21;
 }
 
-// item_id is required: every line references a catalog item (any item_type) belonging to the
-// invoice's business - there are no free-text lines, Xero/QuickBooks style. The ledger account
-// the line posts to is always that item's default_ledger_account_id (snapshotted onto
-// invoice_line_item.ledger_account_id at posting time) and is not settable per line - the
-// old ledger_account_id field is reserved. description defaults to the item's name, and
-// unit_price/is_taxable/tax_rate_id default from the item's catalog entry
-// (retail_price/is_taxable/default_tax_rate_id); each of those may still be overridden per
-// line. Inactive items, and items with no default_ledger_account_id, are rejected.
-// See docs/schema.md, "item"/"invoice_line_item.ledger_account_id".
-message NewInvoiceLineItem {
-  reserved 2;
-  reserved "ledger_account_id";
-
-  int64 item_id = 1;
-  int32 line_number = 3;
-  string description = 4;
-  Decimal quantity = 5;
-  Decimal unit_price = 6;
-  optional bool is_taxable = 7;
-  optional int64 tax_rate_id = 8;
-}
-
 message GetInvoiceRequest {
   int64 id = 1;
 }
@@ -297,8 +283,8 @@ message CreateInvoiceRequest {
   // estimate's own line items (item_id/description/quantity/unit_price/is_taxable/
   // tax_rate_id carried over as-is; ledger_account_id resolved fresh from each line's
   // item.default_ledger_account_id, exactly as for any other line - see
-  // NewInvoiceLineItem). Required otherwise.
-  repeated NewInvoiceLineItem line_items = 10;
+  // NewDocumentLineItem). Required otherwise.
+  repeated NewDocumentLineItem line_items = 10;
 }
 
 message CreateInvoiceResponse {
@@ -349,7 +335,7 @@ message UpdateInvoiceStatusResponse {
 // change, only its entries.
 message UpdateInvoiceLineItemsRequest {
   int64 id = 1;
-  repeated NewInvoiceLineItem line_items = 2;
+  repeated NewDocumentLineItem line_items = 2;
   // Optimistic-concurrency precondition - see Business.resource_version. Pass the
   // resource_version from the copy you read to fail with ABORTED if it's since changed;
   // leave unset (0) to write unconditionally.

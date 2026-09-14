@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package cmd
@@ -6,6 +6,10 @@ package cmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
+
+	avav1 "github.com/silverbp/ava/gen/ava/v1"
 )
 
 func TestParseLineFlags_ItemRequired(t *testing.T) {
@@ -47,12 +51,8 @@ func TestParseLineFlags_AtLeastOne(t *testing.T) {
 	}
 }
 
-func TestNewInvoiceLineItems_MapsItemAndLineNumber(t *testing.T) {
-	fields, err := parseLineFlags([]string{"item=71,qty=10", "item=72,price=5.00,tax-rate=3"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	lines, err := newInvoiceLineItems(fields)
+func TestNewDocumentLineItems_MapsItemAndLineNumber(t *testing.T) {
+	lines, err := newDocumentLineItems([]string{"item=71,qty=10", "item=72,price=5.00,tax-rate=3"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,102 @@ func TestNewInvoiceLineItems_MapsItemAndLineNumber(t *testing.T) {
 	if lines[1].GetItemId() != 72 || lines[1].GetLineNumber() != 2 || lines[1].GetTaxRateId() != 3 || lines[1].GetUnitPrice().GetValue() != "5.00" {
 		t.Errorf("line 1 = %+v", lines[1])
 	}
-	if _, err := newInvoiceLineItems([]map[string]string{{"item": "abc"}}); err == nil {
+	if _, err := newDocumentLineItems([]string{"item=abc"}); err == nil {
 		t.Error("non-integer item= should error")
+	}
+}
+
+func TestParseID(t *testing.T) {
+	if id, err := parseID("invoice", "42"); err != nil || id != 42 {
+		t.Fatalf("parseID(42) = %d, %v", id, err)
+	}
+	_, err := parseID("invoice", "x")
+	if err == nil || !strings.Contains(err.Error(), `invalid invoice id "x"`) {
+		t.Fatalf("want the noun in the error, got %v", err)
+	}
+}
+
+func TestParseDateFlag_NamesTheFlag(t *testing.T) {
+	if _, err := parseDateFlag("due", "not-a-date"); err == nil || !strings.Contains(err.Error(), "--due") {
+		t.Fatalf("want --due in the error, got %v", err)
+	}
+	d, err := parseDateFlag("as-of", "2026-01-31")
+	if err != nil || d.GetYear() != 2026 || d.GetMonth() != 1 || d.GetDay() != 31 {
+		t.Fatalf("got %v, %v", d, err)
+	}
+}
+
+// TestOptHelpers_OnlyWhenPassed pins the "omit a flag to leave it alone"
+// contract: a flag left at its default is nil, a flag passed - even with a
+// zero/empty value - is sent.
+func TestOptHelpers_OnlyWhenPassed(t *testing.T) {
+	var name, price string
+	var terms int32
+	cmd := &cobra.Command{Use: "x", RunE: func(*cobra.Command, []string) error { return nil }}
+	cmd.Flags().StringVar(&name, "name", "", "")
+	cmd.Flags().StringVar(&price, "price", "", "")
+	cmd.Flags().Int32Var(&terms, "terms", 0, "")
+	cmd.SetArgs([]string{"--name=", "--price", "1.50"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	r := run{cmd: cmd}
+	if got := r.optString("name", &name); got == nil || *got != "" {
+		t.Errorf("--name= was passed explicitly, want non-nil empty string, got %v", got)
+	}
+	if got := r.optDecimal("price", &price); got == nil || got.GetValue() != "1.50" {
+		t.Errorf("optDecimal = %v", got)
+	}
+	if got := r.optInt32("terms", &terms); got != nil {
+		t.Errorf("--terms not passed, want nil, got %d", *got)
+	}
+}
+
+func TestColumns_RenderThroughGetters(t *testing.T) {
+	inv := &avav1.Invoice{Id: 7, InvoiceNumber: "INV7", TotalAmount: &avav1.Decimal{Value: "10.00"}, ResourceVersion: 3}
+	for _, c := range invoiceNoun.Columns {
+		switch c.Header {
+		case "ID":
+			if got := c.Value(inv); got != "7" {
+				t.Errorf("ID = %q", got)
+			}
+		case "NUMBER":
+			if got := c.Value(inv); got != "INV7" {
+				t.Errorf("NUMBER = %q", got)
+			}
+		case "TOTAL":
+			if got := c.Value(inv); got != "10.00" {
+				t.Errorf("TOTAL = %q", got)
+			}
+		case "POSTED":
+			if got := c.Value(inv); got != "false" {
+				t.Errorf("POSTED = %q", got)
+			}
+		case "BALANCE_DUE":
+			if got := c.Value(inv); got != "" {
+				t.Errorf("unset Decimal should render empty, got %q", got)
+			}
+		}
+	}
+	// A column never panics on the wrong message type.
+	if got := invoiceNoun.Columns[0].Value(&avav1.Contact{Id: 1}); got != "" {
+		t.Errorf("wrong type should render empty, got %q", got)
+	}
+}
+
+// TestCommandTree_Builds walks the whole tree once so a broken builder
+// (duplicate flag, nil closure) fails here rather than at first use.
+func TestCommandTree_Builds(t *testing.T) {
+	root := NewRootCmd()
+	m := buildManifest(root)
+	want := []string{"invoice update-lines", "estimate accept", "close reverse", "context get-attachment", "report customer-statement", "bank-statement unreconciled"}
+	seen := map[string]bool{}
+	for _, c := range m.Commands {
+		seen[strings.Join(c.Path, " ")] = true
+	}
+	for _, w := range want {
+		if !seen[w] {
+			t.Errorf("command %q missing from tree", w)
+		}
 	}
 }

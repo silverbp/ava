@@ -1,13 +1,11 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package server
 
 import (
 	"context"
-	"errors"
 
-	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -36,26 +34,21 @@ func (s *periodCloseService) TriggerClose(ctx context.Context, req *avav1.Trigge
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "ADMIN"); err != nil {
 		return nil, err
 	}
-	if req.GetPeriodEnd() == nil {
-		return nil, status.Error(codes.InvalidArgument, "period_end is required")
+	periodEnd, err := requireDate(req.GetPeriodEnd(), "period_end")
+	if err != nil {
+		return nil, err
 	}
-	periodEnd := datepb.ToPgDate(req.GetPeriodEnd()).Time
 
 	var result *periodclose.CloseResult
-	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
 		var err error
 		result, err = periodclose.Close(ctx, q, req.GetBusinessId(), periodEnd, &u.ID)
 		return err
 	})
 	if err != nil {
-		return nil, closeErrorStatus(err)
+		return nil, txErrorStatus(err)
 	}
-
-	pb, err := periodCloseToProto(s.store, ctx, result.PeriodClose, result.LedgerTransactionIDs)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting period close: %v", err)
-	}
-	return &avav1.TriggerCloseResponse{PeriodClose: pb}, nil
+	return &avav1.TriggerCloseResponse{PeriodClose: periodCloseWithTransactions(result.PeriodClose, result.LedgerTransactionIDs)}, nil
 }
 
 func (s *periodCloseService) ReverseClose(ctx context.Context, req *avav1.ReverseCloseRequest) (*avav1.ReverseCloseResponse, error) {
@@ -63,50 +56,34 @@ func (s *periodCloseService) ReverseClose(ctx context.Context, req *avav1.Revers
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
 	}
-
-	existing, err := s.store.Queries.GetPeriodClose(ctx, req.GetId())
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "period close %d not found", req.GetId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, existing.BusinessID, "ADMIN"); err != nil {
+	if _, err := periodCloseRes.load(ctx, s.store.Queries, req.GetId(), "ADMIN"); err != nil {
 		return nil, err
 	}
 
 	var reversed *sqlcgen.PeriodClose
-	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
 		var err error
 		reversed, err = periodclose.Reverse(ctx, q, req.GetId(), &u.ID)
 		return err
 	})
 	if err != nil {
-		return nil, closeErrorStatus(err)
+		return nil, txErrorStatus(err)
 	}
-
-	pb, err := periodCloseToProto(s.store, ctx, *reversed, nil)
+	pb, err := periodCloseToProto(ctx, s.store.Queries, *reversed)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting period close: %v", err)
+		return nil, err
 	}
 	return &avav1.ReverseCloseResponse{PeriodClose: pb}, nil
 }
 
 func (s *periodCloseService) GetPeriodClose(ctx context.Context, req *avav1.GetPeriodCloseRequest) (*avav1.GetPeriodCloseResponse, error) {
-	pc, err := s.store.Queries.GetPeriodClose(ctx, req.GetId())
+	pc, err := periodCloseRes.load(ctx, s.store.Queries, req.GetId(), "VIEWER")
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, status.Errorf(codes.NotFound, "period close %d not found", req.GetId())
-		}
-		return nil, translatePgError(err)
-	}
-	if err := auth.RequireBusinessRole(ctx, s.store.Queries, pc.BusinessID, "VIEWER"); err != nil {
 		return nil, err
 	}
-
-	pb, err := periodCloseToProto(s.store, ctx, pc, nil)
+	pb, err := periodCloseToProto(ctx, s.store.Queries, pc)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "converting period close: %v", err)
+		return nil, err
 	}
 	return &avav1.GetPeriodCloseResponse{PeriodClose: pb}, nil
 }
@@ -115,50 +92,38 @@ func (s *periodCloseService) ListPeriodCloses(ctx context.Context, req *avav1.Li
 	if err := auth.RequireBusinessRole(ctx, s.store.Queries, req.GetBusinessId(), "VIEWER"); err != nil {
 		return nil, err
 	}
-
 	rows, err := s.store.Queries.ListPeriodCloses(ctx, req.GetBusinessId())
 	if err != nil {
 		return nil, translatePgError(err)
 	}
-
-	resp := &avav1.ListPeriodClosesResponse{}
-	for _, pc := range rows {
-		pb, err := periodCloseToProto(s.store, ctx, pc, nil)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "converting period close: %v", err)
-		}
-		resp.PeriodCloses = append(resp.PeriodCloses, pb)
+	pbs, err := periodClosesToProto(ctx, s.store.Queries, rows)
+	if err != nil {
+		return nil, err
 	}
-	return resp, nil
+	return &avav1.ListPeriodClosesResponse{PeriodCloses: pbs}, nil
 }
 
-// closeErrorStatus maps periodclose's plain Go errors (contiguity/
-// idempotency guard rails) to InvalidArgument, falling back to the
-// standard Postgres error translation for anything else (e.g. a
-// FailedPrecondition from enforce_period_lock, though that shouldn't fire
-// here since Close/Reverse always compute a period_end that's ahead of the
-// current lock).
-func closeErrorStatus(err error) error {
-	if _, ok := status.FromError(err); ok {
-		return err
-	}
-	if pgErr := translatePgError(err); status.Code(pgErr) != codes.Internal {
-		return pgErr
-	}
-	return status.Error(codes.InvalidArgument, err.Error())
+// periodCloseToProto converts one close, loading the transactions it
+// generated.
+func periodCloseToProto(ctx context.Context, q *sqlcgen.Queries, pc sqlcgen.PeriodClose) (*avav1.PeriodClose, error) {
+	return one(periodClosesToProto(ctx, q, []sqlcgen.PeriodClose{pc}))
 }
 
-func periodCloseToProto(store *db.Store, ctx context.Context, pc sqlcgen.PeriodClose, transactionIDs []int64) (*avav1.PeriodClose, error) {
-	if transactionIDs == nil {
-		entries, err := store.Queries.ListPeriodCloseEntries(ctx, pc.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			transactionIDs = append(transactionIDs, e.LedgerTransactionID)
-		}
-	}
+// periodClosesToProto converts a page of closes with their generated
+// transaction ids loaded in one query.
+func periodClosesToProto(ctx context.Context, q *sqlcgen.Queries, rows []sqlcgen.PeriodClose) ([]*avav1.PeriodClose, error) {
+	return withChildren(ctx, q, rows,
+		func(pc sqlcgen.PeriodClose) int64 { return pc.ID },
+		(*sqlcgen.Queries).ListPeriodCloseEntriesByCloseIDs,
+		func(e sqlcgen.PeriodCloseEntry) int64 { return e.PeriodCloseID },
+		func(pc sqlcgen.PeriodClose, entries []sqlcgen.PeriodCloseEntry) *avav1.PeriodClose {
+			return periodCloseWithTransactions(pc, idsOf(entries, func(e sqlcgen.PeriodCloseEntry) int64 { return e.LedgerTransactionID }))
+		})
+}
 
+// periodCloseWithTransactions converts a close whose generated transaction
+// ids the caller already holds (periodclose.Close returns them directly).
+func periodCloseWithTransactions(pc sqlcgen.PeriodClose, transactionIDs []int64) *avav1.PeriodClose {
 	return &avav1.PeriodClose{
 		Id:                            pc.ID,
 		BusinessId:                    pc.BusinessID,
@@ -170,5 +135,5 @@ func periodCloseToProto(store *db.Store, ctx context.Context, pc sqlcgen.PeriodC
 		ReversedAt:                    timestampProto(pc.ReversedAt),
 		CreatedByUserId:               pc.CreatedByUserID,
 		GeneratedLedgerTransactionIds: transactionIDs,
-	}, nil
+	}
 }

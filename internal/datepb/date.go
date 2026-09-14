@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 // Package datepb converts between Postgres DATE columns (as scanned by
@@ -35,4 +35,9 @@ func ToPgDate(d *typepb.Date) pgtype.Date {
 	}
 	t := time.Date(int(d.GetYear()), time.Month(d.GetMonth()), int(d.GetDay()), 0, 0, 0, 0, time.UTC)
 	return pgtype.Date{Time: t, Valid: true}
+}
+
+// FromTime converts a time.Time (date part only) into a *typepb.Date.
+func FromTime(t time.Time) *typepb.Date {
+	return &typepb.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}
 }

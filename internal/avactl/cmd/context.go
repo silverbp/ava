@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Casey Entzi
+// Copyright (c) 2025 Silver Blueprints LLC
 // SPDX-License-Identifier: MIT
 
 package cmd
@@ -19,142 +19,78 @@ import (
 	"github.com/silverbp/ava/internal/avactl/resource"
 )
 
-// newContextCmd is the `context` parent — entity_context/attachment are
-// always scoped to one entity_type + entity_id, not a business-wide
-// listing the way every other noun is, so they stay grouped under one
-// command rather than becoming two separate noun groups.
+// entity_context and attachment are two resources that share one command
+// group (`context`): both are always scoped to one entity_type + entity_id
+// rather than listed business-wide the way every other noun is. The group
+// noun carries the name; the two nouns below carry the table columns.
+var contextGroupNoun = resource.Noun{Singular: "context"}
+
+var entityContextNoun = resource.Noun{
+	Singular: "entity-context",
+	Plural:   "entity-context rows",
+	Columns: []resource.Column{
+		resource.Int("ID", (*avav1.EntityContext).GetId),
+		resource.Str("TYPE", (*avav1.EntityContext).GetContextType),
+		resource.Str("CONTENT", (*avav1.EntityContext).GetContent),
+		resource.Bool("SUPERSEDED", func(ec *avav1.EntityContext) bool { return ec.SupersededById != nil }),
+	},
+}
+
+var attachmentNoun = resource.Noun{
+	Singular: "attachment",
+	Plural:   "attachments",
+	Columns: []resource.Column{
+		resource.Int("ID", (*avav1.Attachment).GetId),
+		resource.Str("FILENAME", (*avav1.Attachment).GetOriginalFilename),
+		resource.Int("SIZE", (*avav1.Attachment).GetFileSizeBytes),
+		resource.Str("CONTENT-TYPE", (*avav1.Attachment).GetContentType),
+	},
+}
+
 func newContextCmd() *cobra.Command {
-	root := newGroupCmd(resource.Noun{Singular: "context"}, "Manage AI/user context and attachments for an entity")
-	root.AddCommand(newContextListCmd())
-	root.AddCommand(newContextGetCmd())
-	root.AddCommand(newContextGetAttachmentCmd())
-	root.AddCommand(newContextNoteCmd())
-	root.AddCommand(newContextRemoveNoteCmd())
-	root.AddCommand(newContextAttachCmd())
-	root.AddCommand(newContextDownloadCmd())
-	root.AddCommand(newContextRemoveAttachmentCmd())
+	root := newGroupCmd(contextGroupNoun, "Manage AI/user context and attachments for an entity")
+	root.AddCommand(
+		newContextListCmd(),
+		newMutateCmd(entityContextNoun, "get", resource.Doc{
+			Summary:  "Get one entity-context row by id",
+			Examples: []resource.Example{{Cmd: "avactl context get 7"}},
+		}, func(r run, id int64) (proto.Message, error) {
+			resp, err := avav1.NewEntityContextServiceClient(r.conn).GetEntityContext(r.ctx, &avav1.GetEntityContextRequest{Id: id})
+			return resp.GetEntityContext(), err
+		}),
+		newMutateCmd(attachmentNoun, "get-attachment", resource.Doc{
+			Summary:  "Get one attachment's metadata by id",
+			Detail:   "Metadata only - use `context download` to read its file content.",
+			Examples: []resource.Example{{Cmd: "avactl context get-attachment 9"}},
+		}, func(r run, id int64) (proto.Message, error) {
+			resp, err := avav1.NewAttachmentServiceClient(r.conn).GetAttachment(r.ctx, &avav1.GetAttachmentRequest{Id: id})
+			return resp.GetAttachment(), err
+		}),
+		newContextNoteCmd(),
+		newMutateCmd(entityContextNoun, "remove-note", resource.Doc{
+			Summary: "Delete a context/note row outright",
+			Detail: "For a note that shouldn't have been created at all. To correct a stale note " +
+				"without losing the trail, use `context note --supersedes <id>` instead.",
+			Examples: []resource.Example{{Cmd: "avactl context remove-note 7"}},
+		}, func(r run, id int64) (proto.Message, error) {
+			resp, err := avav1.NewEntityContextServiceClient(r.conn).DeleteEntityContext(r.ctx, &avav1.DeleteEntityContextRequest{Id: id})
+			return resp.GetEntityContext(), err
+		}),
+		newContextAttachCmd(),
+		newContextDownloadCmd(),
+		newMutateCmd(attachmentNoun, "remove-attachment", resource.Doc{
+			Summary:  "Delete an attachment",
+			Examples: []resource.Example{{Cmd: "avactl context remove-attachment 9"}},
+		}, func(r run, id int64) (proto.Message, error) {
+			resp, err := avav1.NewAttachmentServiceClient(r.conn).DeleteAttachment(r.ctx, &avav1.DeleteAttachmentRequest{Id: id})
+			return resp.GetAttachment(), err
+		}),
+	)
 	return root
 }
 
-func newContextGetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:  "get <id>",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid entity-context id %q: %w", args[0], err)
-			}
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			resp, err := avav1.NewEntityContextServiceClient(conn).GetEntityContext(cmd.Context(), &avav1.GetEntityContextRequest{Id: n})
-			if err != nil {
-				return err
-			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetEntityContext(), nil)
-		},
-	}
-	resource.Doc{
-		Summary:  "Get one entity-context row by id",
-		Examples: []resource.Example{{Cmd: "avactl context get 7"}},
-	}.Apply(cmd)
-	return cmd
-}
-
-func newContextGetAttachmentCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:  "get-attachment <id>",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid attachment id %q: %w", args[0], err)
-			}
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			resp, err := avav1.NewAttachmentServiceClient(conn).GetAttachment(cmd.Context(), &avav1.GetAttachmentRequest{Id: n})
-			if err != nil {
-				return err
-			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetAttachment(), nil)
-		},
-	}
-	resource.Doc{
-		Summary:  "Get one attachment's metadata by id",
-		Detail:   "Metadata only - use `context download` to read its file content.",
-		Examples: []resource.Example{{Cmd: "avactl context get-attachment 9"}},
-	}.Apply(cmd)
-	return cmd
-}
-
-func newContextRemoveNoteCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:  "remove-note <id>",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid entity-context id %q: %w", args[0], err)
-			}
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			resp, err := avav1.NewEntityContextServiceClient(conn).DeleteEntityContext(cmd.Context(), &avav1.DeleteEntityContextRequest{Id: n})
-			if err != nil {
-				return err
-			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetEntityContext(), nil)
-		},
-	}
-	resource.Doc{
-		Summary: "Delete a context/note row outright",
-		Detail: "For a note that shouldn't have been created at all. To correct a stale note " +
-			"without losing the trail, use `context note --supersedes <id>` instead.",
-		Examples: []resource.Example{{Cmd: "avactl context remove-note 7"}},
-	}.Apply(cmd)
-	return cmd
-}
-
-func newContextRemoveAttachmentCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:  "remove-attachment <id>",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid attachment id %q: %w", args[0], err)
-			}
-			conn, _, _, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-
-			resp, err := avav1.NewAttachmentServiceClient(conn).DeleteAttachment(cmd.Context(), &avav1.DeleteAttachmentRequest{Id: n})
-			if err != nil {
-				return err
-			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetAttachment(), nil)
-		},
-	}
-	resource.Doc{
-		Summary:  "Delete an attachment",
-		Examples: []resource.Example{{Cmd: "avactl context remove-attachment 9"}},
-	}.Apply(cmd)
-	return cmd
-}
-
+// newContextDownloadCmd is hand-written: it writes a file rather than
+// printing a resource.
 func newContextDownloadCmd() *cobra.Command {
 	var id int64
 	var out string
@@ -163,13 +99,13 @@ func newContextDownloadCmd() *cobra.Command {
 		Use:  "download",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, _, _, err := dial()
+			r, err := dialRun(cmd)
 			if err != nil {
 				return err
 			}
-			defer conn.Close()
+			defer r.conn.Close()
 
-			stream, err := avav1.NewAttachmentServiceClient(conn).DownloadAttachment(cmd.Context(), &avav1.DownloadAttachmentRequest{Id: id})
+			stream, err := avav1.NewAttachmentServiceClient(r.conn).DownloadAttachment(r.ctx, &avav1.DownloadAttachmentRequest{Id: id})
 			if err != nil {
 				return err
 			}
@@ -214,50 +150,31 @@ func newContextNoteCmd() *cobra.Command {
 	var entityID int64
 	var supersedesRaw []string
 
-	cmd := &cobra.Command{
-		Use:  "note",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var supersedes []int64
-			for _, s := range supersedesRaw {
-				n, err := strconv.ParseInt(s, 10, 64)
-				if err != nil {
-					return err
-				}
-				supersedes = append(supersedes, n)
-			}
-
-			conn, _, businessID, err := dial()
+	cmd := newNoArgCmd(entityContextNoun, "note", resource.Doc{
+		Summary:  "Attach AI-generated or user context to any entity",
+		Examples: []resource.Example{{Cmd: `avactl context note --entity-type invoice --entity-id 42 --content "customer requested a discount"`}},
+	}, func(r run) (proto.Message, error) {
+		var supersedes []int64
+		for _, s := range supersedesRaw {
+			n, err := strconv.ParseInt(s, 10, 64)
 			if err != nil {
-				return err
+				return nil, fmt.Errorf("invalid --supersedes %q: %w", s, err)
 			}
-			defer conn.Close()
-
-			req := &avav1.CreateEntityContextRequest{
-				BusinessId:    businessID,
-				EntityType:    entityType,
-				EntityId:      entityID,
-				ContextType:   contextType,
-				Content:       content,
-				SupersedesIds: supersedes,
-			}
-			if metadataJSON != "" {
-				req.MetadataJson = &metadataJSON
-			}
-			if source != "" {
-				req.Source = &source
-			}
-			if confidence != "" {
-				req.Confidence = &avav1.Decimal{Value: confidence}
-			}
-
-			resp, err := avav1.NewEntityContextServiceClient(conn).CreateEntityContext(cmd.Context(), req)
-			if err != nil {
-				return err
-			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetEntityContext(), nil)
-		},
-	}
+			supersedes = append(supersedes, n)
+		}
+		resp, err := avav1.NewEntityContextServiceClient(r.conn).CreateEntityContext(r.ctx, &avav1.CreateEntityContextRequest{
+			BusinessId:    r.businessID,
+			EntityType:    entityType,
+			EntityId:      entityID,
+			ContextType:   contextType,
+			Content:       content,
+			SupersedesIds: supersedes,
+			MetadataJson:  r.optString("metadata", &metadataJSON),
+			Source:        r.optString("source", &source),
+			Confidence:    r.optDecimal("confidence", &confidence),
+		})
+		return resp.GetEntityContext(), err
+	})
 	cmd.Flags().StringVar(&entityType, "entity-type", "", "target entity type, e.g. invoice, contact, ledger_transaction (required)")
 	cmd.Flags().Int64Var(&entityID, "entity-id", 0, "target entity id (required)")
 	cmd.Flags().StringVar(&contextType, "context-type", "user_note", "summary, categorization_hint, anomaly, or user_note")
@@ -269,10 +186,6 @@ func newContextNoteCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("entity-type")
 	_ = cmd.MarkFlagRequired("entity-id")
 	_ = cmd.MarkFlagRequired("content")
-	resource.Doc{
-		Summary:  "Attach AI-generated or user context to any entity",
-		Examples: []resource.Example{{Cmd: `avactl context note --entity-type invoice --entity-id 42 --content "customer requested a discount"`}},
-	}.Apply(cmd)
 	return cmd
 }
 
@@ -280,67 +193,56 @@ func newContextAttachCmd() *cobra.Command {
 	var entityType, path, filename, contentType string
 	var entityID int64
 
-	cmd := &cobra.Command{
-		Use:  "attach",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			f, err := os.Open(path)
-			if err != nil {
-				return fmt.Errorf("opening %s: %w", path, err)
-			}
-			defer f.Close()
+	cmd := newNoArgCmd(attachmentNoun, "attach", resource.Doc{
+		Summary: "Upload a file and attach it to any entity",
+		Detail: "Streams a local file's bytes to ava through AttachmentService.UploadAttachment, " +
+			"which stores it in ava's own object-storage backend - not a caller-supplied URL.",
+		Examples: []resource.Example{{Cmd: "avactl context attach --entity-type invoice --entity-id 42 --file receipt.pdf"}},
+	}, func(r run) (proto.Message, error) {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, fmt.Errorf("opening %s: %w", path, err)
+		}
+		defer f.Close()
 
-			if filename == "" {
-				filename = filepath.Base(path)
-			}
+		if filename == "" {
+			filename = filepath.Base(path)
+		}
 
-			conn, _, businessID, err := dial()
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
+		stream, err := avav1.NewAttachmentServiceClient(r.conn).UploadAttachment(r.ctx)
+		if err != nil {
+			return nil, err
+		}
+		meta := &avav1.UploadAttachmentMetadata{
+			BusinessId:       r.businessID,
+			EntityType:       entityType,
+			EntityId:         entityID,
+			OriginalFilename: &filename,
+			ContentType:      r.optString("content-type", &contentType),
+		}
+		if err := stream.Send(&avav1.UploadAttachmentRequest{Data: &avav1.UploadAttachmentRequest_Metadata{Metadata: meta}}); err != nil {
+			return nil, err
+		}
 
-			stream, err := avav1.NewAttachmentServiceClient(conn).UploadAttachment(cmd.Context())
-			if err != nil {
-				return err
-			}
-
-			meta := &avav1.UploadAttachmentMetadata{
-				BusinessId:       businessID,
-				EntityType:       entityType,
-				EntityId:         entityID,
-				OriginalFilename: &filename,
-			}
-			if contentType != "" {
-				meta.ContentType = &contentType
-			}
-			if err := stream.Send(&avav1.UploadAttachmentRequest{Data: &avav1.UploadAttachmentRequest_Metadata{Metadata: meta}}); err != nil {
-				return err
-			}
-
-			buf := make([]byte, 256*1024)
-			for {
-				n, readErr := f.Read(buf)
-				if n > 0 {
-					if sendErr := stream.Send(&avav1.UploadAttachmentRequest{Data: &avav1.UploadAttachmentRequest_Chunk{Chunk: buf[:n]}}); sendErr != nil {
-						return sendErr
-					}
-				}
-				if errors.Is(readErr, io.EOF) {
-					break
-				}
-				if readErr != nil {
-					return fmt.Errorf("reading %s: %w", path, readErr)
+		buf := make([]byte, 256*1024)
+		for {
+			n, readErr := f.Read(buf)
+			if n > 0 {
+				if sendErr := stream.Send(&avav1.UploadAttachmentRequest{Data: &avav1.UploadAttachmentRequest_Chunk{Chunk: buf[:n]}}); sendErr != nil {
+					return nil, sendErr
 				}
 			}
-
-			resp, err := stream.CloseAndRecv()
-			if err != nil {
-				return err
+			if errors.Is(readErr, io.EOF) {
+				break
 			}
-			return output.PrintOne(cmd.OutOrStdout(), flagOutput, resp.GetAttachment(), nil)
-		},
-	}
+			if readErr != nil {
+				return nil, fmt.Errorf("reading %s: %w", path, readErr)
+			}
+		}
+
+		resp, err := stream.CloseAndRecv()
+		return resp.GetAttachment(), err
+	})
 	cmd.Flags().StringVar(&entityType, "entity-type", "", "target entity type, e.g. invoice, contact (required)")
 	cmd.Flags().Int64Var(&entityID, "entity-id", 0, "target entity id (required)")
 	cmd.Flags().StringVar(&path, "file", "", "local path of the file to upload (required)")
@@ -349,15 +251,11 @@ func newContextAttachCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("entity-type")
 	_ = cmd.MarkFlagRequired("entity-id")
 	_ = cmd.MarkFlagRequired("file")
-	resource.Doc{
-		Summary: "Upload a file and attach it to any entity",
-		Detail: "Streams a local file's bytes to ava through AttachmentService.UploadAttachment, " +
-			"which stores it in ava's own object-storage backend - not a caller-supplied URL.",
-		Examples: []resource.Example{{Cmd: "avactl context attach --entity-type invoice --entity-id 42 --file receipt.pdf"}},
-	}.Apply(cmd)
 	return cmd
 }
 
+// newContextListCmd is hand-written: it prints two lists (context rows and
+// attachments) for one entity.
 func newContextListCmd() *cobra.Command {
 	var entityType string
 	var entityID int64
@@ -367,15 +265,14 @@ func newContextListCmd() *cobra.Command {
 		Use:  "list",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, _, businessID, err := dial()
+			r, err := dialRun(cmd)
 			if err != nil {
 				return err
 			}
-			defer conn.Close()
-			ctx := cmd.Context()
+			defer r.conn.Close()
 
-			ctxResp, err := avav1.NewEntityContextServiceClient(conn).ListEntityContext(ctx, &avav1.ListEntityContextRequest{
-				BusinessId:        businessID,
+			ctxResp, err := avav1.NewEntityContextServiceClient(r.conn).ListEntityContext(r.ctx, &avav1.ListEntityContextRequest{
+				BusinessId:        r.businessID,
 				EntityType:        entityType,
 				EntityId:          entityID,
 				IncludeSuperseded: includeSuperseded,
@@ -383,8 +280,8 @@ func newContextListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			attResp, err := avav1.NewAttachmentServiceClient(conn).ListAttachments(ctx, &avav1.ListAttachmentsRequest{
-				BusinessId: businessID,
+			attResp, err := avav1.NewAttachmentServiceClient(r.conn).ListAttachments(r.ctx, &avav1.ListAttachmentsRequest{
+				BusinessId: r.businessID,
 				EntityType: entityType,
 				EntityId:   entityID,
 			})
@@ -392,37 +289,22 @@ func newContextListCmd() *cobra.Command {
 				return err
 			}
 
-			if flagOutput != output.FormatTable {
-				w := cmd.OutOrStdout()
-				fmt.Fprintln(w, "--- entity_context ---")
-				ctxItems := make([]proto.Message, len(ctxResp.GetEntityContexts()))
-				for i, ec := range ctxResp.GetEntityContexts() {
-					ctxItems[i] = ec
-				}
-				if err := output.PrintList(w, flagOutput, ctxItems, nil); err != nil {
-					return err
-				}
-				fmt.Fprintln(w, "--- attachments ---")
-				attItems := make([]proto.Message, len(attResp.GetAttachments()))
-				for i, a := range attResp.GetAttachments() {
-					attItems[i] = a
-				}
-				return output.PrintList(w, flagOutput, attItems, nil)
-			}
-
 			w := cmd.OutOrStdout()
-			fmt.Fprintln(w, "CONTEXT")
-			fmt.Fprintln(w, "ID\tTYPE\tCONTENT\tSUPERSEDED")
-			for _, ec := range ctxResp.GetEntityContexts() {
-				fmt.Fprintf(w, "%d\t%s\t%s\t%v\n", ec.GetId(), ec.GetContextType(), ec.GetContent(), ec.SupersededById != nil)
+			if flagOutput == output.FormatTable {
+				fmt.Fprintln(w, "CONTEXT")
+			} else {
+				fmt.Fprintln(w, "--- entity_context ---")
 			}
-			fmt.Fprintln(w)
-			fmt.Fprintln(w, "ATTACHMENTS")
-			fmt.Fprintln(w, "ID\tFILENAME\tSIZE\tCONTENT-TYPE")
-			for _, a := range attResp.GetAttachments() {
-				fmt.Fprintf(w, "%d\t%s\t%d\t%s\n", a.GetId(), a.GetOriginalFilename(), a.GetFileSizeBytes(), a.GetContentType())
+			if err := output.PrintList(w, flagOutput, toMessages(ctxResp.GetEntityContexts()), entityContextNoun.Columns); err != nil {
+				return err
 			}
-			return nil
+			if flagOutput == output.FormatTable {
+				fmt.Fprintln(w)
+				fmt.Fprintln(w, "ATTACHMENTS")
+			} else {
+				fmt.Fprintln(w, "--- attachments ---")
+			}
+			return output.PrintList(w, flagOutput, toMessages(attResp.GetAttachments()), attachmentNoun.Columns)
 		},
 	}
 	cmd.Flags().StringVar(&entityType, "entity-type", "", "target entity type, e.g. invoice, contact (required)")
