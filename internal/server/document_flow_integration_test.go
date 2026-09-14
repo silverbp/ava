@@ -365,6 +365,22 @@ func TestDocumentFlow(t *testing.T) {
 	must(txns.CreateLedgerTransaction(ctx, &avav1.CreateLedgerTransactionRequest{BusinessId: tc.businessID, TransactionDate: dateOf(2026, 1, 15),
 		Entries: []*avav1.NewLedgerEntry{{AccountId: cash, DebitAmount: dec("1")}, {AccountId: equity, CreditAmount: dec("1")}}}))
 
+	// --- stacked closes: reverse newest-first, no cascade -----------------
+	c1 := must(closes.TriggerClose(ctx, &avav1.TriggerCloseRequest{BusinessId: tc.businessID, PeriodEnd: dateOf(2026, 1, 31)})).GetPeriodClose()
+	c2 := must(closes.TriggerClose(ctx, &avav1.TriggerCloseRequest{BusinessId: tc.businessID, PeriodEnd: dateOf(2026, 2, 28)})).GetPeriodClose()
+	_, err = closes.ReverseClose(ctx, &avav1.ReverseCloseRequest{Id: c1.GetId()})
+	wantCode(t, err, codes.FailedPrecondition) // a later close still stands
+	if got := must(closes.GetPeriodClose(ctx, &avav1.GetPeriodCloseRequest{Id: c1.GetId()})).GetPeriodClose(); got.GetReversedAt() != nil {
+		t.Fatal("refused reverse must leave the older close unreversed")
+	}
+	must(closes.ReverseClose(ctx, &avav1.ReverseCloseRequest{Id: c2.GetId()}))
+	must(closes.ReverseClose(ctx, &avav1.ReverseCloseRequest{Id: c1.GetId()}))
+	_, err = closes.ReverseClose(ctx, &avav1.ReverseCloseRequest{Id: c1.GetId()})
+	wantCode(t, err, codes.FailedPrecondition) // already reversed
+	if tb := must(reports.GetTrialBalance(ctx, &avav1.GetTrialBalanceRequest{BusinessId: tc.businessID, AsOf: dateOf(2026, 12, 31)})).GetTrialBalance(); tb.GetTotalDebit().GetValue() != tb.GetTotalCredit().GetValue() {
+		t.Fatalf("trial balance should balance after unwinding stacked closes: %s != %s", tb.GetTotalDebit().GetValue(), tb.GetTotalCredit().GetValue())
+	}
+
 	// --- entity context ---------------------------------------------------
 	note := must(notes.CreateEntityContext(ctx, &avav1.CreateEntityContextRequest{BusinessId: tc.businessID, EntityType: "invoice", EntityId: inv.GetId(), ContextType: "user_note", Content: "customer asked for a discount"})).GetEntityContext()
 	_, err = notes.CreateEntityContext(ctx, &avav1.CreateEntityContextRequest{BusinessId: tc.businessID, EntityType: "invoice", EntityId: 1 << 40, ContextType: "user_note", Content: "x"})

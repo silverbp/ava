@@ -47,6 +47,14 @@ transaction in that close's `period_close_entry` rows rather than editing or del
 consistent with the schema's existing soft-delete-over-mutation convention elsewhere. A
 subsequent close can then re-cover the same (or an extended) range.
 
+Closes stack and there is no cascade. Because the lock is a single high-water mark
+(`MAX(period_end)` over unreversed closes), reversing an older close while a later one stands
+would unlock nothing and its reversing entries could never post — so `ReverseClose` refuses
+anything but the latest unreversed close with `FAILED_PRECONDITION`, naming the close to reverse
+first. Each close's own Income Summary sweep is undone by that close's reversal and nothing else;
+to reach a period several closes deep, reverse newest-first down to it, correct, then re-close
+forward (each re-close generates fresh zeroing entries and a fresh sweep).
+
 ### 4. Guard rails the schema doesn't enforce
 
 - **Contiguity**: nothing stops `period_start` from skipping or overlapping a prior close's
@@ -142,7 +150,8 @@ being fixed from:
    - `close reverse` (`internal/periodclose.Reverse`), the original motivating case: marks the
      `period_close` row `reversed_at` (unlocking the period), then reverses every transaction the
      close generated. Re-closing later generates fresh closing transactions, so the once-only
-     index never gets in its way.
+     index never gets in its way. Only the latest unreversed close can be reversed — there is
+     no cascade through stacked closes (see "Reversal / reopen" above).
 
 In short: an open-period document edit supersedes in place; anything closed, raw, or
 document-linked gets a new reversing transaction instead. If this ever chafes — e.g. a future

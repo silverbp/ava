@@ -33,6 +33,12 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PeriodCloseServiceClient interface {
 	TriggerClose(ctx context.Context, in *TriggerCloseRequest, opts ...grpc.CallOption) (*TriggerCloseResponse, error)
+	// Undoes the latest unreversed close: marks it reversed and posts a
+	// mirrored transaction for every entry it generated (including its Income
+	// Summary sweep into Retained Earnings), dated at that close's period_end.
+	// Closes stack with no cascade, so this is FAILED_PRECONDITION when a later
+	// unreversed close exists (reverse that one first) or when the close is
+	// already reversed. Re-closing afterwards regenerates fresh closing entries.
 	ReverseClose(ctx context.Context, in *ReverseCloseRequest, opts ...grpc.CallOption) (*ReverseCloseResponse, error)
 	GetPeriodClose(ctx context.Context, in *GetPeriodCloseRequest, opts ...grpc.CallOption) (*GetPeriodCloseResponse, error)
 	ListPeriodCloses(ctx context.Context, in *ListPeriodClosesRequest, opts ...grpc.CallOption) (*ListPeriodClosesResponse, error)
@@ -91,6 +97,12 @@ func (c *periodCloseServiceClient) ListPeriodCloses(ctx context.Context, in *Lis
 // for forward compatibility.
 type PeriodCloseServiceServer interface {
 	TriggerClose(context.Context, *TriggerCloseRequest) (*TriggerCloseResponse, error)
+	// Undoes the latest unreversed close: marks it reversed and posts a
+	// mirrored transaction for every entry it generated (including its Income
+	// Summary sweep into Retained Earnings), dated at that close's period_end.
+	// Closes stack with no cascade, so this is FAILED_PRECONDITION when a later
+	// unreversed close exists (reverse that one first) or when the close is
+	// already reversed. Re-closing afterwards regenerates fresh closing entries.
 	ReverseClose(context.Context, *ReverseCloseRequest) (*ReverseCloseResponse, error)
 	GetPeriodClose(context.Context, *GetPeriodCloseRequest) (*GetPeriodCloseResponse, error)
 	ListPeriodCloses(context.Context, *ListPeriodClosesRequest) (*ListPeriodClosesResponse, error)

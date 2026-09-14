@@ -30,7 +30,15 @@ func newCloseCmd() *cobra.Command {
 	root.AddCommand(
 		newCloseTriggerCmd(),
 		newMutateCmd(periodCloseNoun, "reverse", resource.Doc{
-			Summary:  "Reverse a period close",
+			Summary: "Reverse the latest period close",
+			Detail: "Closes stack: each close locks the books through its period end, and there is " +
+				"no cascade. Reverse the newest close first - a close with a later close still in " +
+				"place is refused. Reversing a close posts mirrored transactions for every entry it " +
+				"generated, including its Income Summary sweep into Retained Earnings, dated at " +
+				"that close's period end. Re-closing afterwards regenerates fresh closing entries. " +
+				"To fix a transaction several closes deep, either reverse the closes newest-first " +
+				"down to that period and re-close afterwards, or post a correcting transaction in " +
+				"the open period instead.",
 			Examples: []resource.Example{{Cmd: "avactl close reverse 5"}},
 		}, func(r run, id int64) (proto.Message, error) {
 			resp, err := avav1.NewPeriodCloseServiceClient(r.conn).ReverseClose(r.ctx, &avav1.ReverseCloseRequest{Id: id})

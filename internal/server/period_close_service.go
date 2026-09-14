@@ -56,12 +56,31 @@ func (s *periodCloseService) ReverseClose(ctx context.Context, req *avav1.Revers
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "no authenticated user")
 	}
-	if _, err := periodCloseRes.load(ctx, s.store.Queries, req.GetId(), "ADMIN"); err != nil {
+	pc, err := periodCloseRes.load(ctx, s.store.Queries, req.GetId(), "ADMIN")
+	if err != nil {
 		return nil, err
+	}
+	if pc.ReversedAt.Valid {
+		return nil, status.Errorf(codes.FailedPrecondition, "period close %d is already reversed", pc.ID)
+	}
+	// Closes stack and there is no cascade: only the latest unreversed close
+	// can be reversed, because any later close still locks this one's period
+	// (enforce_period_lock keys on MAX(period_end) over unreversed closes) and
+	// its reversing entries could never post. Closes are contiguous, so
+	// "the latest unreversed close is not this one" is exactly "a later close
+	// exists". periodclose.Reverse repeats the check for direct callers.
+	last, err := s.store.Queries.GetLastPeriodClose(ctx, pc.BusinessID)
+	if err != nil {
+		return nil, translatePgError(err)
+	}
+	if last.ID != pc.ID {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"period close %d (through %s) is not the latest: reverse period close %d (through %s) first - closes are undone newest-first, there is no cascade",
+			pc.ID, pc.PeriodEnd.Time.Format("2006-01-02"), last.ID, last.PeriodEnd.Time.Format("2006-01-02"))
 	}
 
 	var reversed *sqlcgen.PeriodClose
-	err := s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
+	err = s.store.ExecTx(ctx, func(q *sqlcgen.Queries) error {
 		var err error
 		reversed, err = periodclose.Reverse(ctx, q, req.GetId(), &u.ID)
 		return err

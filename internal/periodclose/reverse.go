@@ -11,7 +11,7 @@ import (
 	"github.com/silverbp/ava/internal/ledgerpost"
 )
 
-// Reverse undoes a period close: marks it reversed_at, then posts a genuine
+// Reverse undoes the latest period close: marks it reversed_at, then posts a genuine
 // reversing ledger_transaction (debits/credits swapped) for every
 // transaction the original close generated — never editing or deleting the
 // original postings, consistent with the schema's soft-delete-over-mutation
@@ -31,6 +31,16 @@ func Reverse(ctx context.Context, q *sqlcgen.Queries, periodCloseID int64, creat
 	}
 	if pc.ReversedAt.Valid {
 		return nil, fmt.Errorf("period close %d is already reversed", periodCloseID)
+	}
+	// Only the latest unreversed close can be reversed: a later close still
+	// locks this period, so the reversing entries below could never post.
+	// There is no cascade - callers undo closes newest-first.
+	last, err := q.GetLastPeriodClose(ctx, pc.BusinessID)
+	if err != nil {
+		return nil, err
+	}
+	if last.ID != pc.ID {
+		return nil, fmt.Errorf("period close %d is not the latest: reverse period close %d (through %s) first", periodCloseID, last.ID, last.PeriodEnd.Time.Format("2006-01-02"))
 	}
 
 	entries, err := q.ListPeriodCloseEntries(ctx, periodCloseID)

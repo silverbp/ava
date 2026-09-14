@@ -12,6 +12,12 @@ option go_package = "github.com/silverbp/ava/gen/ava/v1;avav1";
 
 service PeriodCloseService {
   rpc TriggerClose(TriggerCloseRequest) returns (TriggerCloseResponse);
+  // Undoes the latest unreversed close: marks it reversed and posts a
+  // mirrored transaction for every entry it generated (including its Income
+  // Summary sweep into Retained Earnings), dated at that close's period_end.
+  // Closes stack with no cascade, so this is FAILED_PRECONDITION when a later
+  // unreversed close exists (reverse that one first) or when the close is
+  // already reversed. Re-closing afterwards regenerates fresh closing entries.
   rpc ReverseClose(ReverseCloseRequest) returns (ReverseCloseResponse);
   rpc GetPeriodClose(GetPeriodCloseRequest) returns (GetPeriodCloseResponse);
   rpc ListPeriodCloses(ListPeriodClosesRequest) returns (ListPeriodClosesResponse);
@@ -42,6 +48,7 @@ message TriggerCloseResponse {
 }
 
 message ReverseCloseRequest {
+  // Must be the latest unreversed close for its business.
   int64 id = 1;
 }
 
