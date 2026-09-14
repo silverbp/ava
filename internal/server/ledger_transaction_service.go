@@ -61,10 +61,27 @@ func (s *ledgerTransactionService) ListLedgerTransactions(ctx context.Context, r
 		}
 	}
 
+	// Filters are optional and AND-combined; the query treats each NULL as
+	// "no constraint". account_id is vetted up front so a foreign or unknown
+	// account is an error rather than a silently empty page.
+	if req.AccountId != nil {
+		if _, err := ledgerAccountRes.requireInBusiness(ctx, s.store.Queries, req.GetBusinessId(), int64(req.GetAccountId())); err != nil {
+			return nil, err
+		}
+	}
+	startDate, endDate := datepb.ToPgDate(req.StartDate), datepb.ToPgDate(req.EndDate)
+	if startDate.Valid && endDate.Valid && startDate.Time.After(endDate.Time) {
+		return nil, status.Error(codes.InvalidArgument, "start_date must not be after end_date")
+	}
+
 	txns, err := s.store.Queries.ListLedgerTransactions(ctx, sqlcgen.ListLedgerTransactionsParams{
-		BusinessID: req.GetBusinessId(),
-		BeforeID:   beforeID,
-		PageLimit:  pageSize,
+		BusinessID:          req.GetBusinessId(),
+		BeforeID:            beforeID,
+		StartDate:           startDate,
+		EndDate:             endDate,
+		DescriptionContains: req.DescriptionContains,
+		AccountID:           req.AccountId,
+		PageLimit:           pageSize,
 	})
 	if err != nil {
 		return nil, translatePgError(err)

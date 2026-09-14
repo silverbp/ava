@@ -59,9 +59,20 @@ WHERE reverses_ledger_transaction_id = sqlc.arg('original_id')::bigint AND delet
 SELECT * FROM ledger_transaction WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListLedgerTransactions :many
-SELECT * FROM ledger_transaction
-WHERE business_id = $1 AND deleted_at IS NULL AND id < sqlc.arg('before_id')
-ORDER BY id DESC
+-- Keyset-paged (id DESC, before_id cursor) with optional AND-combined filters:
+-- a date range on transaction_date, a case-insensitive substring of the
+-- transaction description, and "has a live entry against this account".
+SELECT lt.* FROM ledger_transaction lt
+WHERE lt.business_id = $1 AND lt.deleted_at IS NULL AND lt.id < sqlc.arg('before_id')
+  AND (sqlc.narg('start_date')::date IS NULL OR lt.transaction_date >= sqlc.narg('start_date'))
+  AND (sqlc.narg('end_date')::date IS NULL OR lt.transaction_date <= sqlc.narg('end_date'))
+  AND (sqlc.narg('description_contains')::text IS NULL
+       OR lt.description ILIKE '%' || sqlc.narg('description_contains') || '%')
+  AND (sqlc.narg('account_id')::int IS NULL OR EXISTS (
+        SELECT 1 FROM ledger_entry le
+        WHERE le.ledger_transaction_id = lt.id AND le.account_id = sqlc.narg('account_id')
+          AND le.deleted_at IS NULL))
+ORDER BY lt.id DESC
 LIMIT sqlc.arg('page_limit');
 
 -- name: CreateLedgerEntry :one

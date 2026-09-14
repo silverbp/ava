@@ -27,10 +27,7 @@ var ledgerTransactionNoun = resource.Noun{
 func newLedgerTransactionCmd() *cobra.Command {
 	root := newGroupCmd(ledgerTransactionNoun, "Read and post the double-entry ledger")
 	root.AddCommand(
-		newListCmd(ledgerTransactionNoun, func(r run) ([]proto.Message, error) {
-			resp, err := avav1.NewLedgerTransactionServiceClient(r.conn).ListLedgerTransactions(r.ctx, &avav1.ListLedgerTransactionsRequest{BusinessId: r.businessID})
-			return toMessages(resp.GetTransactions()), err
-		}),
+		newLedgerTransactionListCmd(),
 		newGetCmd(ledgerTransactionNoun, func(r run, id int64) (proto.Message, error) {
 			resp, err := avav1.NewLedgerTransactionServiceClient(r.conn).GetLedgerTransaction(r.ctx, &avav1.GetLedgerTransactionRequest{Id: id})
 			return resp.GetTransaction(), err
@@ -39,6 +36,64 @@ func newLedgerTransactionCmd() *cobra.Command {
 		newLedgerTransactionReverseCmd(),
 	)
 	return root
+}
+
+// listPageSize caps a single ListLedgerTransactions call; the list command
+// pages through as many calls as --limit needs.
+const listPageSize = 200
+
+func newLedgerTransactionListCmd() *cobra.Command {
+	var (
+		account              int32
+		start, end, contains string
+		limit                int
+	)
+	cmd := newTableCmd(ledgerTransactionNoun, "list", resource.Doc{
+		Summary: "List ledger transactions, newest first",
+		Detail: "Filters combine with AND. --description-contains is a case-insensitive substring " +
+			"match on the transaction description (entry descriptions aren't searched). " +
+			"The default --limit is 50; pass --limit 0 to fetch every match.",
+		Examples: []resource.Example{
+			{Cmd: "avactl ledger-transaction list --account 81 --start 2024-01-01 --end 2024-12-31"},
+			{Cmd: "avactl ledger-transaction list --description-contains \"sales tax\" --limit 0"},
+		},
+	}, ledgerTransactionNoun.Columns, func(r run) ([]proto.Message, error) {
+		req := &avav1.ListLedgerTransactionsRequest{
+			BusinessId:          r.businessID,
+			AccountId:           r.optInt32("account", &account),
+			DescriptionContains: r.optString("description-contains", &contains),
+		}
+		var err error
+		if req.StartDate, err = r.optDate("start", &start); err != nil {
+			return nil, err
+		}
+		if req.EndDate, err = r.optDate("end", &end); err != nil {
+			return nil, err
+		}
+		client := avav1.NewLedgerTransactionServiceClient(r.conn)
+		var all []proto.Message
+		for {
+			req.PageSize = listPageSize
+			if limit > 0 && limit-len(all) < listPageSize {
+				req.PageSize = int32(limit - len(all))
+			}
+			resp, err := client.ListLedgerTransactions(r.ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			all = append(all, toMessages(resp.GetTransactions())...)
+			if resp.GetNextPageToken() == "" || (limit > 0 && len(all) >= limit) {
+				return all, nil
+			}
+			req.PageToken = resp.GetNextPageToken()
+		}
+	})
+	cmd.Flags().Int32Var(&account, "account", 0, "only transactions with an entry against this ledger account id")
+	cmd.Flags().StringVar(&start, "start", "", "only transactions dated on or after this date, YYYY-MM-DD")
+	cmd.Flags().StringVar(&end, "end", "", "only transactions dated on or before this date, YYYY-MM-DD")
+	cmd.Flags().StringVar(&contains, "description-contains", "", "only transactions whose description contains this text (case-insensitive)")
+	cmd.Flags().IntVar(&limit, "limit", 50, "maximum transactions to return; 0 = all")
+	return cmd
 }
 
 func newLedgerTransactionReverseCmd() *cobra.Command {

@@ -244,6 +244,55 @@ func TestDocumentFlow(t *testing.T) {
 		t.Fatalf("list transactions should page and carry entries: %+v", page)
 	}
 
+	// --- list filters ----------------------------------------------------
+	byDescription := must(txns.ListLedgerTransactions(ctx, &avav1.ListLedgerTransactionsRequest{BusinessId: tc.businessID, DescriptionContains: ptr("OPENING BAL")})).GetTransactions()
+	if len(byDescription) != 1 || byDescription[0].GetId() != opening.GetId() {
+		t.Fatalf("description filter should be a case-insensitive substring match: %+v", byDescription)
+	}
+	byDate := must(txns.ListLedgerTransactions(ctx, &avav1.ListLedgerTransactionsRequest{BusinessId: tc.businessID, StartDate: dateOf(2026, 1, 2), EndDate: dateOf(2026, 1, 2)})).GetTransactions()
+	if len(byDate) == 0 {
+		t.Fatal("date filter should include the opening transaction")
+	}
+	for _, txn := range byDate {
+		if txn.GetTransactionDate().GetDay() != 2 {
+			t.Fatalf("date filter returned a transaction outside the range: %+v", txn)
+		}
+	}
+	_, err = txns.ListLedgerTransactions(ctx, &avav1.ListLedgerTransactionsRequest{BusinessId: tc.businessID, StartDate: dateOf(2026, 1, 3), EndDate: dateOf(2026, 1, 2)})
+	wantCode(t, err, codes.InvalidArgument) // start after end
+	_, err = txns.ListLedgerTransactions(ctx, &avav1.ListLedgerTransactionsRequest{BusinessId: tc.businessID, AccountId: ptr(int32(1 << 30))})
+	wantCode(t, err, codes.InvalidArgument) // unknown account
+	var (
+		byAccount []*avav1.LedgerTransaction
+		pageToken string
+		pages     int
+	)
+	for {
+		resp := must(txns.ListLedgerTransactions(ctx, &avav1.ListLedgerTransactionsRequest{BusinessId: tc.businessID, AccountId: ptr(expense), PageSize: 1, PageToken: pageToken}))
+		byAccount = append(byAccount, resp.GetTransactions()...)
+		pages++
+		if pageToken = resp.GetNextPageToken(); pageToken == "" {
+			break
+		}
+	}
+	if pages < 2 || len(byAccount) < 2 {
+		t.Fatalf("account filter should page through at least the mistake and its reversal, got %d over %d pages", len(byAccount), pages)
+	}
+	seen := map[int64]bool{}
+	for _, txn := range byAccount {
+		seen[txn.GetId()] = true
+		var hit bool
+		for _, e := range txn.GetEntries() {
+			hit = hit || e.GetAccountId() == expense
+		}
+		if !hit {
+			t.Fatalf("account filter returned a transaction with no expense entry: %+v", txn)
+		}
+	}
+	if !seen[mistake.GetId()] || !seen[reversal.GetId()] {
+		t.Fatal("account filter should include both the mistake and its reversal")
+	}
+
 	// --- bank reconciliation ----------------------------------------------
 	stmt := must(statements.CreateBankStatement(ctx, &avav1.CreateBankStatementRequest{BusinessId: tc.businessID, LedgerAccountId: cash, StatementName: "Jan 2026", StatementDate: dateOf(2026, 1, 31), OpeningBalance: dec("0"), ClosingBalance: dec("1000.00")})).GetBankStatement()
 	eqAmount(t, "reconciled before", stmt.GetReconciledBalance(), "0")

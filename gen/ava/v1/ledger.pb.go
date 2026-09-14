@@ -1088,12 +1088,21 @@ func (x *GetLedgerTransactionResponse) GetTransaction() *LedgerTransaction {
 }
 
 type ListLedgerTransactionsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BusinessId int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
+	PageSize   int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken  string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Optional filters, AND-combined; omit them all to list every transaction.
+	// Only transactions with a live entry against this account (must belong to business_id).
+	AccountId *int32 `protobuf:"varint,4,opt,name=account_id,json=accountId,proto3,oneof" json:"account_id,omitempty"`
+	// transaction_date >= start_date.
+	StartDate *date.Date `protobuf:"bytes,5,opt,name=start_date,json=startDate,proto3,oneof" json:"start_date,omitempty"`
+	// transaction_date <= end_date.
+	EndDate *date.Date `protobuf:"bytes,6,opt,name=end_date,json=endDate,proto3,oneof" json:"end_date,omitempty"`
+	// Case-insensitive substring of the transaction's description (not entry descriptions).
+	DescriptionContains *string `protobuf:"bytes,7,opt,name=description_contains,json=descriptionContains,proto3,oneof" json:"description_contains,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ListLedgerTransactionsRequest) Reset() {
@@ -1143,6 +1152,34 @@ func (x *ListLedgerTransactionsRequest) GetPageSize() int32 {
 func (x *ListLedgerTransactionsRequest) GetPageToken() string {
 	if x != nil {
 		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListLedgerTransactionsRequest) GetAccountId() int32 {
+	if x != nil && x.AccountId != nil {
+		return *x.AccountId
+	}
+	return 0
+}
+
+func (x *ListLedgerTransactionsRequest) GetStartDate() *date.Date {
+	if x != nil {
+		return x.StartDate
+	}
+	return nil
+}
+
+func (x *ListLedgerTransactionsRequest) GetEndDate() *date.Date {
+	if x != nil {
+		return x.EndDate
+	}
+	return nil
+}
+
+func (x *ListLedgerTransactionsRequest) GetDescriptionContains() string {
+	if x != nil && x.DescriptionContains != nil {
+		return *x.DescriptionContains
 	}
 	return ""
 }
@@ -1606,13 +1643,23 @@ const file_ava_v1_ledger_proto_rawDesc = "" +
 	"\x1bGetLedgerTransactionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"[\n" +
 	"\x1cGetLedgerTransactionResponse\x12;\n" +
-	"\vtransaction\x18\x01 \x01(\v2\x19.ava.v1.LedgerTransactionR\vtransaction\"|\n" +
+	"\vtransaction\x18\x01 \x01(\v2\x19.ava.v1.LedgerTransactionR\vtransaction\"\x86\x03\n" +
 	"\x1dListLedgerTransactionsRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x87\x01\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x12\"\n" +
+	"\n" +
+	"account_id\x18\x04 \x01(\x05H\x00R\taccountId\x88\x01\x01\x125\n" +
+	"\n" +
+	"start_date\x18\x05 \x01(\v2\x11.google.type.DateH\x01R\tstartDate\x88\x01\x01\x121\n" +
+	"\bend_date\x18\x06 \x01(\v2\x11.google.type.DateH\x02R\aendDate\x88\x01\x01\x126\n" +
+	"\x14description_contains\x18\a \x01(\tH\x03R\x13descriptionContains\x88\x01\x01B\r\n" +
+	"\v_account_idB\r\n" +
+	"\v_start_dateB\v\n" +
+	"\t_end_dateB\x17\n" +
+	"\x15_description_contains\"\x87\x01\n" +
 	"\x1eListLedgerTransactionsResponse\x12=\n" +
 	"\ftransactions\x18\x01 \x03(\v2\x19.ava.v1.LedgerTransactionR\ftransactions\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd0\x01\n" +
@@ -1706,37 +1753,39 @@ var file_ava_v1_ledger_proto_depIdxs = []int32{
 	22, // 10: ava.v1.LedgerTransaction.created_at:type_name -> google.protobuf.Timestamp
 	11, // 11: ava.v1.LedgerTransaction.entries:type_name -> ava.v1.LedgerEntry
 	12, // 12: ava.v1.GetLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
-	12, // 13: ava.v1.ListLedgerTransactionsResponse.transactions:type_name -> ava.v1.LedgerTransaction
-	23, // 14: ava.v1.NewLedgerEntry.debit_amount:type_name -> ava.v1.Decimal
-	23, // 15: ava.v1.NewLedgerEntry.credit_amount:type_name -> ava.v1.Decimal
-	24, // 16: ava.v1.CreateLedgerTransactionRequest.transaction_date:type_name -> google.type.Date
-	17, // 17: ava.v1.CreateLedgerTransactionRequest.entries:type_name -> ava.v1.NewLedgerEntry
-	12, // 18: ava.v1.CreateLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
-	24, // 19: ava.v1.ReverseLedgerTransactionRequest.reversal_date:type_name -> google.type.Date
-	12, // 20: ava.v1.ReverseLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
-	1,  // 21: ava.v1.LedgerAccountService.GetLedgerAccount:input_type -> ava.v1.GetLedgerAccountRequest
-	3,  // 22: ava.v1.LedgerAccountService.ListLedgerAccounts:input_type -> ava.v1.ListLedgerAccountsRequest
-	5,  // 23: ava.v1.LedgerAccountService.CreateLedgerAccount:input_type -> ava.v1.CreateLedgerAccountRequest
-	7,  // 24: ava.v1.LedgerAccountService.UpdateLedgerAccount:input_type -> ava.v1.UpdateLedgerAccountRequest
-	9,  // 25: ava.v1.LedgerAccountService.DeactivateLedgerAccount:input_type -> ava.v1.DeactivateLedgerAccountRequest
-	13, // 26: ava.v1.LedgerTransactionService.GetLedgerTransaction:input_type -> ava.v1.GetLedgerTransactionRequest
-	15, // 27: ava.v1.LedgerTransactionService.ListLedgerTransactions:input_type -> ava.v1.ListLedgerTransactionsRequest
-	18, // 28: ava.v1.LedgerTransactionService.CreateLedgerTransaction:input_type -> ava.v1.CreateLedgerTransactionRequest
-	20, // 29: ava.v1.LedgerTransactionService.ReverseLedgerTransaction:input_type -> ava.v1.ReverseLedgerTransactionRequest
-	2,  // 30: ava.v1.LedgerAccountService.GetLedgerAccount:output_type -> ava.v1.GetLedgerAccountResponse
-	4,  // 31: ava.v1.LedgerAccountService.ListLedgerAccounts:output_type -> ava.v1.ListLedgerAccountsResponse
-	6,  // 32: ava.v1.LedgerAccountService.CreateLedgerAccount:output_type -> ava.v1.CreateLedgerAccountResponse
-	8,  // 33: ava.v1.LedgerAccountService.UpdateLedgerAccount:output_type -> ava.v1.UpdateLedgerAccountResponse
-	10, // 34: ava.v1.LedgerAccountService.DeactivateLedgerAccount:output_type -> ava.v1.DeactivateLedgerAccountResponse
-	14, // 35: ava.v1.LedgerTransactionService.GetLedgerTransaction:output_type -> ava.v1.GetLedgerTransactionResponse
-	16, // 36: ava.v1.LedgerTransactionService.ListLedgerTransactions:output_type -> ava.v1.ListLedgerTransactionsResponse
-	19, // 37: ava.v1.LedgerTransactionService.CreateLedgerTransaction:output_type -> ava.v1.CreateLedgerTransactionResponse
-	21, // 38: ava.v1.LedgerTransactionService.ReverseLedgerTransaction:output_type -> ava.v1.ReverseLedgerTransactionResponse
-	30, // [30:39] is the sub-list for method output_type
-	21, // [21:30] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	24, // 13: ava.v1.ListLedgerTransactionsRequest.start_date:type_name -> google.type.Date
+	24, // 14: ava.v1.ListLedgerTransactionsRequest.end_date:type_name -> google.type.Date
+	12, // 15: ava.v1.ListLedgerTransactionsResponse.transactions:type_name -> ava.v1.LedgerTransaction
+	23, // 16: ava.v1.NewLedgerEntry.debit_amount:type_name -> ava.v1.Decimal
+	23, // 17: ava.v1.NewLedgerEntry.credit_amount:type_name -> ava.v1.Decimal
+	24, // 18: ava.v1.CreateLedgerTransactionRequest.transaction_date:type_name -> google.type.Date
+	17, // 19: ava.v1.CreateLedgerTransactionRequest.entries:type_name -> ava.v1.NewLedgerEntry
+	12, // 20: ava.v1.CreateLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
+	24, // 21: ava.v1.ReverseLedgerTransactionRequest.reversal_date:type_name -> google.type.Date
+	12, // 22: ava.v1.ReverseLedgerTransactionResponse.transaction:type_name -> ava.v1.LedgerTransaction
+	1,  // 23: ava.v1.LedgerAccountService.GetLedgerAccount:input_type -> ava.v1.GetLedgerAccountRequest
+	3,  // 24: ava.v1.LedgerAccountService.ListLedgerAccounts:input_type -> ava.v1.ListLedgerAccountsRequest
+	5,  // 25: ava.v1.LedgerAccountService.CreateLedgerAccount:input_type -> ava.v1.CreateLedgerAccountRequest
+	7,  // 26: ava.v1.LedgerAccountService.UpdateLedgerAccount:input_type -> ava.v1.UpdateLedgerAccountRequest
+	9,  // 27: ava.v1.LedgerAccountService.DeactivateLedgerAccount:input_type -> ava.v1.DeactivateLedgerAccountRequest
+	13, // 28: ava.v1.LedgerTransactionService.GetLedgerTransaction:input_type -> ava.v1.GetLedgerTransactionRequest
+	15, // 29: ava.v1.LedgerTransactionService.ListLedgerTransactions:input_type -> ava.v1.ListLedgerTransactionsRequest
+	18, // 30: ava.v1.LedgerTransactionService.CreateLedgerTransaction:input_type -> ava.v1.CreateLedgerTransactionRequest
+	20, // 31: ava.v1.LedgerTransactionService.ReverseLedgerTransaction:input_type -> ava.v1.ReverseLedgerTransactionRequest
+	2,  // 32: ava.v1.LedgerAccountService.GetLedgerAccount:output_type -> ava.v1.GetLedgerAccountResponse
+	4,  // 33: ava.v1.LedgerAccountService.ListLedgerAccounts:output_type -> ava.v1.ListLedgerAccountsResponse
+	6,  // 34: ava.v1.LedgerAccountService.CreateLedgerAccount:output_type -> ava.v1.CreateLedgerAccountResponse
+	8,  // 35: ava.v1.LedgerAccountService.UpdateLedgerAccount:output_type -> ava.v1.UpdateLedgerAccountResponse
+	10, // 36: ava.v1.LedgerAccountService.DeactivateLedgerAccount:output_type -> ava.v1.DeactivateLedgerAccountResponse
+	14, // 37: ava.v1.LedgerTransactionService.GetLedgerTransaction:output_type -> ava.v1.GetLedgerTransactionResponse
+	16, // 38: ava.v1.LedgerTransactionService.ListLedgerTransactions:output_type -> ava.v1.ListLedgerTransactionsResponse
+	19, // 39: ava.v1.LedgerTransactionService.CreateLedgerTransaction:output_type -> ava.v1.CreateLedgerTransactionResponse
+	21, // 40: ava.v1.LedgerTransactionService.ReverseLedgerTransaction:output_type -> ava.v1.ReverseLedgerTransactionResponse
+	32, // [32:41] is the sub-list for method output_type
+	23, // [23:32] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_ava_v1_ledger_proto_init() }
@@ -1750,6 +1799,7 @@ func file_ava_v1_ledger_proto_init() {
 	file_ava_v1_ledger_proto_msgTypes[7].OneofWrappers = []any{}
 	file_ava_v1_ledger_proto_msgTypes[11].OneofWrappers = []any{}
 	file_ava_v1_ledger_proto_msgTypes[12].OneofWrappers = []any{}
+	file_ava_v1_ledger_proto_msgTypes[15].OneofWrappers = []any{}
 	file_ava_v1_ledger_proto_msgTypes[17].OneofWrappers = []any{}
 	file_ava_v1_ledger_proto_msgTypes[18].OneofWrappers = []any{}
 	file_ava_v1_ledger_proto_msgTypes[20].OneofWrappers = []any{}

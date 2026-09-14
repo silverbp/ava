@@ -455,20 +455,43 @@ func (q *Queries) ListLedgerEntriesByTransactionIDs(ctx context.Context, transac
 }
 
 const listLedgerTransactions = `-- name: ListLedgerTransactions :many
-SELECT id, business_id, transaction_date, description, reference_number, reverses_ledger_transaction_id, created_by_user_id, created_at, updated_at, deleted_at FROM ledger_transaction
-WHERE business_id = $1 AND deleted_at IS NULL AND id < $2
-ORDER BY id DESC
-LIMIT $3
+SELECT lt.id, lt.business_id, lt.transaction_date, lt.description, lt.reference_number, lt.reverses_ledger_transaction_id, lt.created_by_user_id, lt.created_at, lt.updated_at, lt.deleted_at FROM ledger_transaction lt
+WHERE lt.business_id = $1 AND lt.deleted_at IS NULL AND lt.id < $2
+  AND ($3::date IS NULL OR lt.transaction_date >= $3)
+  AND ($4::date IS NULL OR lt.transaction_date <= $4)
+  AND ($5::text IS NULL
+       OR lt.description ILIKE '%' || $5 || '%')
+  AND ($6::int IS NULL OR EXISTS (
+        SELECT 1 FROM ledger_entry le
+        WHERE le.ledger_transaction_id = lt.id AND le.account_id = $6
+          AND le.deleted_at IS NULL))
+ORDER BY lt.id DESC
+LIMIT $7
 `
 
 type ListLedgerTransactionsParams struct {
-	BusinessID int64 `json:"business_id"`
-	BeforeID   int64 `json:"before_id"`
-	PageLimit  int32 `json:"page_limit"`
+	BusinessID          int64       `json:"business_id"`
+	BeforeID            int64       `json:"before_id"`
+	StartDate           pgtype.Date `json:"start_date"`
+	EndDate             pgtype.Date `json:"end_date"`
+	DescriptionContains *string     `json:"description_contains"`
+	AccountID           *int32      `json:"account_id"`
+	PageLimit           int32       `json:"page_limit"`
 }
 
+// Keyset-paged (id DESC, before_id cursor) with optional AND-combined filters:
+// a date range on transaction_date, a case-insensitive substring of the
+// transaction description, and "has a live entry against this account".
 func (q *Queries) ListLedgerTransactions(ctx context.Context, arg ListLedgerTransactionsParams) ([]LedgerTransaction, error) {
-	rows, err := q.db.Query(ctx, listLedgerTransactions, arg.BusinessID, arg.BeforeID, arg.PageLimit)
+	rows, err := q.db.Query(ctx, listLedgerTransactions,
+		arg.BusinessID,
+		arg.BeforeID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.DescriptionContains,
+		arg.AccountID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}

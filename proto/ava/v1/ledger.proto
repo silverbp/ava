@@ -164,6 +164,15 @@ message ListLedgerTransactionsRequest {
   int64 business_id = 1;
   int32 page_size = 2;
   string page_token = 3;
+  // Optional filters, AND-combined; omit them all to list every transaction.
+  // Only transactions with a live entry against this account (must belong to business_id).
+  optional int32 account_id = 4;
+  // transaction_date >= start_date.
+  optional google.type.Date start_date = 5;
+  // transaction_date <= end_date.
+  optional google.type.Date end_date = 6;
+  // Case-insensitive substring of the transaction's description (not entry descriptions).
+  optional string description_contains = 7;
 }
 
 message ListLedgerTransactionsResponse {
