@@ -293,6 +293,9 @@ CREATE TABLE public.ledger_transaction (
 CREATE INDEX ledger_transaction_business_id_idx ON public.ledger_transaction(business_id);
 CREATE INDEX ledger_transaction_date_idx ON public.ledger_transaction(transaction_date);
 CREATE INDEX ledger_transaction_created_by_user_id_idx ON public.ledger_transaction(created_by_user_id);
+-- Supports ListLedgerTransactions' (transaction_date, id) DESC keyset pagination.
+CREATE INDEX ledger_transaction_business_id_date_id_idx
+    ON public.ledger_transaction(business_id, transaction_date DESC, id DESC);
 CREATE UNIQUE INDEX ledger_transaction_reverses_uindex ON public.ledger_transaction(reverses_ledger_transaction_id)
     WHERE reverses_ledger_transaction_id IS NOT NULL;
 

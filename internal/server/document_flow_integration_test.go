@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	typepb "google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/grpc/codes"
 
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
@@ -297,6 +298,43 @@ func TestDocumentFlow(t *testing.T) {
 	}
 	if !seen[mistake.GetId()] || !seen[reversal.GetId()] {
 		t.Fatal("account filter should include both the mistake and its reversal")
+	}
+
+	// --- list ordering by transaction_date, not posting order -------------
+	// Posted in this id order (ascending) but with an out-of-order date on
+	// the last one (a back-dated correction), so id DESC and
+	// (transaction_date, id) DESC disagree about the order.
+	orderAcct := tc.account(4, "4900", "Ordering Test Revenue")
+	postOrdered := func(date *typepb.Date) *avav1.LedgerTransaction {
+		return must(txns.CreateLedgerTransaction(ctx, &avav1.CreateLedgerTransactionRequest{
+			BusinessId: tc.businessID, TransactionDate: date,
+			Entries: []*avav1.NewLedgerEntry{{AccountId: orderAcct, CreditAmount: dec("1.00")}, {AccountId: equity, DebitAmount: dec("1.00")}},
+		})).GetTransaction()
+	}
+	oMid := postOrdered(dateOf(2026, 1, 15))
+	oLatest := postOrdered(dateOf(2026, 1, 20))
+	oBackdated := postOrdered(dateOf(2026, 1, 1)) // highest id, earliest date
+
+	var ordered []*avav1.LedgerTransaction
+	var token string
+	for {
+		resp := must(txns.ListLedgerTransactions(ctx, &avav1.ListLedgerTransactionsRequest{
+			BusinessId: tc.businessID, AccountId: ptr(orderAcct), PageSize: 1, PageToken: token,
+		}))
+		ordered = append(ordered, resp.GetTransactions()...)
+		if token = resp.GetNextPageToken(); token == "" {
+			break
+		}
+	}
+	if len(ordered) != 3 {
+		t.Fatalf("expected 3 ordering-test transactions across pages, got %d", len(ordered))
+	}
+	wantOrder := []int64{oLatest.GetId(), oMid.GetId(), oBackdated.GetId()}
+	for i, txn := range ordered {
+		if txn.GetId() != wantOrder[i] {
+			t.Fatalf("page %d: pagination should follow transaction_date DESC (not posting order); got id %d, want %d",
+				i, txn.GetId(), wantOrder[i])
+		}
 	}
 
 	// --- bank reconciliation ----------------------------------------------

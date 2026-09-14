@@ -6,7 +6,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -54,11 +56,15 @@ func (s *ledgerTransactionService) ListLedgerTransactions(ctx context.Context, r
 	if pageSize <= 0 {
 		pageSize = defaultLedgerTransactionPageSize
 	}
-	beforeID := int64(1<<63 - 1) // no cursor yet: start from the newest transaction
+	// No cursor yet: start from the newest transaction date, newest id.
+	beforeDate := pgtype.Date{Time: time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true}
+	beforeID := int64(1<<63 - 1)
 	if req.GetPageToken() != "" {
-		if _, err := fmt.Sscanf(req.GetPageToken(), "%d", &beforeID); err != nil {
+		var y, m, d int
+		if n, err := fmt.Sscanf(req.GetPageToken(), "%d-%d-%d,%d", &y, &m, &d, &beforeID); err != nil || n != 4 {
 			return nil, status.Error(codes.InvalidArgument, "invalid page_token")
 		}
+		beforeDate = pgtype.Date{Time: time.Date(y, time.Month(m), d, 0, 0, 0, 0, time.UTC), Valid: true}
 	}
 
 	// Filters are optional and AND-combined; the query treats each NULL as
@@ -76,6 +82,7 @@ func (s *ledgerTransactionService) ListLedgerTransactions(ctx context.Context, r
 
 	txns, err := s.store.Queries.ListLedgerTransactions(ctx, sqlcgen.ListLedgerTransactionsParams{
 		BusinessID:          req.GetBusinessId(),
+		BeforeDate:          beforeDate,
 		BeforeID:            beforeID,
 		StartDate:           startDate,
 		EndDate:             endDate,
@@ -92,7 +99,9 @@ func (s *ledgerTransactionService) ListLedgerTransactions(ctx context.Context, r
 	}
 	resp := &avav1.ListLedgerTransactionsResponse{Transactions: pbs}
 	if len(txns) == int(pageSize) {
-		resp.NextPageToken = fmt.Sprintf("%d", txns[len(txns)-1].ID)
+		last := txns[len(txns)-1]
+		resp.NextPageToken = fmt.Sprintf("%04d-%02d-%02d,%d",
+			last.TransactionDate.Time.Year(), last.TransactionDate.Time.Month(), last.TransactionDate.Time.Day(), last.ID)
 	}
 	return resp, nil
 }

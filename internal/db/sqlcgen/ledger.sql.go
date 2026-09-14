@@ -456,21 +456,23 @@ func (q *Queries) ListLedgerEntriesByTransactionIDs(ctx context.Context, transac
 
 const listLedgerTransactions = `-- name: ListLedgerTransactions :many
 SELECT lt.id, lt.business_id, lt.transaction_date, lt.description, lt.reference_number, lt.reverses_ledger_transaction_id, lt.created_by_user_id, lt.created_at, lt.updated_at, lt.deleted_at FROM ledger_transaction lt
-WHERE lt.business_id = $1 AND lt.deleted_at IS NULL AND lt.id < $2
-  AND ($3::date IS NULL OR lt.transaction_date >= $3)
-  AND ($4::date IS NULL OR lt.transaction_date <= $4)
-  AND ($5::text IS NULL
-       OR lt.description ILIKE '%' || $5 || '%')
-  AND ($6::int IS NULL OR EXISTS (
+WHERE lt.business_id = $1 AND lt.deleted_at IS NULL
+  AND (lt.transaction_date, lt.id) < ($2::date, $3::bigint)
+  AND ($4::date IS NULL OR lt.transaction_date >= $4)
+  AND ($5::date IS NULL OR lt.transaction_date <= $5)
+  AND ($6::text IS NULL
+       OR lt.description ILIKE '%' || $6 || '%')
+  AND ($7::int IS NULL OR EXISTS (
         SELECT 1 FROM ledger_entry le
-        WHERE le.ledger_transaction_id = lt.id AND le.account_id = $6
+        WHERE le.ledger_transaction_id = lt.id AND le.account_id = $7
           AND le.deleted_at IS NULL))
-ORDER BY lt.id DESC
-LIMIT $7
+ORDER BY lt.transaction_date DESC, lt.id DESC
+LIMIT $8
 `
 
 type ListLedgerTransactionsParams struct {
 	BusinessID          int64       `json:"business_id"`
+	BeforeDate          pgtype.Date `json:"before_date"`
 	BeforeID            int64       `json:"before_id"`
 	StartDate           pgtype.Date `json:"start_date"`
 	EndDate             pgtype.Date `json:"end_date"`
@@ -479,12 +481,17 @@ type ListLedgerTransactionsParams struct {
 	PageLimit           int32       `json:"page_limit"`
 }
 
-// Keyset-paged (id DESC, before_id cursor) with optional AND-combined filters:
-// a date range on transaction_date, a case-insensitive substring of the
-// transaction description, and "has a live entry against this account".
+// Keyset-paged on (transaction_date, id) DESC — a compound cursor, not id
+// alone, so pagination reflects the chronological order clients want to
+// show rather than posting order. (transaction_date, id) is unique per
+// row, which is what keyset pagination needs. Also takes optional
+// AND-combined filters: a date range on transaction_date, a
+// case-insensitive substring of the transaction description, and "has a
+// live entry against this account".
 func (q *Queries) ListLedgerTransactions(ctx context.Context, arg ListLedgerTransactionsParams) ([]LedgerTransaction, error) {
 	rows, err := q.db.Query(ctx, listLedgerTransactions,
 		arg.BusinessID,
+		arg.BeforeDate,
 		arg.BeforeID,
 		arg.StartDate,
 		arg.EndDate,
