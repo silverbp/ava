@@ -126,7 +126,24 @@ func (s *businessService) CreateBusiness(ctx context.Context, req *avav1.CreateB
 
 		// Every business needs Income Summary / Retained Earnings before it
 		// can ever be closed (see docs/architecture.md#period-close).
-		_, _, err = periodclose.ProvisionSystemAccounts(ctx, q, created.ID, &u.ID)
+		if _, _, err = periodclose.ProvisionSystemAccounts(ctx, q, created.ID, &u.ID); err != nil {
+			return err
+		}
+		// ...and its own AR/AP roll-up containers, so `contact create`
+		// always has somewhere to hang a new customer/vendor's own
+		// sub-account (see getOrCreateContactAccount in system_accounts.go).
+		if err = provisionARAPContainers(ctx, q, created.ID, &u.ID); err != nil {
+			return err
+		}
+		// Each provision* call above persists its ids onto this row (a
+		// guarded UPDATE per id, since it's resolved one at a time), so
+		// `created` - captured right after the initial INSERT - is stale by
+		// the time the transaction commits. Nobody could have read the
+		// pre-provisioning version (the business doesn't exist to any other
+		// caller until this handler returns), so the jump itself is
+		// harmless - but the response needs to reflect it, not the stale
+		// copy.
+		created, err = q.GetBusiness(ctx, created.ID)
 		return err
 	})
 	if err != nil {

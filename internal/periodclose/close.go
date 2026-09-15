@@ -79,7 +79,7 @@ func Close(ctx context.Context, q *sqlcgen.Queries, businessID int64, periodEnd 
 			continue
 		}
 
-		txnID, delta, err := postZeroingTransaction(ctx, q, businessID, periodEnd, r.AccountID, r.NormalBalance, net, incomeSummary.ID, createdByUserID)
+		txnID, delta, err := postZeroingTransaction(ctx, q, businessID, periodEnd, r.AccountID, r.NormalBalance, net, incomeSummary, createdByUserID)
 		if err != nil {
 			return nil, err
 		}
@@ -89,12 +89,12 @@ func Close(ctx context.Context, q *sqlcgen.Queries, businessID int64, periodEnd 
 	}
 
 	if !incomeSummaryDelta.IsZero() {
-		sweepTxnID, err := postSweepTransaction(ctx, q, businessID, periodEnd, incomeSummary.ID, retainedEarnings.ID, incomeSummaryDelta, createdByUserID)
+		sweepTxnID, err := postSweepTransaction(ctx, q, businessID, periodEnd, incomeSummary, retainedEarnings, incomeSummaryDelta, createdByUserID)
 		if err != nil {
 			return nil, err
 		}
 		transactionIDs = append(transactionIDs, sweepTxnID)
-		sourceAccountIDs = append(sourceAccountIDs, incomeSummary.ID)
+		sourceAccountIDs = append(sourceAccountIDs, incomeSummary)
 	}
 
 	// Balance sanity (docs/architecture.md guard rail #4): defense-in-depth
@@ -109,8 +109,8 @@ func Close(ctx context.Context, q *sqlcgen.Queries, businessID int64, periodEnd 
 		BusinessID:                businessID,
 		PeriodStart:               ledgermath.PgDate(periodStart),
 		PeriodEnd:                 ledgermath.PgDate(periodEnd),
-		IncomeSummaryAccountID:    incomeSummary.ID,
-		RetainedEarningsAccountID: retainedEarnings.ID,
+		IncomeSummaryAccountID:    incomeSummary,
+		RetainedEarningsAccountID: retainedEarnings,
 		CreatedByUserID:           createdByUserID,
 	})
 	if err != nil {

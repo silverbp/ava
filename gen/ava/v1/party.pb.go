@@ -578,25 +578,25 @@ type CreateContactRequest struct {
 	BusinessId    int64                  `protobuf:"varint,1,opt,name=business_id,json=businessId,proto3" json:"business_id,omitempty"`
 	ContactNumber string                 `protobuf:"bytes,3,opt,name=contact_number,json=contactNumber,proto3" json:"contact_number,omitempty"`
 	// Setting either (or both) provisions a customer/vendor row for the new
-	// contact - see Contact.customer/vendor. The optional ledger_account_id
-	// on each becomes that role's own AR/AP sub-ledger account.
-	IsCustomer              bool     `protobuf:"varint,4,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
-	IsVendor                bool     `protobuf:"varint,5,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
-	CustomerLedgerAccountId *int32   `protobuf:"varint,17,opt,name=customer_ledger_account_id,json=customerLedgerAccountId,proto3,oneof" json:"customer_ledger_account_id,omitempty"`
-	VendorLedgerAccountId   *int32   `protobuf:"varint,18,opt,name=vendor_ledger_account_id,json=vendorLedgerAccountId,proto3,oneof" json:"vendor_ledger_account_id,omitempty"`
-	Name                    string   `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
-	Email                   *string  `protobuf:"bytes,7,opt,name=email,proto3,oneof" json:"email,omitempty"`
-	Phone                   *string  `protobuf:"bytes,8,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
-	PaymentTermsDays        *int32   `protobuf:"varint,9,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
-	CreditLimit             *Decimal `protobuf:"bytes,10,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
-	BillingAddressLine1     *string  `protobuf:"bytes,11,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
-	BillingAddressLine2     *string  `protobuf:"bytes,12,opt,name=billing_address_line2,json=billingAddressLine2,proto3,oneof" json:"billing_address_line2,omitempty"`
-	BillingCity             *string  `protobuf:"bytes,13,opt,name=billing_city,json=billingCity,proto3,oneof" json:"billing_city,omitempty"`
-	BillingState            *string  `protobuf:"bytes,14,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
-	BillingPostalCode       *string  `protobuf:"bytes,15,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
-	BillingCountry          *string  `protobuf:"bytes,16,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// contact - see Contact.customer/vendor - and auto-creates that role's
+	// own AR/AP sub-ledger account (named after this contact, parented under
+	// the business's system AR/AP container). There is no way to point it at
+	// an existing account instead - every customer/vendor gets its own.
+	IsCustomer          bool     `protobuf:"varint,4,opt,name=is_customer,json=isCustomer,proto3" json:"is_customer,omitempty"`
+	IsVendor            bool     `protobuf:"varint,5,opt,name=is_vendor,json=isVendor,proto3" json:"is_vendor,omitempty"`
+	Name                string   `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Email               *string  `protobuf:"bytes,7,opt,name=email,proto3,oneof" json:"email,omitempty"`
+	Phone               *string  `protobuf:"bytes,8,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
+	PaymentTermsDays    *int32   `protobuf:"varint,9,opt,name=payment_terms_days,json=paymentTermsDays,proto3,oneof" json:"payment_terms_days,omitempty"`
+	CreditLimit         *Decimal `protobuf:"bytes,10,opt,name=credit_limit,json=creditLimit,proto3,oneof" json:"credit_limit,omitempty"`
+	BillingAddressLine1 *string  `protobuf:"bytes,11,opt,name=billing_address_line1,json=billingAddressLine1,proto3,oneof" json:"billing_address_line1,omitempty"`
+	BillingAddressLine2 *string  `protobuf:"bytes,12,opt,name=billing_address_line2,json=billingAddressLine2,proto3,oneof" json:"billing_address_line2,omitempty"`
+	BillingCity         *string  `protobuf:"bytes,13,opt,name=billing_city,json=billingCity,proto3,oneof" json:"billing_city,omitempty"`
+	BillingState        *string  `protobuf:"bytes,14,opt,name=billing_state,json=billingState,proto3,oneof" json:"billing_state,omitempty"`
+	BillingPostalCode   *string  `protobuf:"bytes,15,opt,name=billing_postal_code,json=billingPostalCode,proto3,oneof" json:"billing_postal_code,omitempty"`
+	BillingCountry      *string  `protobuf:"bytes,16,opt,name=billing_country,json=billingCountry,proto3,oneof" json:"billing_country,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateContactRequest) Reset() {
@@ -655,20 +655,6 @@ func (x *CreateContactRequest) GetIsVendor() bool {
 		return x.IsVendor
 	}
 	return false
-}
-
-func (x *CreateContactRequest) GetCustomerLedgerAccountId() int32 {
-	if x != nil && x.CustomerLedgerAccountId != nil {
-		return *x.CustomerLedgerAccountId
-	}
-	return 0
-}
-
-func (x *CreateContactRequest) GetVendorLedgerAccountId() int32 {
-	if x != nil && x.VendorLedgerAccountId != nil {
-		return *x.VendorLedgerAccountId
-	}
-	return 0
 }
 
 func (x *CreateContactRequest) GetName() string {
@@ -2579,31 +2565,26 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"businessId\x12)\n" +
 	"\x10include_inactive\x18\x02 \x01(\bR\x0fincludeInactive\"C\n" +
 	"\x14ListContactsResponse\x12+\n" +
-	"\bcontacts\x18\x01 \x03(\v2\x0f.ava.v1.ContactR\bcontacts\"\x8d\b\n" +
+	"\bcontacts\x18\x01 \x03(\v2\x0f.ava.v1.ContactR\bcontacts\"\x93\a\n" +
 	"\x14CreateContactRequest\x12\x1f\n" +
 	"\vbusiness_id\x18\x01 \x01(\x03R\n" +
 	"businessId\x12%\n" +
 	"\x0econtact_number\x18\x03 \x01(\tR\rcontactNumber\x12\x1f\n" +
 	"\vis_customer\x18\x04 \x01(\bR\n" +
 	"isCustomer\x12\x1b\n" +
-	"\tis_vendor\x18\x05 \x01(\bR\bisVendor\x12@\n" +
-	"\x1acustomer_ledger_account_id\x18\x11 \x01(\x05H\x00R\x17customerLedgerAccountId\x88\x01\x01\x12<\n" +
-	"\x18vendor_ledger_account_id\x18\x12 \x01(\x05H\x01R\x15vendorLedgerAccountId\x88\x01\x01\x12\x12\n" +
+	"\tis_vendor\x18\x05 \x01(\bR\bisVendor\x12\x12\n" +
 	"\x04name\x18\x06 \x01(\tR\x04name\x12\x19\n" +
-	"\x05email\x18\a \x01(\tH\x02R\x05email\x88\x01\x01\x12\x19\n" +
-	"\x05phone\x18\b \x01(\tH\x03R\x05phone\x88\x01\x01\x121\n" +
-	"\x12payment_terms_days\x18\t \x01(\x05H\x04R\x10paymentTermsDays\x88\x01\x01\x127\n" +
+	"\x05email\x18\a \x01(\tH\x00R\x05email\x88\x01\x01\x12\x19\n" +
+	"\x05phone\x18\b \x01(\tH\x01R\x05phone\x88\x01\x01\x121\n" +
+	"\x12payment_terms_days\x18\t \x01(\x05H\x02R\x10paymentTermsDays\x88\x01\x01\x127\n" +
 	"\fcredit_limit\x18\n" +
-	" \x01(\v2\x0f.ava.v1.DecimalH\x05R\vcreditLimit\x88\x01\x01\x127\n" +
-	"\x15billing_address_line1\x18\v \x01(\tH\x06R\x13billingAddressLine1\x88\x01\x01\x127\n" +
-	"\x15billing_address_line2\x18\f \x01(\tH\aR\x13billingAddressLine2\x88\x01\x01\x12&\n" +
-	"\fbilling_city\x18\r \x01(\tH\bR\vbillingCity\x88\x01\x01\x12(\n" +
-	"\rbilling_state\x18\x0e \x01(\tH\tR\fbillingState\x88\x01\x01\x123\n" +
-	"\x13billing_postal_code\x18\x0f \x01(\tH\n" +
-	"R\x11billingPostalCode\x88\x01\x01\x12,\n" +
-	"\x0fbilling_country\x18\x10 \x01(\tH\vR\x0ebillingCountry\x88\x01\x01B\x1d\n" +
-	"\x1b_customer_ledger_account_idB\x1b\n" +
-	"\x19_vendor_ledger_account_idB\b\n" +
+	" \x01(\v2\x0f.ava.v1.DecimalH\x03R\vcreditLimit\x88\x01\x01\x127\n" +
+	"\x15billing_address_line1\x18\v \x01(\tH\x04R\x13billingAddressLine1\x88\x01\x01\x127\n" +
+	"\x15billing_address_line2\x18\f \x01(\tH\x05R\x13billingAddressLine2\x88\x01\x01\x12&\n" +
+	"\fbilling_city\x18\r \x01(\tH\x06R\vbillingCity\x88\x01\x01\x12(\n" +
+	"\rbilling_state\x18\x0e \x01(\tH\aR\fbillingState\x88\x01\x01\x123\n" +
+	"\x13billing_postal_code\x18\x0f \x01(\tH\bR\x11billingPostalCode\x88\x01\x01\x12,\n" +
+	"\x0fbilling_country\x18\x10 \x01(\tH\tR\x0ebillingCountry\x88\x01\x01B\b\n" +
 	"\x06_emailB\b\n" +
 	"\x06_phoneB\x15\n" +
 	"\x13_payment_terms_daysB\x0f\n" +
@@ -2613,7 +2594,7 @@ const file_ava_v1_party_proto_rawDesc = "" +
 	"\r_billing_cityB\x10\n" +
 	"\x0e_billing_stateB\x16\n" +
 	"\x14_billing_postal_codeB\x12\n" +
-	"\x10_billing_countryJ\x04\b\x02\x10\x03R\x11ledger_account_id\"B\n" +
+	"\x10_billing_countryJ\x04\b\x02\x10\x03J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13R\x11ledger_account_idR\x1acustomer_ledger_account_idR\x18vendor_ledger_account_id\"B\n" +
 	"\x15CreateContactResponse\x12)\n" +
 	"\acontact\x18\x01 \x01(\v2\x0f.ava.v1.ContactR\acontact\"\x94\x06\n" +
 	"\x14UpdateContactRequest\x12\x0e\n" +

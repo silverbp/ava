@@ -54,3 +54,20 @@ RETURNING estimate_number_prefix AS prefix, (next_estimate_number - 1)::int AS c
 UPDATE business SET next_invoice_number = next_invoice_number + 1, updated_at = NOW()
 WHERE id = $1
 RETURNING invoice_number_prefix AS prefix, (next_invoice_number - 1)::int AS claimed_number;
+
+-- The four queries below persist a business's system ledger_account ids the first time each
+-- is provisioned or self-healed (see internal/server/system_accounts.go,
+-- internal/periodclose/provision.go) - guarded by "column IS NULL" so a later call is a true
+-- no-op (0 rows, no resource_version bump) once set, never overwriting an already-resolved id.
+
+-- name: SetBusinessARAccountID :exec
+UPDATE business SET ar_account_id = $2, updated_at = NOW() WHERE id = $1 AND ar_account_id IS NULL;
+
+-- name: SetBusinessAPAccountID :exec
+UPDATE business SET ap_account_id = $2, updated_at = NOW() WHERE id = $1 AND ap_account_id IS NULL;
+
+-- name: SetBusinessIncomeSummaryAccountID :exec
+UPDATE business SET income_summary_account_id = $2, updated_at = NOW() WHERE id = $1 AND income_summary_account_id IS NULL;
+
+-- name: SetBusinessRetainedEarningsAccountID :exec
+UPDATE business SET retained_earnings_account_id = $2, updated_at = NOW() WHERE id = $1 AND retained_earnings_account_id IS NULL;

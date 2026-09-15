@@ -38,11 +38,16 @@ erDiagram
     period_close ||--o{ period_close_entry : "period_close_id"
     ledger_transaction ||--o{ period_close_entry : "ledger_transaction_id"
     ledger_account ||--o{ period_close_entry : "source_account_id"
+    ledger_account |o--o{ business : "ar_account_id / ap_account_id / income_summary_account_id / retained_earnings_account_id"
 
     business {
         bigint id PK
         varchar name
         varchar currency_code "informational only, always USD"
+        int ar_account_id FK "system AR container - resolved once, then read directly (see architecture.md)"
+        int ap_account_id FK "system AP container, same pattern"
+        int income_summary_account_id FK "system Income Summary account, same pattern"
+        int retained_earnings_account_id FK "system Retained Earnings account, same pattern"
     }
     ledger_account_type {
         int id PK
@@ -306,12 +311,14 @@ erDiagram
   role's own AR/AP sub-ledger account (`ledger_account.parent_account_id` rolls it up under a
   business's single "Accounts Receivable"/"Accounts Payable" container account - see diagram 1).
   A contact that's both a customer and a vendor (e.g. a supplier you also sell to) gets one row in
-  each table, with independent AR and AP sub-accounts. A sub-account leaves its own
-  `balance_sheet_category_id` unset by convention (not DB-enforced) - it's presentation-grouped
-  entirely through its container's category once rolled up, rather than duplicating it on every
-  child; `internal/reporting.BalanceSheet` sums a container and every descendant into one line,
-  driven purely by `parent_account_id` (not `is_container`, which is documentation/UI intent
-  rather than what the rollup actually keys on).
+  each table, with independent AR and AP sub-accounts, auto-created at contact creation time
+  (`internal/server/system_accounts.go`) rather than something the caller points at an existing
+  account - there's no request field for one. A sub-account is given the same
+  `balance_sheet_category_id` as its container ("Current Assets & Liabilities"), though that's
+  redundant rather than load-bearing: `internal/reporting.BalanceSheet` sums a container and every
+  descendant into one line driven purely by `parent_account_id` (not `is_container`, which is
+  documentation/UI intent rather than what the rollup actually keys on), so a child's own category
+  is never read for that report.
 - **`estimate`** — deliberately *not* unified with `invoice`. It has no ledger impact — nothing
   is owed until it converts — and its lifecycle genuinely differs: DRAFT → SENT → ACCEPTED /
   DECLINED / EXPIRED, with `expiration_date` rather than a payment `due_date`, and no

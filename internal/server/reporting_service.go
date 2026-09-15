@@ -5,6 +5,10 @@ package server
 
 import (
 	"context"
+	"errors"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	avav1 "github.com/silverbp/ava/gen/ava/v1"
 	"github.com/silverbp/ava/internal/auth"
@@ -33,6 +37,17 @@ func newReportingService(store *db.Store) *reportingService {
 // scope authorizes a business-wide report.
 func (s *reportingService) scope(ctx context.Context, businessID int64) error {
 	return auth.RequireBusinessRole(ctx, s.store.Queries, businessID, "VIEWER")
+}
+
+// translateStatementError maps reporting.ErrNotACustomer/ErrNoLedgerAccount
+// to FailedPrecondition (a real contact, just missing what a statement
+// needs) ahead of the generic pgError translation - shared by the JSON and
+// PDF customer statement handlers.
+func translateStatementError(err error) error {
+	if errors.Is(err, reporting.ErrNotACustomer) || errors.Is(err, reporting.ErrNoLedgerAccount) {
+		return status.Error(codes.FailedPrecondition, err.Error())
+	}
+	return translatePgError(err)
 }
 
 // contactScope authorizes a per-contact report, returning the contact's
@@ -178,7 +193,7 @@ func (s *reportingService) GetCustomerStatement(ctx context.Context, req *avav1.
 	}
 	result, err := reporting.CustomerStatement(ctx, s.store.Queries, req.GetContactId(), start, end)
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateStatementError(err)
 	}
 	return &avav1.GetCustomerStatementResponse{Statement: customerStatementToProto(result)}, nil
 }

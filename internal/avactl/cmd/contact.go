@@ -54,33 +54,34 @@ func newContactCmd() *cobra.Command {
 
 func newContactCreateCmd() *cobra.Command {
 	var contactNumber, name, email, phone string
-	var customerLedgerAccount, vendorLedgerAccount, paymentTerms int32
+	var paymentTerms int32
 	var isCustomer, isVendor bool
 	var creditLimit string
 	var addr1, addr2, city, state, postal, country string
 
 	cmd := newCreateCmd(contactNoun, resource.Doc{
-		Summary:  "Create a customer/vendor contact",
-		Examples: []resource.Example{{Cmd: "avactl contact create --contact-number C-1 --name \"Acme Co\" --customer-ledger-account 12"}},
+		Summary: "Create a customer/vendor contact",
+		Detail: "Marking a contact --customer and/or --vendor auto-creates that role's own AR/AP " +
+			"ledger sub-account (named after the contact, under the business's Accounts " +
+			"Receivable/Payable container) - there's no way to point it at an existing account instead.",
+		Examples: []resource.Example{{Cmd: "avactl contact create --contact-number C-1 --name \"Acme Co\""}},
 	}, func(r run) (proto.Message, error) {
 		resp, err := avav1.NewContactServiceClient(r.conn).CreateContact(r.ctx, &avav1.CreateContactRequest{
-			BusinessId:              r.businessID,
-			ContactNumber:           contactNumber,
-			Name:                    name,
-			IsCustomer:              isCustomer,
-			IsVendor:                isVendor,
-			Email:                   r.optString("email", &email),
-			Phone:                   r.optString("phone", &phone),
-			CustomerLedgerAccountId: r.optInt32("customer-ledger-account", &customerLedgerAccount),
-			VendorLedgerAccountId:   r.optInt32("vendor-ledger-account", &vendorLedgerAccount),
-			PaymentTermsDays:        r.optInt32("payment-terms", &paymentTerms),
-			CreditLimit:             r.optDecimal("credit-limit", &creditLimit),
-			BillingAddressLine1:     r.optString("address1", &addr1),
-			BillingAddressLine2:     r.optString("address2", &addr2),
-			BillingCity:             r.optString("city", &city),
-			BillingState:            r.optString("state", &state),
-			BillingPostalCode:       r.optString("postal-code", &postal),
-			BillingCountry:          r.optString("country", &country),
+			BusinessId:          r.businessID,
+			ContactNumber:       contactNumber,
+			Name:                name,
+			IsCustomer:          isCustomer,
+			IsVendor:            isVendor,
+			Email:               r.optString("email", &email),
+			Phone:               r.optString("phone", &phone),
+			PaymentTermsDays:    r.optInt32("payment-terms", &paymentTerms),
+			CreditLimit:         r.optDecimal("credit-limit", &creditLimit),
+			BillingAddressLine1: r.optString("address1", &addr1),
+			BillingAddressLine2: r.optString("address2", &addr2),
+			BillingCity:         r.optString("city", &city),
+			BillingState:        r.optString("state", &state),
+			BillingPostalCode:   r.optString("postal-code", &postal),
+			BillingCountry:      r.optString("country", &country),
 		})
 		return resp.GetContact(), err
 	})
@@ -90,8 +91,6 @@ func newContactCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&phone, "phone", "", "phone number")
 	cmd.Flags().BoolVar(&isCustomer, "customer", true, "this contact is a customer")
 	cmd.Flags().BoolVar(&isVendor, "vendor", false, "this contact is a vendor")
-	cmd.Flags().Int32Var(&customerLedgerAccount, "customer-ledger-account", 0, "this contact's AR ledger account id (requires --customer), for posting invoices/payments")
-	cmd.Flags().Int32Var(&vendorLedgerAccount, "vendor-ledger-account", 0, "this contact's AP ledger account id (requires --vendor), for posting invoices/payments")
 	cmd.Flags().Int32Var(&paymentTerms, "payment-terms", 0, "default payment terms, in days")
 	cmd.Flags().StringVar(&creditLimit, "credit-limit", "", "credit limit")
 	cmd.Flags().StringVar(&addr1, "address1", "", "billing address line 1")

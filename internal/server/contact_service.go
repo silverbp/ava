@@ -100,12 +100,23 @@ func (s *contactService) CreateContact(ctx context.Context, req *avav1.CreateCon
 			return err
 		}
 		if req.GetIsCustomer() {
-			if _, err := q.CreateCustomer(ctx, sqlcgen.CreateCustomerParams{ContactID: created.ID, LedgerAccountID: req.CustomerLedgerAccountId}); err != nil {
+			// Every customer gets its own AR sub-account, always - see
+			// getOrCreateContactAccount. There's no way to point a new
+			// customer at an existing account instead.
+			acct, err := getOrCreateContactAccount(ctx, q, req.GetBusinessId(), created.ID, created.Name, true, &u.ID)
+			if err != nil {
+				return err
+			}
+			if _, err := q.CreateCustomer(ctx, sqlcgen.CreateCustomerParams{ContactID: created.ID, LedgerAccountID: &acct.ID}); err != nil {
 				return err
 			}
 		}
 		if req.GetIsVendor() {
-			if _, err := q.CreateVendor(ctx, sqlcgen.CreateVendorParams{ContactID: created.ID, LedgerAccountID: req.VendorLedgerAccountId}); err != nil {
+			acct, err := getOrCreateContactAccount(ctx, q, req.GetBusinessId(), created.ID, created.Name, false, &u.ID)
+			if err != nil {
+				return err
+			}
+			if _, err := q.CreateVendor(ctx, sqlcgen.CreateVendorParams{ContactID: created.ID, LedgerAccountID: &acct.ID}); err != nil {
 				return err
 			}
 		}
@@ -171,7 +182,10 @@ func (s *contactService) DeactivateContact(ctx context.Context, req *avav1.Deact
 		if err != nil {
 			return err
 		}
-		return deactivateZeroBalanceCustomerAccount(ctx, q, req.GetId())
+		if err := deactivateZeroBalanceCustomerAccount(ctx, q, req.GetId()); err != nil {
+			return err
+		}
+		return deactivateZeroBalanceVendorAccount(ctx, q, req.GetId())
 	})
 	if err != nil {
 		return nil, translateUpdateError(err, contactRes.kind, req.GetId(), req.GetResourceVersion())
@@ -182,6 +196,14 @@ func (s *contactService) DeactivateContact(ctx context.Context, req *avav1.Deact
 	}
 	return &avav1.DeactivateContactResponse{Contact: pb}, nil
 }
+
+// ledger_account_type ids a customer/vendor's own sub-ledger account must
+// carry - see periodclose.EquityAccountTypeID for the same convention
+// applied to EQUITY.
+const (
+	assetsAccountTypeID      = 1
+	liabilitiesAccountTypeID = 2
+)
 
 // deactivateZeroBalanceCustomerAccount deactivates a just-deactivated
 // contact's customer ledger account too, but only when that account carries
@@ -196,10 +218,27 @@ func deactivateZeroBalanceCustomerAccount(ctx context.Context, q *sqlcgen.Querie
 		}
 		return err
 	}
-	if customer.LedgerAccountID == nil {
+	return deactivateZeroBalanceAccount(ctx, q, customer.LedgerAccountID)
+}
+
+// deactivateZeroBalanceVendorAccount is deactivateZeroBalanceCustomerAccount's
+// AP-side mirror.
+func deactivateZeroBalanceVendorAccount(ctx context.Context, q *sqlcgen.Queries, contactID int64) error {
+	vendor, err := q.GetVendorByContactID(ctx, contactID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	return deactivateZeroBalanceAccount(ctx, q, vendor.LedgerAccountID)
+}
+
+func deactivateZeroBalanceAccount(ctx context.Context, q *sqlcgen.Queries, ledgerAccountID *int32) error {
+	if ledgerAccountID == nil {
 		return nil
 	}
-	account, err := q.GetLedgerAccount(ctx, *customer.LedgerAccountID)
+	account, err := q.GetLedgerAccount(ctx, *ledgerAccountID)
 	if err != nil {
 		return err
 	}

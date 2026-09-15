@@ -296,10 +296,9 @@ func (tc *testTenant) reconcilableAccount(code, name string) int32 {
 // revenue account.
 func (tc *testTenant) customerAndItem() (contactID, itemID int64) {
 	tc.t.Helper()
-	ar := tc.account(1, "1100", "Accounts Receivable")
 	rev := tc.account(4, "4000", "Revenue")
 	c := must(newContactService(tc.store).CreateContact(tc.ctx, &avav1.CreateContactRequest{
-		BusinessId: tc.businessID, ContactNumber: "C-1", Name: "Acme", IsCustomer: true, CustomerLedgerAccountId: &ar,
+		BusinessId: tc.businessID, ContactNumber: "C-1", Name: "Acme", IsCustomer: true,
 	}))
 	it := must(newItemService(tc.store).CreateItem(tc.ctx, &avav1.CreateItemRequest{
 		BusinessId: tc.businessID, ItemCode: "SVC", Name: "Service", RetailPrice: dec("100.00"), DefaultLedgerAccountId: &rev,

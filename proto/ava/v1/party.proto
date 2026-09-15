@@ -106,18 +106,18 @@ message ListContactsResponse {
 }
 
 message CreateContactRequest {
-  reserved 2;
-  reserved "ledger_account_id";
+  reserved 2, 17, 18;
+  reserved "ledger_account_id", "customer_ledger_account_id", "vendor_ledger_account_id";
 
   int64 business_id = 1;
   string contact_number = 3;
   // Setting either (or both) provisions a customer/vendor row for the new
-  // contact - see Contact.customer/vendor. The optional ledger_account_id
-  // on each becomes that role's own AR/AP sub-ledger account.
+  // contact - see Contact.customer/vendor - and auto-creates that role's
+  // own AR/AP sub-ledger account (named after this contact, parented under
+  // the business's system AR/AP container). There is no way to point it at
+  // an existing account instead - every customer/vendor gets its own.
   bool is_customer = 4;
   bool is_vendor = 5;
-  optional int32 customer_ledger_account_id = 17;
-  optional int32 vendor_ledger_account_id = 18;
   string name = 6;
   optional string email = 7;
   optional string phone = 8;

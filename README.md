@@ -4,6 +4,12 @@ A double-entry accounting system: a Postgres-backed ledger schema, a gRPC API se
 and a CLI client (`cmd/avactl`). Covers core ledger accounting, parties, trading documents,
 banking/reconciliation, period close, tax, and reporting, with passkey (WebAuthn)-based auth.
 
+## Quick start
+
+Want to run this rather than develop it? See [docs/quickstart.md](docs/quickstart.md) - stands up
+the whole stack with `docker compose`, connects `avactl`, and covers backing your data up to
+iCloud Drive.
+
 ## Layout
 
 - `migrations/` — the Postgres schema (single up migration, no down migrations by design)

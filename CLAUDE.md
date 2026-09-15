@@ -12,7 +12,8 @@ banking/reconciliation, period close, tax, and reporting, with passkey (WebAuthn
 - `internal/server/` — gRPC service implementations
 - `internal/avactl/`, `cmd/avactl/` — CLI client
 - `cmd/ava/` — API server entrypoint
-- `docs/` — architecture notes (`architecture.md`) and schema reference (`schema.md`)
+- `docs/` — architecture notes (`architecture.md`), schema reference (`schema.md`), and a Docker
+  Compose quick start (`quickstart.md`)
 
 ## Development
 
@@ -140,9 +141,9 @@ commit or paste its contents.
 | Resource | Subcommands | Notes |
 |---|---|---|
 | `business` | create, get, list, update, deactivate, invite create/list/revoke | `create`/`invite create` require global-admin (or OWNER/ADMIN for invites). `invite create` prints a one-time token to hand the invitee yourself — ava never emails it, and it's never shown again. |
-| `contact` | create, get, list, update, deactivate | A contact can be `--customer` and/or `--vendor`; each side needs its own ledger account (`--customer-ledger-account` / `--vendor-ledger-account`, AR/AP respectively) before you can invoice against it. |
+| `contact` | create, get, list, update, deactivate | A contact can be `--customer` and/or `--vendor`; each side auto-provisions its own AR/AP sub-ledger account (named after the contact, under the business's system Accounts Receivable/Payable container) - there's no flag to point it at an existing account instead. |
 | `item` | create, get, list, update, deactivate | Catalog entry. `--type SERVICE\|NON_INVENTORY\|INVENTORY`. `--default-ledger-account-id` is **required** — it's the account every invoice line for this item posts to (not overridable per line). `--default-tax-rate-id` / `--price` / `--taxable` / `--name` are the defaults that `estimate`/`invoice` `--line item=<id>` pulls from. Deactivated items can't go on new lines. |
-| `ledger-account` | create, get, list, update, deactivate | Chart of accounts. `--account-type` is required: `1=ASSETS 2=LIABILITIES 3=EQUITY 4=REVENUE 5=EXPENSES 6=TAX_LIABILITY`. `--container` marks a non-postable roll-up node (e.g. "Accounts Receivable") with real accounts hung off it via `--parent`. `--reconcilable` makes it eligible for `bank-statement`. |
+| `ledger-account` | create, get, list, update, deactivate | Chart of accounts. `--account-type` is required: `1=ASSETS 2=LIABILITIES 3=EQUITY 4=REVENUE 5=EXPENSES 6=TAX_LIABILITY`. `--container` marks a non-postable roll-up node (e.g. "Fixed Assets") with real accounts hung off it via `--parent` - don't hand-create an "Accounts Receivable"/"Accounts Payable" container yourself, those are auto-provisioned system accounts at codes `1100`/`2000` (see the `contact` row above). `--reconcilable` makes it eligible for `bank-statement`. |
 | `ledger-transaction` | get, list, post, reverse | `list` is newest-first and takes AND-combined filters: `--account <id>`, `--start`/`--end` (YYYY-MM-DD), `--description-contains <text>` (case-insensitive, transaction description only); `--limit` defaults to 50, `--limit 0` pages through everything. `post` takes ≥2 `--entry account=<id>,debit=<amt>` / `,credit=<amt>` flags; posting is atomic and validated balanced. There is no edit or delete — `reverse <id> [--date]` posts a new mirrored transaction (the `REVERSES` column shows the link). `reverse` refuses a transaction linked from an invoice or payment: use `invoice cancel` / `payment void` for those. |
 | `estimate` | create, get, list, update, update-lines, send, accept, decline, expire | `update` edits only notes/terms/expiration date (`--notes`, `--terms`, `--expires`; customer, estimate date, and number are recreate). Lines: repeat `--line "item=<id>[,desc=...][,qty=][,price=][,taxable][,tax-rate=<id>]"`. `item=` is **required** on every line (no free-text lines); desc/price/taxable/tax-rate default from the item's catalog entry when omitted. Unknown keys are rejected. `update-lines` replaces the *entire* line set. |
 | `invoice` | create, get, list, update, update-lines, send, cancel, mark-overdue | `--type SALES\|PURCHASE`. Same `--line` syntax as `estimate`: `item=` is **required** and the line always posts to that item's `default_ledger_account_id` — there is no `account=` key. The contact needs a matching customer/vendor ledger account. **Creating an invoice posts it to the ledger atomically.** `--estimate <id>` with no `--line` flags converts an estimate's lines over instead of specifying lines by hand. `update` edits only notes/terms/due date (contact, invoice date, and number are cancel-and-recreate). `update-lines` on an already-posted invoice regenerates its linked transaction's entries in place (and needs `item=` on every line, including on pre-catalog invoices); both refuse a CANCELLED invoice, and `update-lines` refuses a PAID one (void the payment first). `cancel [--date]` reverses the invoice's posting and zeroes its balance; it refuses while a payment is still applied. `get -o pdf > file.pdf` renders the invoice as PDF. There's no `discount_amount` field — a discount is a negative line against its own catalog item (e.g. an item pointed at a "Sales Discounts" account), posted as a contra-entry: `--line "item=<discount-id>,price=-100.00"`. A document's total may not go negative. (If you instead give the discount item itself a negative default `--price`, pass it as `--price=-100.00` — `--price -100.00` fails, since pflag reads the leading `-` as another flag.) |
@@ -165,7 +166,7 @@ avactl ledger-transaction post --date 2026-01-01 \
   --entry account=1,debit=10000.00 --entry account=2,credit=10000.00
 
 # Customer + catalog item + invoice + payment
-avactl contact create --contact-number C-1 --name "Acme Co" --customer-ledger-account 12
+avactl contact create --contact-number C-1 --name "Acme Co"
 avactl item create --code CONSULT --name Consulting --price 150.00 --default-ledger-account-id 40
 avactl invoice create --contact 5 --type SALES --date 2026-01-01 --due 2026-01-31 \
   --line "item=71,qty=10"

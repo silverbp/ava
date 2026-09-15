@@ -12,10 +12,21 @@ Six pieces of application logic are needed to drive it.
 Every business needs its own `Income Summary` and `Retained Earnings` `ledger_account` rows
 (`account_type_id = 3` EQUITY, `is_system = true`) before it can ever be closed —
 `period_close.income_summary_account_id` / `retained_earnings_account_id` are `NOT NULL`, so
-there's no lazy-create path. Do this as part of business creation/provisioning, alongside whatever
-else seeds a new business's default chart of accounts. Fixed `code` values (e.g.
-`INCOME-SUMMARY`, `RETAINED-EARNINGS`) let the close service look them up without a naming
-convention on `name`.
+there's no lazy-create path. `internal/periodclose.ProvisionSystemAccounts` runs at business
+creation and again before every close; fixed `code` values (`3910`, `3900` - the QuickBooks-style
+numbering convention, not descriptive strings) let it find the accounts without a naming
+convention on `name`, and a found row is only adopted if it's actually a postable, active EQUITY
+account at that code (an unusable match at code 3910/3900 - the wrong type, a container, an
+inactive account - is a `FailedPrecondition`, not something silently adopted).
+
+The resolved ids are then persisted onto `business.income_summary_account_id` /
+`retained_earnings_account_id` (and, the same way, `business.ar_account_id` / `ap_account_id`
+for the Accounts Receivable/Payable containers customer/vendor sub-accounts hang off - see
+`internal/server/system_accounts.go`) via a guarded `UPDATE ... WHERE column IS NULL`. Once set,
+every later resolution is a direct read of that column - no code lookup - which is what makes
+calling `ProvisionSystemAccounts` on every close cheap rather than a lookup each time; only a
+business's very first resolution (or a pre-existing business self-healing on its first touch
+after this was added) does any writing.
 
 ### 2. The close service
 

@@ -67,9 +67,6 @@ func TestDocumentFlow(t *testing.T) {
 	// --- chart of accounts ------------------------------------------------
 	cash := tc.reconcilableAccount("1000", "Cash")
 	arContainer := must(accounts.CreateLedgerAccount(ctx, &avav1.CreateLedgerAccountRequest{BusinessId: tc.businessID, AccountTypeId: 1, Code: "1100", Name: "Accounts Receivable", IsContainer: true})).GetAccount().GetId()
-	custAR := must(accounts.CreateLedgerAccount(ctx, &avav1.CreateLedgerAccountRequest{BusinessId: tc.businessID, AccountTypeId: 1, Code: "1100.1", Name: "AR - Acme", ParentAccountId: &arContainer})).GetAccount().GetId()
-	apContainer := must(accounts.CreateLedgerAccount(ctx, &avav1.CreateLedgerAccountRequest{BusinessId: tc.businessID, AccountTypeId: 2, Code: "2000", Name: "Accounts Payable", IsContainer: true})).GetAccount().GetId()
-	vendAP := must(accounts.CreateLedgerAccount(ctx, &avav1.CreateLedgerAccountRequest{BusinessId: tc.businessID, AccountTypeId: 2, Code: "2000.1", Name: "AP - Supplies Co", ParentAccountId: &apContainer})).GetAccount().GetId()
 	taxLiab := tc.account(6, "2100", "Sales Tax Payable")
 	equity := tc.account(3, "3000", "Opening Balance Equity")
 	revenue := tc.account(4, "4000", "Consulting Revenue")
@@ -80,11 +77,22 @@ func TestDocumentFlow(t *testing.T) {
 	wantCode(t, err, codes.InvalidArgument)
 
 	// --- parties, catalog, tax ------------------------------------------
-	customer := must(contacts.CreateContact(ctx, &avav1.CreateContactRequest{BusinessId: tc.businessID, ContactNumber: "C-1", Name: "Acme", IsCustomer: true, CustomerLedgerAccountId: &custAR})).GetContact()
-	if customer.GetCustomer() == nil || customer.GetCustomer().GetLedgerAccountId() != custAR {
+	// Neither contact is given a ledger account explicitly - CreateContact
+	// always provisions the customer/vendor's own AR/AP sub-account itself
+	// (see getOrCreateContactAccount), parented under arContainer above
+	// (found by its code, "1100") for the customer side.
+	customer := must(contacts.CreateContact(ctx, &avav1.CreateContactRequest{BusinessId: tc.businessID, ContactNumber: "C-1", Name: "Acme", IsCustomer: true})).GetContact()
+	custAR := customer.GetCustomer().GetLedgerAccountId()
+	if customer.GetCustomer() == nil || custAR == 0 {
 		t.Fatalf("customer role not attached: %+v", customer)
 	}
-	vendor := must(contacts.CreateContact(ctx, &avav1.CreateContactRequest{BusinessId: tc.businessID, ContactNumber: "V-1", Name: "Supplies Co", IsCustomer: false, IsVendor: true, VendorLedgerAccountId: &vendAP})).GetContact()
+	if acct := must(accounts.GetLedgerAccount(ctx, &avav1.GetLedgerAccountRequest{Id: custAR})).GetAccount(); acct.GetParentAccountId() != arContainer {
+		t.Fatalf("customer AR account not parented under arContainer: %+v", acct)
+	}
+	vendor := must(contacts.CreateContact(ctx, &avav1.CreateContactRequest{BusinessId: tc.businessID, ContactNumber: "V-1", Name: "Supplies Co", IsCustomer: false, IsVendor: true})).GetContact()
+	if vendor.GetVendor().GetLedgerAccountId() == 0 {
+		t.Fatalf("vendor created with no auto-provisioned ledger account")
+	}
 	salesTax := must(taxRates.CreateTaxRate(ctx, &avav1.CreateTaxRateRequest{BusinessId: tc.businessID, Name: "Sales Tax", Rate: dec("0.10"), TaxLiabilityAccountId: taxLiab})).GetTaxRate()
 	taxID := salesTax.GetId()
 	consult := must(items.CreateItem(ctx, &avav1.CreateItemRequest{BusinessId: tc.businessID, ItemCode: "CONSULT", Name: "Consulting", RetailPrice: dec("100.00"), IsTaxable: true, DefaultTaxRateId: &taxID, DefaultLedgerAccountId: &revenue})).GetItem()

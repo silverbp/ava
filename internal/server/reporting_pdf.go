@@ -139,7 +139,7 @@ func (s *reportingService) GetCustomerStatementPdf(ctx context.Context, req *ava
 	}
 	result, err := reporting.CustomerStatement(ctx, s.store.Queries, req.GetContactId(), start, end)
 	if err != nil {
-		return nil, translatePgError(err)
+		return nil, translateStatementError(err)
 	}
 	content, err := renderedPDF(pdf.RenderCustomerStatement(businessName, result))
 	if err != nil {

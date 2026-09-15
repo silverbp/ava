@@ -57,7 +57,7 @@ INSERT INTO business (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, ar_account_id, ap_account_id, income_summary_account_id, retained_earnings_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type CreateBusinessParams struct {
@@ -115,6 +115,10 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 		&i.NextEstimateNumber,
 		&i.Timezone,
 		&i.CurrencyCode,
+		&i.ArAccountID,
+		&i.ApAccountID,
+		&i.IncomeSummaryAccountID,
+		&i.RetainedEarningsAccountID,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -129,7 +133,7 @@ const deactivateBusiness = `-- name: DeactivateBusiness :one
 UPDATE business SET is_active = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
     AND ($2::bigint IS NULL OR resource_version = $2)
-RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, ar_account_id, ap_account_id, income_summary_account_id, retained_earnings_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type DeactivateBusinessParams struct {
@@ -164,6 +168,10 @@ func (q *Queries) DeactivateBusiness(ctx context.Context, arg DeactivateBusiness
 		&i.NextEstimateNumber,
 		&i.Timezone,
 		&i.CurrencyCode,
+		&i.ArAccountID,
+		&i.ApAccountID,
+		&i.IncomeSummaryAccountID,
+		&i.RetainedEarningsAccountID,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -175,7 +183,7 @@ func (q *Queries) DeactivateBusiness(ctx context.Context, arg DeactivateBusiness
 }
 
 const getBusiness = `-- name: GetBusiness :one
-SELECT id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM business WHERE id = $1 AND deleted_at IS NULL
+SELECT id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, ar_account_id, ap_account_id, income_summary_account_id, retained_earnings_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at FROM business WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetBusiness(ctx context.Context, id int64) (Business, error) {
@@ -205,6 +213,10 @@ func (q *Queries) GetBusiness(ctx context.Context, id int64) (Business, error) {
 		&i.NextEstimateNumber,
 		&i.Timezone,
 		&i.CurrencyCode,
+		&i.ArAccountID,
+		&i.ApAccountID,
+		&i.IncomeSummaryAccountID,
+		&i.RetainedEarningsAccountID,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -216,7 +228,7 @@ func (q *Queries) GetBusiness(ctx context.Context, id int64) (Business, error) {
 }
 
 const listBusinessesForUser = `-- name: ListBusinessesForUser :many
-SELECT b.id, b.name, b.tax_id, b.address_line1, b.address_line2, b.city, b.state, b.postal_code, b.country, b.phone, b.email, b.website_url, b.logo_url, b.default_payment_terms_days, b.default_tax_rate, b.default_invoice_terms, b.default_estimate_terms, b.invoice_number_prefix, b.estimate_number_prefix, b.next_invoice_number, b.next_estimate_number, b.timezone, b.currency_code, b.is_active, b.created_by_user_id, b.created_at, b.updated_at, b.resource_version, b.deleted_at, bu.role AS membership_role
+SELECT b.id, b.name, b.tax_id, b.address_line1, b.address_line2, b.city, b.state, b.postal_code, b.country, b.phone, b.email, b.website_url, b.logo_url, b.default_payment_terms_days, b.default_tax_rate, b.default_invoice_terms, b.default_estimate_terms, b.invoice_number_prefix, b.estimate_number_prefix, b.next_invoice_number, b.next_estimate_number, b.timezone, b.currency_code, b.ar_account_id, b.ap_account_id, b.income_summary_account_id, b.retained_earnings_account_id, b.is_active, b.created_by_user_id, b.created_at, b.updated_at, b.resource_version, b.deleted_at, bu.role AS membership_role
 FROM business b
 JOIN business_user bu ON bu.business_id = b.id
 WHERE bu.user_id = $1 AND b.deleted_at IS NULL
@@ -224,36 +236,40 @@ ORDER BY b.name
 `
 
 type ListBusinessesForUserRow struct {
-	ID                      int64            `json:"id"`
-	Name                    string           `json:"name"`
-	TaxID                   *string          `json:"tax_id"`
-	AddressLine1            *string          `json:"address_line1"`
-	AddressLine2            *string          `json:"address_line2"`
-	City                    *string          `json:"city"`
-	State                   *string          `json:"state"`
-	PostalCode              *string          `json:"postal_code"`
-	Country                 *string          `json:"country"`
-	Phone                   *string          `json:"phone"`
-	Email                   *string          `json:"email"`
-	WebsiteUrl              *string          `json:"website_url"`
-	LogoUrl                 *string          `json:"logo_url"`
-	DefaultPaymentTermsDays *int32           `json:"default_payment_terms_days"`
-	DefaultTaxRate          pgtype.Numeric   `json:"default_tax_rate"`
-	DefaultInvoiceTerms     *string          `json:"default_invoice_terms"`
-	DefaultEstimateTerms    *string          `json:"default_estimate_terms"`
-	InvoiceNumberPrefix     *string          `json:"invoice_number_prefix"`
-	EstimateNumberPrefix    *string          `json:"estimate_number_prefix"`
-	NextInvoiceNumber       *int32           `json:"next_invoice_number"`
-	NextEstimateNumber      *int32           `json:"next_estimate_number"`
-	Timezone                *string          `json:"timezone"`
-	CurrencyCode            *string          `json:"currency_code"`
-	IsActive                bool             `json:"is_active"`
-	CreatedByUserID         *int64           `json:"created_by_user_id"`
-	CreatedAt               pgtype.Timestamp `json:"created_at"`
-	UpdatedAt               pgtype.Timestamp `json:"updated_at"`
-	ResourceVersion         int64            `json:"resource_version"`
-	DeletedAt               pgtype.Timestamp `json:"deleted_at"`
-	MembershipRole          string           `json:"membership_role"`
+	ID                        int64            `json:"id"`
+	Name                      string           `json:"name"`
+	TaxID                     *string          `json:"tax_id"`
+	AddressLine1              *string          `json:"address_line1"`
+	AddressLine2              *string          `json:"address_line2"`
+	City                      *string          `json:"city"`
+	State                     *string          `json:"state"`
+	PostalCode                *string          `json:"postal_code"`
+	Country                   *string          `json:"country"`
+	Phone                     *string          `json:"phone"`
+	Email                     *string          `json:"email"`
+	WebsiteUrl                *string          `json:"website_url"`
+	LogoUrl                   *string          `json:"logo_url"`
+	DefaultPaymentTermsDays   *int32           `json:"default_payment_terms_days"`
+	DefaultTaxRate            pgtype.Numeric   `json:"default_tax_rate"`
+	DefaultInvoiceTerms       *string          `json:"default_invoice_terms"`
+	DefaultEstimateTerms      *string          `json:"default_estimate_terms"`
+	InvoiceNumberPrefix       *string          `json:"invoice_number_prefix"`
+	EstimateNumberPrefix      *string          `json:"estimate_number_prefix"`
+	NextInvoiceNumber         *int32           `json:"next_invoice_number"`
+	NextEstimateNumber        *int32           `json:"next_estimate_number"`
+	Timezone                  *string          `json:"timezone"`
+	CurrencyCode              *string          `json:"currency_code"`
+	ArAccountID               *int32           `json:"ar_account_id"`
+	ApAccountID               *int32           `json:"ap_account_id"`
+	IncomeSummaryAccountID    *int32           `json:"income_summary_account_id"`
+	RetainedEarningsAccountID *int32           `json:"retained_earnings_account_id"`
+	IsActive                  bool             `json:"is_active"`
+	CreatedByUserID           *int64           `json:"created_by_user_id"`
+	CreatedAt                 pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamp `json:"updated_at"`
+	ResourceVersion           int64            `json:"resource_version"`
+	DeletedAt                 pgtype.Timestamp `json:"deleted_at"`
+	MembershipRole            string           `json:"membership_role"`
 }
 
 func (q *Queries) ListBusinessesForUser(ctx context.Context, userID int64) ([]ListBusinessesForUserRow, error) {
@@ -289,6 +305,10 @@ func (q *Queries) ListBusinessesForUser(ctx context.Context, userID int64) ([]Li
 			&i.NextEstimateNumber,
 			&i.Timezone,
 			&i.CurrencyCode,
+			&i.ArAccountID,
+			&i.ApAccountID,
+			&i.IncomeSummaryAccountID,
+			&i.RetainedEarningsAccountID,
 			&i.IsActive,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
@@ -307,6 +327,67 @@ func (q *Queries) ListBusinessesForUser(ctx context.Context, userID int64) ([]Li
 	return items, nil
 }
 
+const setBusinessAPAccountID = `-- name: SetBusinessAPAccountID :exec
+UPDATE business SET ap_account_id = $2, updated_at = NOW() WHERE id = $1 AND ap_account_id IS NULL
+`
+
+type SetBusinessAPAccountIDParams struct {
+	ID          int64  `json:"id"`
+	ApAccountID *int32 `json:"ap_account_id"`
+}
+
+func (q *Queries) SetBusinessAPAccountID(ctx context.Context, arg SetBusinessAPAccountIDParams) error {
+	_, err := q.db.Exec(ctx, setBusinessAPAccountID, arg.ID, arg.ApAccountID)
+	return err
+}
+
+const setBusinessARAccountID = `-- name: SetBusinessARAccountID :exec
+
+UPDATE business SET ar_account_id = $2, updated_at = NOW() WHERE id = $1 AND ar_account_id IS NULL
+`
+
+type SetBusinessARAccountIDParams struct {
+	ID          int64  `json:"id"`
+	ArAccountID *int32 `json:"ar_account_id"`
+}
+
+// The four queries below persist a business's system ledger_account ids the first time each
+// is provisioned or self-healed (see internal/server/system_accounts.go,
+// internal/periodclose/provision.go) - guarded by "column IS NULL" so a later call is a true
+// no-op (0 rows, no resource_version bump) once set, never overwriting an already-resolved id.
+func (q *Queries) SetBusinessARAccountID(ctx context.Context, arg SetBusinessARAccountIDParams) error {
+	_, err := q.db.Exec(ctx, setBusinessARAccountID, arg.ID, arg.ArAccountID)
+	return err
+}
+
+const setBusinessIncomeSummaryAccountID = `-- name: SetBusinessIncomeSummaryAccountID :exec
+UPDATE business SET income_summary_account_id = $2, updated_at = NOW() WHERE id = $1 AND income_summary_account_id IS NULL
+`
+
+type SetBusinessIncomeSummaryAccountIDParams struct {
+	ID                     int64  `json:"id"`
+	IncomeSummaryAccountID *int32 `json:"income_summary_account_id"`
+}
+
+func (q *Queries) SetBusinessIncomeSummaryAccountID(ctx context.Context, arg SetBusinessIncomeSummaryAccountIDParams) error {
+	_, err := q.db.Exec(ctx, setBusinessIncomeSummaryAccountID, arg.ID, arg.IncomeSummaryAccountID)
+	return err
+}
+
+const setBusinessRetainedEarningsAccountID = `-- name: SetBusinessRetainedEarningsAccountID :exec
+UPDATE business SET retained_earnings_account_id = $2, updated_at = NOW() WHERE id = $1 AND retained_earnings_account_id IS NULL
+`
+
+type SetBusinessRetainedEarningsAccountIDParams struct {
+	ID                        int64  `json:"id"`
+	RetainedEarningsAccountID *int32 `json:"retained_earnings_account_id"`
+}
+
+func (q *Queries) SetBusinessRetainedEarningsAccountID(ctx context.Context, arg SetBusinessRetainedEarningsAccountIDParams) error {
+	_, err := q.db.Exec(ctx, setBusinessRetainedEarningsAccountID, arg.ID, arg.RetainedEarningsAccountID)
+	return err
+}
+
 const updateBusiness = `-- name: UpdateBusiness :one
 UPDATE business SET
     name = COALESCE($1, name),
@@ -322,7 +403,7 @@ UPDATE business SET
     updated_at = NOW()
 WHERE id = $11 AND deleted_at IS NULL
     AND ($12::bigint IS NULL OR resource_version = $12)
-RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
+RETURNING id, name, tax_id, address_line1, address_line2, city, state, postal_code, country, phone, email, website_url, logo_url, default_payment_terms_days, default_tax_rate, default_invoice_terms, default_estimate_terms, invoice_number_prefix, estimate_number_prefix, next_invoice_number, next_estimate_number, timezone, currency_code, ar_account_id, ap_account_id, income_summary_account_id, retained_earnings_account_id, is_active, created_by_user_id, created_at, updated_at, resource_version, deleted_at
 `
 
 type UpdateBusinessParams struct {
@@ -380,6 +461,10 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 		&i.NextEstimateNumber,
 		&i.Timezone,
 		&i.CurrencyCode,
+		&i.ArAccountID,
+		&i.ApAccountID,
+		&i.IncomeSummaryAccountID,
+		&i.RetainedEarningsAccountID,
 		&i.IsActive,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
